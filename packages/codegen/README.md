@@ -88,6 +88,8 @@ Options:
   --version, -v     Show version
 ```
 
+> **Watch mode limitation:** `--watch` tracks page file changes only. It does **not** re-run route or contract discovery when you add or modify a controller. Route/contract artifacts (`routes.ts`, `api.ts`) are written once during the initial `generate()` pass. To pick up controller changes, restart the watcher (or run `nestjs-inertia codegen` one-shot).
+
 ## Programmatic API
 
 ```ts
