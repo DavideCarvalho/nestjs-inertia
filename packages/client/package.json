@@ -24,6 +24,10 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
+    },
+    "./vue": {
+      "types": "./dist/vue/index.d.ts",
+      "import": "./dist/vue/index.js"
     }
   },
   "files": [
@@ -40,9 +44,11 @@
   "peerDependencies": {
     "@dudousxd/nestjs-inertia": "workspace:*",
     "@inertiajs/react": "^2.0.0",
+    "@inertiajs/vue3": "^2.0.0",
     "@nestjs/common": "^10.0.0 || ^11.0.0",
     "@tanstack/query-core": "^5.0.0",
     "react": "^18.0.0",
+    "vue": "^3.4.0",
     "zod": "^3.22.0"
   },
   "peerDependenciesMeta": {
@@ -50,6 +56,12 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "@inertiajs/vue3": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -69,6 +81,10 @@
     "react-dom": "^18.3.0",
     "reflect-metadata": "^0.2.0",
     "typescript": "^5.4.0",
+    "@inertiajs/vue3": "^2.0.0",
+    "@vue/test-utils": "^2.4.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vue": "^3.5.0",
     "vitest": "^2.0.0",
     "zod": "^3.23.0"
   },
