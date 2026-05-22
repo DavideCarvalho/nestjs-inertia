@@ -120,7 +120,7 @@ export async function watch(
           routes = await discoverContractsFast({
             cwd: config.codegen.cwd,
             glob: config.contracts.glob,
-            tsconfig: config.app?.tsconfig ?? undefined,
+            ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
           });
         } else {
           // Use the injected stub unconditionally (test seam), or only discover
@@ -129,7 +129,7 @@ export async function watch(
           if (hasCustomImpl || config.app) {
             routes = await resolvedDiscoverRoutes({
               moduleEntry: config.app?.moduleEntry ?? '',
-              tsconfig: config.app?.tsconfig ?? undefined,
+              ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
             });
           }
           // else: no app config and no injected impl — re-emit empty routes below

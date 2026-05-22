@@ -277,7 +277,7 @@ function extractParams(
   path: string,
 ): Array<{ name: string; source: 'path' | 'query' | 'body' | 'header' }> {
   const matches = path.matchAll(/:(\w+)/g);
-  return Array.from(matches).map((m) => ({ name: m[1], source: 'path' as const }));
+  return Array.from(matches).map((m) => ({ name: m[1] as string, source: 'path' as const }));
 }
 
 // ---------------------------------------------------------------------------
