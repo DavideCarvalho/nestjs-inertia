@@ -14,7 +14,7 @@ export class InertiaServiceNotAvailableException extends Error {
 
 export class UnsupportedRootViewExtensionException extends Error {
   constructor(extension: string) {
-    super(`[nestjs-inertia] rootView extension "${extension}" is not supported in core. Template engines (.hbs/.ejs/.pug/.liquid) are planned for Plan A.3. Use a .html file with built-in directives or pass a (ctx) => string function.`);
+    super(`[nestjs-inertia] rootView extension "${extension}" is not supported. Supported extensions: .html, .htm, .hbs, .handlebars, .ejs, .pug, .liquid, .liquidjs. Or pass a (ctx) => string function for full control.`);
     this.name = 'UnsupportedRootViewExtensionException';
   }
 }
