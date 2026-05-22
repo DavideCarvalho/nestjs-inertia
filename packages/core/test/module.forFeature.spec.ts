@@ -1,9 +1,34 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Test } from '@nestjs/testing';
 import { Injectable } from '@nestjs/common';
 import { InertiaModule } from '../src/index.js';
 import { featureToken } from '../src/tokens.js';
 import type { InertiaModuleOptions, InertiaOptionsFactory } from '../src/index.js';
+
+describe('InertiaModule.forFeature — shell renderer', () => {
+  it('forFeature accepts template engine rootView (e.g. .hbs)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-feature-engine-'));
+    const sub = join(dir, 'inertia');
+    mkdirSync(sub);
+    writeFileSync(join(sub, 'admin-root.hbs'), '<!doctype html><body>{{{inertia}}}</body>');
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        InertiaModule.forRoot({}),
+        InertiaModule.forFeature({
+          scope: 'admin',
+          rootView: join(sub, 'admin-root.hbs'),
+        }),
+      ],
+    }).compile();
+
+    const shellRenderer = moduleRef.get(featureToken('SHELL_RENDERER', 'admin'));
+    expect(shellRenderer).toBeDefined();
+  });
+});
 
 describe('InertiaModule.forFeature', () => {
   it('registers scoped options under Symbol.for(prefix:scope)', async () => {

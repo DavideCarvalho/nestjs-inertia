@@ -1,6 +1,5 @@
 import { type DynamicModule, Inject, type MiddlewareConsumer, Module, type NestModule, type OnApplicationBootstrap, type Provider, RequestMethod } from '@nestjs/common';
 import { APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
-import { extname } from 'node:path';
 import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
 import { assetVersionProvider, loadManifest, computeAssetVersion, manifestProvider } from './asset/version.provider.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
@@ -8,7 +7,7 @@ import { DefaultShellRenderer } from './shell/shell.js';
 import { FileBasedShellRenderer } from './shell/file-shell.renderer.js';
 import { SsrLoaderService } from './ssr/ssr-loader.service.js';
 import type { InertiaFeatureAsyncOptions, InertiaFeatureOptions, InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
-import { InvalidInertiaConfigException, UnsupportedRootViewExtensionException } from './errors/exceptions.js';
+import { InvalidInertiaConfigException } from './errors/exceptions.js';
 import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
 import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
@@ -268,10 +267,6 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
             return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
           }
           if (typeof rv === 'string') {
-            const ext = extname(rv).toLowerCase();
-            if (ext !== '.html' && ext !== '.htm') {
-              throw new UnsupportedRootViewExtensionException(ext);
-            }
             return new FileBasedShellRenderer(rv);
           }
           return new DefaultShellRenderer();
