@@ -87,4 +87,27 @@ describe('emitRoutes', () => {
     const content = await readFile(join(nested, 'routes.ts'), 'utf8');
     expect(content).toContain('RouteName');
   });
+
+  it('emits RouteParamsMap type mapping every RouteName to its RouteParams', async () => {
+    await emitRoutes(sampleRoutes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // Must export the RouteParamsMap type
+    expect(content).toContain('export type RouteParamsMap');
+
+    // Must be a mapped type over RouteName with RouteParams<K>
+    expect(content).toMatch(/RouteParamsMap\s*=\s*\{\s*\[K in RouteName\]\s*:\s*RouteParams<K>/);
+  });
+
+  it('RouteParamsMap appears after RouteParams and before route() in the output', async () => {
+    await emitRoutes(sampleRoutes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    const routeParamsIdx = content.indexOf('export type RouteParams<');
+    const routeParamsMapIdx = content.indexOf('export type RouteParamsMap');
+    const routeFnIdx = content.indexOf('export function route<');
+
+    expect(routeParamsMapIdx).toBeGreaterThan(routeParamsIdx);
+    expect(routeFnIdx).toBeGreaterThan(routeParamsMapIdx);
+  });
 });

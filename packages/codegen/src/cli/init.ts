@@ -27,6 +27,8 @@ import '.nestjs-inertia/index.js';
 declare module '@dudousxd/nestjs-inertia' {
   interface InertiaRegistry {
     pages: import('.nestjs-inertia/pages.js').InertiaPages;
+    shared: import('.nestjs-inertia/shared.js').InertiaSharedProps;
+    routes: import('.nestjs-inertia/routes.js').RouteParamsMap;
   }
 }
 `;

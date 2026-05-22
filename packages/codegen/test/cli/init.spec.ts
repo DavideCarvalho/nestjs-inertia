@@ -35,6 +35,15 @@ describe('runInit', () => {
     expect(dtsContent).toContain('InertiaPages');
   });
 
+  it('nestjs-inertia.d.ts includes routes: RouteParamsMap augmentation', async () => {
+    const { runInit } = await import('../../src/cli/init.js');
+    await runInit({ cwd: tmpBase });
+
+    const dtsContent = await readFile(join(tmpBase, 'nestjs-inertia.d.ts'), 'utf8');
+    expect(dtsContent).toContain('RouteParamsMap');
+    expect(dtsContent).toMatch(/routes\s*:\s*import\([^)]+\)\.RouteParamsMap/);
+  });
+
   it('patches .gitignore (creates if missing) with .nestjs-inertia/', async () => {
     const { runInit } = await import('../../src/cli/init.js');
     await runInit({ cwd: tmpBase });
