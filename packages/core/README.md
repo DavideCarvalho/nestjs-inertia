@@ -1,17 +1,17 @@
 # @dudousxd/nestjs-inertia
 
-> Inertia.js adapter for NestJS — core protocol and module.
+> Inertia.js v2 adapter for NestJS — core protocol and module.
 
 [![npm](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia.svg)](https://npmjs.com/package/@dudousxd/nestjs-inertia)
 [![license](https://img.shields.io/npm/l/@dudousxd/nestjs-inertia.svg)](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/LICENSE)
 
-> **Status: 0.1.0-alpha. Not ready for production.** API may change.
+> **Status: 0.2.0-alpha.** Express adapter complete with full Inertia v2 protocol parity. Fastify, multi-app (forFeature), template engines, and CSRF arrive in 0.3.0 (Plan A.3).
 
 ## Install
 
 ```bash
 pnpm add @dudousxd/nestjs-inertia
-pnpm add express @types/express          # for Express adapter (default)
+pnpm add express @types/express          # Express adapter peer deps
 ```
 
 ## Quick start
@@ -24,84 +24,184 @@ import { InertiaModule } from '@dudousxd/nestjs-inertia';
 @Module({
   imports: [
     InertiaModule.forRoot({
-      version: 'v1',                    // or () => hash of build artifacts
-      share: async (req) => ({          // optional global shared props
-        auth: req.user ?? null,
-      }),
+      version: () => process.env.ASSET_VERSION ?? 'dev',
+      rootView: 'inertia/root.html',
+      share: async (req) => ({ auth: req.user ?? null }),
     }),
   ],
 })
 export class AppModule {}
 ```
 
+`inertia/root.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>My App</title>
+  @inertiaHead
+  @vite('app/client.tsx')
+  @viteRefresh
+</head>
+<body>
+  @inertia
+</body>
+</html>
+```
+
+## Controllers
+
+Two equivalent patterns coexist:
+
 ```ts
-// home.controller.ts
 import { Controller, Get, Req } from '@nestjs/common';
+import { Inertia } from '@dudousxd/nestjs-inertia';
 import type { Request } from 'express';
 
 @Controller()
 export class HomeController {
+  // Decorator pattern (idiomatic for new code)
   @Get('/')
-  async show(@Req() req: Request): Promise<void> {
-    await req.inertia.render('Home', { hello: 'world' });
+  @Inertia('Home')
+  show() {
+    return { hello: 'world' };
+  }
+
+  // Imperative pattern (use when you need fine control)
+  @Get('/crew')
+  async list(@Req() req: Request) {
+    await req.inertia
+      .share({ flash: req.session?.flash ?? {} })
+      .render('Crew', { crew: await this.svc.list() });
   }
 }
 ```
 
-## Features (v0.1.0-alpha)
+## Async config
 
-- **Inertia v2 protocol** — X-Inertia headers, version mismatch 409, partial reloads
-- **`req.inertia.share() / render() / location() / encryptHistory() / clearHistory()`**
-- **Prop markers** — `Inertia.always() / optional() / defer() / merge()` (+ `lazy()` alias for v1 compat)
-- **Express adapter** — Fastify support coming in 0.2
+```ts
+InertiaModule.forRootAsync({
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: (cfg: ConfigService) => ({
+    version: cfg.get('ASSET_VERSION'),
+    rootView: 'inertia/root.html',
+  }),
+});
+```
 
-## API
+Three paths: `useFactory + inject` (most common), `useClass`, `useExisting`.
 
-### `InertiaModule.forRoot(options)`
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `version` | `string \| () => Promise<string>` | UUID (dev) / SHA1 of Vite manifest (prod) | Asset version for cache-busting |
-| `share` | `Props \| (req) => Props \| Promise<Props>` | `undefined` | Globally shared props on every render |
-| `historyEncryption.default` | `boolean` | `false` | Default value of `page.encryptHistory` |
-| `vite.manifestPath` | `string` | `'dist/inertia/client/.vite/manifest.json'` | Custom Vite manifest path |
-
-### Prop markers
+## Prop markers
 
 ```ts
 import { Inertia } from '@dudousxd/nestjs-inertia';
 
 return {
-  // resolves on every render (even partial reloads)
-  user: Inertia.always(() => userService.current()),
-
-  // resolves only when listed in X-Inertia-Partial-Data
-  stats: Inertia.optional(() => statsService.heavy()),
-
-  // returned as deferredProps; client v2 dispatches a follow-up request
+  user: Inertia.always(() => currentUser()),
+  stats: Inertia.optional(() => heavyStatsCalculation()),
   activity: Inertia.defer(() => activityFeed(), 'secondary'),
-
-  // append/replace strategy; client v2 merges with matchOn key
-  rows: Inertia.merge(() => paged(page), { matchOn: 'id', deep: false }),
+  rows: Inertia.merge(() => paginated(p), { matchOn: 'id', deep: false }),
+  csrfToken: Inertia.once(() => generateToken()),
 };
 ```
 
-## Not yet implemented (planned for 0.2+)
+- `always` — resolves on every render (including partial reloads)
+- `optional` — resolves only when listed in `X-Inertia-Partial-Data`
+- `defer` — listed in `page.deferredProps`; client v2 dispatches a follow-up request
+- `merge` — resolves + marks as merge target (client appends/replaces)
+- `once` — resolves on first visit, cached until `X-Inertia-Reset-Once` lists the key
+- `lazy` — alias for `optional` (v1 compat)
 
-- `forRootAsync` / `forFeature` (multi-app)
-- `@Inertia('Page')` decorator + `InertiaRenderInterceptor`
-- Automatic 302→303 upgrade for PUT/PATCH/DELETE
-- `_method` spoofing middleware
-- CSRF token integration
-- HTML shell directives (`@inertia`, `@vite`, `@inertiaHead`)
-- Template engine adapter (Handlebars/EJS/Pug)
-- Real SSR loading (currently stub — Phase 13)
-- Fastify adapter (Phase 17)
-- Testing helpers package (`@dudousxd/nestjs-inertia-testing`)
-- Codegen package (`@dudousxd/nestjs-inertia-codegen`)
-- Tuyau-style typed client (`@dudousxd/nestjs-inertia-client`)
+## Auto-included infrastructure
 
-See [`docs/design.md`](../../docs/design.md) for the full design spec.
+`forRoot()` installs:
+- `InertiaMiddleware` on all routes (`req.inertia` available everywhere)
+- `MethodSpoofMiddleware` (POST + multipart + `_method=PUT/PATCH/DELETE`)
+- `RedirectInterceptor` (302 → 303 upgrade on PUT/PATCH/DELETE Inertia requests)
+- `InertiaRenderInterceptor` (handles `@Inertia('Page')` decorator)
+
+Disable via knobs:
+
+```ts
+InertiaModule.forRoot({
+  methodSpoofing: false,   // disable _method override
+  autoUpgrade303: false,   // disable 302→303 (NOT recommended; breaks forms)
+});
+```
+
+## Opt-in utilities
+
+```ts
+import {
+  InertiaAuthGuard,
+  InertiaNotFoundFilter,
+  ErrorBagInterceptor,
+} from '@dudousxd/nestjs-inertia';
+
+// Auth guard — applies per controller / handler
+@UseGuards(new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/signin/*'] }))
+
+// Not-found filter — register globally in main.ts
+app.useGlobalFilters(new InertiaNotFoundFilter({ apiPrefix: '/api', component: 'NotFound' }));
+
+// Error bag interceptor — opt-in per route
+@UseInterceptors(ErrorBagInterceptor)
+```
+
+## FlashStore (errors)
+
+NestJS has no session of its own. Plug an adapter:
+
+```ts
+import type { FlashStore } from '@dudousxd/nestjs-inertia';
+
+class ExpressSessionFlashStore implements FlashStore {
+  read(req) {
+    return (req as Request).session?.flash?.errors ?? {};
+  }
+}
+
+InertiaModule.forRoot({
+  flashStore: new ExpressSessionFlashStore(),
+});
+```
+
+## SSR
+
+```ts
+InertiaModule.forRoot({
+  ssr: {
+    enabled: process.env.NODE_ENV === 'production',
+    bundlePath: 'dist/inertia/ssr/ssr.mjs',
+    throwOnError: false,    // log warn + CSR fallback on missing bundle
+  },
+});
+```
+
+Bundle must export `default { render(page) }` or named `render(page)` returning `{ head: string[], body: string }`.
+
+## Protocol parity
+
+Full Inertia v2 protocol: X-Inertia headers, version mismatch (409 + X-Inertia-Location, GET only), partial reloads, deferred props, merge/deepMerge with matchOn, once, history encryption / clear, error bags, X-Inertia-Reset, X-Inertia-Partial-Except, dot-notation unpacking, undefined→null wire conversion.
+
+## Not yet (planned for 0.3.0 / Plan A.3)
+
+- `InertiaModule.forFeature({ scope })` for multi-app (`@UseInertia('admin')`)
+- Template engines (Handlebars/EJS/Pug/Liquid) for `rootView`
+- CSRF (`CsrfCookieInterceptor` + `CsrfGuard`)
+- Fastify adapter
+
+## Companion packages (planned)
+
+- `@dudousxd/nestjs-inertia-vite` — Vite dev/build helpers
+- `@dudousxd/nestjs-inertia-testing` — `expectInertia(res)` matchers
+- `@dudousxd/nestjs-inertia-codegen` — typed pages
+- `@dudousxd/nestjs-inertia-client` — Tuyau-style typed REST + TanStack Query
+
+See [`docs/design.md`](../../docs/design.md) for full design.
 
 ## License
 
