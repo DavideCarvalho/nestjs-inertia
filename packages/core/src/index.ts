@@ -5,6 +5,9 @@ export {
   UnsupportedRootViewExtensionException,
 } from './errors/exceptions.js';
 export { Inertia } from './markers.js';
+export type { InertiaRegistry } from './decorator/inertia.decorator.js';
+export { INERTIA_RENDER_COMPONENT } from './decorator/inertia.decorator.js';
+export { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
 export type { ShellRenderer } from './shell/shell.js';
 export { InertiaService } from './service.js';
 export { InertiaModule } from './module.js';

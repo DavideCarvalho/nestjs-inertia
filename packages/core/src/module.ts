@@ -1,4 +1,5 @@
 import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider, RequestMethod } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from './tokens.js';
 import { assetVersionProvider, manifestProvider } from './asset/version.provider.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
@@ -6,6 +7,7 @@ import { DefaultShellRenderer } from './shell/shell.js';
 import { SsrLoaderService } from './ssr/ssr-loader.service.js';
 import type { InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory } from './types.js';
 import { InvalidInertiaConfigException } from './errors/exceptions.js';
+import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
 
 @Module({})
 export class InertiaModule implements NestModule {
@@ -35,6 +37,10 @@ export class InertiaModule implements NestModule {
         shellProvider,
         ssrProvider,
         InertiaMiddleware,
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: InertiaRenderInterceptor,
+        },
       ],
       exports: [
         INERTIA_MODULE_OPTIONS,
@@ -79,6 +85,10 @@ export class InertiaModule implements NestModule {
         shellProvider,
         ssrProvider,
         InertiaMiddleware,
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: InertiaRenderInterceptor,
+        },
       ],
       exports: [
         INERTIA_MODULE_OPTIONS,
