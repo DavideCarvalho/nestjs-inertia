@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0-alpha.0] - 2026-05-22
+
+### Added (Phase 5 — Typed Link)
+
+- **Auto-bootstrap codegen** — `InertiaModule` now implements `OnApplicationBootstrap`; codegen runs automatically on app startup without manual wiring
+- **`RegistryRoutes` helper** — new core export for module augmentation that allows consuming typed route names and params across the app without importing from generated files
+- **`RouteParamsMap` emission** — codegen `init` command now emits a `RouteParamsMap` type and augments `InertiaRegistry` routes automatically
+- **ts-morph static AST contract discovery** — codegen now uses ts-morph for static AST analysis instead of a dynamic probe; approximately 20× faster cold start
+- **Watch mode covers contracts** — codegen `--watch` now detects contract file changes and re-emits `api.ts`
+- **Typed `<Link>` component** — `@dudousxd/nestjs-inertia-client` ships typed `Link` components for React (`/react`), Vue (`/vue`), and Svelte (`/svelte`) subpath exports; `route` prop is autocompleted and `routeParams` is conditionally required based on the route shape
+- **`setRouteResolver`** — client-side boot helper wires the codegen-emitted `route()` function into the typed `Link` components
+- **New examples** — `examples/fastify-vue` (Fastify + Vue 3 + Inertia) and `examples/express-svelte` (Express + Svelte 5 + Inertia) added alongside the existing `express-react` example
+- **Probe loop fix** — `NESTJS_INERTIA_CODEGEN_PROBE` environment variable guard prevents infinite re-spawn loops when the app re-bootstraps during codegen
+
+### Changed
+- All packages bumped to `0.8.0-alpha.0`
+
 ## [0.7.0-alpha.0] - 2026-05-22
 
 ### Added (Plan E — Examples + Docs + CI + Ecosystem)

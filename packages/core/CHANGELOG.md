@@ -2,6 +2,16 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## 0.8.0-alpha.0 — 2026-05-22
+
+### Added
+- **Auto-bootstrap codegen** — `InertiaModule` implements `OnApplicationBootstrap`; codegen is triggered automatically at app startup when `autoCodegen` is enabled in the module options
+- **`RegistryRoutes` helper** — new export enabling module augmentation for typed route names and params; consumers import `RegistryRoutes` to get the full typed route map from the augmented `InertiaRegistry`
+- **Probe loop fix** — `NESTJS_INERTIA_CODEGEN_PROBE` env guard prevents `OnApplicationBootstrap` from re-triggering codegen when the app is bootstrapped by the codegen probe itself
+
+### Changed
+- Version bump to `0.8.0-alpha.0`
+
 ## 0.7.0-alpha.0 — 2026-05-22
 
 ### Changed

@@ -1,5 +1,10 @@
 # Changelog — @dudousxd/nestjs-inertia-testing
 
+## 0.8.0-alpha.0 — 2026-05-22
+
+### Changed
+- Version bump to `0.8.0-alpha.0` (monorepo coordination with typed-Link release; no source changes)
+
 ## 0.7.0-alpha.0 — 2026-05-22
 
 ### Changed

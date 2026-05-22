@@ -2,6 +2,18 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## 0.8.0-alpha.0 — 2026-05-22
+
+### Added
+- **Typed `<Link>` for React** (`/react` subpath) — `<Link route="..." routeParams={{...}}>` with full TypeScript autocompletion; `routeParams` is omitted when the route has no dynamic segments
+- **Typed `<Link>` for Vue 3** (`/vue` subpath) — same typed API via a Vue 3 component; wraps `@inertiajs/vue3`'s `Link`
+- **Typed `<Link>` for Svelte** (`/svelte` subpath) — same typed API as a Svelte 5 component; wraps `@inertiajs/svelte`'s `Link`
+- **`setRouteResolver(fn)`** — boot-time helper to wire the codegen-emitted `route()` function into all typed `Link` components; call once in your entry file
+- **`RegistryRoutes` consumption** — `Link` components read typed route names and params from the `InertiaRegistry` augmentation emitted by codegen `init`
+
+### Changed
+- Version bump to `0.8.0-alpha.0`
+
 ## 0.7.0-alpha.0 — 2026-05-22
 
 ### Changed

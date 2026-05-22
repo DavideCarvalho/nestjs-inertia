@@ -1,5 +1,16 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 0.8.0-alpha.0 — 2026-05-22
+
+### Added
+- **`RouteParamsMap` emission** — codegen now emits a `RouteParamsMap` mapped type alongside `routes.ts`; `init` augments `InertiaRegistry` with the `routes` property automatically
+- **ts-morph static AST contract discovery** — contract metadata is now extracted via ts-morph's static AST traversal instead of a dynamic child-process bootstrap probe; approximately 20× faster cold start and no side effects from running the NestJS app
+- **Watch covers contracts** — `--watch` mode now monitors controller/contract source files and re-emits `api.ts` on change
+- **`init` augmentation update** — `nestjs-inertia init` now scaffolds `InertiaRegistry` augmentation that includes `routes: RouteParamsMap` for typed `Link` and `route()` usage
+
+### Changed
+- Version bump to `0.8.0-alpha.0`
+
 ## 0.7.0-alpha.0 — 2026-05-22
 
 ### Changed
