@@ -2,18 +2,23 @@
   import { Link as InertiaLink } from '@inertiajs/svelte';
   import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
   import { route as buildRoute } from '../routes-stub.js';
+  import type { Snippet } from 'svelte';
 
   type Routes = RegistryRoutes;
 
-  export let route: K;
-  // routeParams is optional at the .svelte boundary; compile-time enforcement
-  // comes from d.ts augmentation of InertiaRegistry in the consuming app.
-  export let routeParams: Routes[K] | undefined = undefined;
-  export let query: Record<string, unknown> | undefined = undefined;
+  interface Props {
+    route: K;
+    routeParams?: Routes[K];
+    query?: Record<string, unknown>;
+    children?: Snippet;
+    [key: string]: unknown;
+  }
 
-  $: href = buildRoute(route, routeParams as never, query);
+  const { route, routeParams = undefined, query = undefined, children, ...rest }: Props = $props();
+
+  const href = $derived(buildRoute(route, routeParams as never, query));
 </script>
 
-<InertiaLink {href} {...$$restProps}>
-  <slot />
+<InertiaLink {href} {...rest}>
+  {@render children?.()}
 </InertiaLink>

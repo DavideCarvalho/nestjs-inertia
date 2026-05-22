@@ -9,6 +9,14 @@ export interface NestInertiaPluginOptions {
   react?: boolean;
   vue?: boolean;
   svelte?: boolean;
+  /**
+   * When `true`, the nestInertia plugin will skip auto-loading the framework
+   * Vite plugin. Use this when the framework plugin (e.g. @sveltejs/vite-plugin-svelte)
+   * needs to be added manually in the vite config alongside nestInertia().
+   *
+   * @default false
+   */
+  skipFrameworkPlugin?: boolean;
   clientEntry?: string;
   ssrEntry?: string;
   alias?: Record<string, string>;
@@ -31,8 +39,9 @@ function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): Plugin {
         ? '@vitejs/plugin-vue'
         : '@sveltejs/vite-plugin-svelte';
   try {
-    const mod = require(pkg) as { default?: () => Plugin };
-    const factory = mod.default ?? (mod as () => Plugin);
+    const mod = require(pkg) as { default?: () => Plugin; svelte?: () => Plugin };
+    // @sveltejs/vite-plugin-svelte v3+ exports a named `svelte` export rather than default
+    const factory = mod.default ?? (framework === 'svelte' ? mod.svelte : undefined) ?? (mod as unknown as () => Plugin);
     return (factory as () => Plugin)();
   } catch {
     throw new InvalidViteConfigException(`Plugin "${pkg}" not installed. Run: pnpm add ${pkg}`);
@@ -93,6 +102,10 @@ export default function nestInertia(options: NestInertiaPluginOptions = {}): Plu
       return result;
     },
   };
+
+  if (options.skipFrameworkPlugin) {
+    return [configurer];
+  }
 
   const frameworkPlugin = options.react
     ? loadFrameworkPlugin('react')

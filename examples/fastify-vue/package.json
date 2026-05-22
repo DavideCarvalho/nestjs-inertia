@@ -15,7 +15,7 @@
     "@dudousxd/nestjs-inertia-codegen": "workspace:*",
     "@dudousxd/nestjs-inertia-vite": "workspace:*",
     "@dudousxd/nestjs-inertia-testing": "workspace:*",
-    "@inertiajs/vue3": "^2.0.0",
+    "@inertiajs/vue3": "^3.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-fastify": "^11.0.0",
