@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: false,
-    include: ['test/**/*.{spec,test}.ts'],
+    include: ['test/**/*.{spec,test}.ts', 'test/**/*.e2e-spec.ts'],
     setupFiles: ['reflect-metadata'],
     poolMatchGlobs: [
       [new URL('./test/asset-version.spec.ts', import.meta.url).pathname, 'forks'],
