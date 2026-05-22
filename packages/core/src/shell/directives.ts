@@ -25,7 +25,7 @@ export function processDirectives(template: string, ctx: DirectiveContext): stri
   // @inertia (no args) — lookahead ensures we don't match inside @inertiaHead (already consumed)
   out = out.replace(/@inertia(?![a-zA-Z(])/g, () => {
     if (ctx.ssrBody) return ctx.ssrBody;
-    return `<div id="app" data-page="${ctx.pageJson}"></div>`;
+    return `<div id="app"></div>\n<script id="inertia-page" type="application/json">${ctx.pageJson}</script>`;
   });
 
   // @viteRefresh (no args)

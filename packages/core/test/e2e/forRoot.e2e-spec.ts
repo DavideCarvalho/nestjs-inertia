@@ -45,12 +45,13 @@ describe('InertiaModule.forRoot — E2E', () => {
     });
   });
 
-  it('returns HTML shell without X-Inertia header', async () => {
+  it('returns HTML shell without X-Inertia header (v3: script#inertia-page)', async () => {
     const res = await request(app.getHttpServer()).get('/');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/html/);
-    expect(res.text).toContain('<div id="app"');
-    expect(res.text).toContain('data-page=');
+    expect(res.text).toContain('<div id="app">');
+    expect(res.text).toContain('<script id="inertia-page" type="application/json">');
+    expect(res.text).not.toContain('data-page=');
   });
 
   it('runs middleware on POST requests (req.inertia must be defined)', async () => {

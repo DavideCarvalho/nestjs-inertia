@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { extname, isAbsolute, resolve } from 'node:path';
 import type { Manifest } from '../asset/version.provider.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
-import { escapeHtml } from '../helpers/escape-html.js';
 import type { ShellRenderCtx } from '../types.js';
 import { processDirectives } from './directives.js';
 import type { ShellRenderer } from './shell.js';
@@ -41,7 +40,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
       this.cachedTemplate = readFileSync(this.absPath, 'utf8');
     }
 
-    const pageJson = escapeHtml(JSON.stringify(ctx.page));
+    const pageJson = JSON.stringify(ctx.page);
     const ssrHead = ctx.ssr?.head.join('\n') ?? '';
     const ssrBody = ctx.ssr?.body ?? null;
     const isDev = process.env.NODE_ENV !== 'production';
@@ -66,7 +65,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
       this.engineRenderer = adapter.compile(this.cachedTemplate, this.absPath);
     }
 
-    const inertiaHtml = ssrBody ?? `<div id="app" data-page="${pageJson}"></div>`;
+    const inertiaHtml = ssrBody ?? `<div id="app"></div>\n<script id="inertia-page" type="application/json">${pageJson}</script>`;
     const directiveCtx = { pageJson, ssrHead, ssrBody, manifest, isDev };
     const locals: Record<string, unknown> = {
       page: ctx.page,

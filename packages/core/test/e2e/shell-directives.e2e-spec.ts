@@ -56,13 +56,14 @@ describe('Shell directives — E2E with file-based rootView', () => {
     process.chdir(origCwd);
   });
 
-  it('serves HTML with @inertia expanded to <div id="app" data-page>', async () => {
+  it('serves HTML with @inertia expanded to <div id="app"> + <script id="inertia-page"> (v3)', async () => {
     const res = await request(app.getHttpServer()).get('/');
     expect(res.text).toContain('<!doctype html>');
     expect(res.text).toContain('<title>E2E Test</title>');
-    expect(res.text).toContain('<div id="app"');
-    expect(res.text).toContain('data-page=');
-    expect(res.text).toContain('&quot;component&quot;:&quot;Home&quot;');
+    expect(res.text).toContain('<div id="app">');
+    expect(res.text).toContain('<script id="inertia-page" type="application/json">');
+    expect(res.text).toContain('"component":"Home"');
+    expect(res.text).not.toContain('data-page=');
   });
 
   it('serves Inertia JSON when X-Inertia: true (file rootView not used)', async () => {

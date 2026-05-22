@@ -39,8 +39,8 @@ describe('Template engines — E2E', () => {
   it('Handlebars works end-to-end', async () => {
     const app = await setupApp('hbs', '<!doctype html><html><body>{{{inertia}}}</body></html>');
     const res = await request(app.getHttpServer()).get('/');
-    expect(res.text).toContain('<div id="app"');
-    expect(res.text).toContain('data-page=');
+    expect(res.text).toContain('<div id="app">');
+    expect(res.text).toContain('<script id="inertia-page" type="application/json">');
     await app.close();
   });
 

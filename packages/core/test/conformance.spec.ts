@@ -21,7 +21,7 @@ const baseDeps = () => ({
   manifest: null,
   ssrLoader: { load: async () => null },
   rootViewRender: async (ctx: { page: unknown }) =>
-    `<!doctype html><html><body><div id="app" data-page='${JSON.stringify(ctx.page)}'></div></body></html>`,
+    `<!doctype html><html><body><div id="app"></div><script id="inertia-page" type="application/json">${JSON.stringify(ctx.page)}</script></body></html>`,
   moduleShare: undefined,
   featureShare: undefined,
   historyEncryptionDefault: false,
@@ -31,14 +31,15 @@ const baseDeps = () => ({
 // Tier 1: protocol basics — must pass to claim Inertia compatibility
 // ---------------------------------------------------------------------------
 describe('conformance / tier 1 — protocol', () => {
-  it('non-Inertia visit returns full HTML with embedded page object', async () => {
+  it('non-Inertia visit returns full HTML with embedded page object (v3: script#inertia-page)', async () => {
     const req = fakeRequest({});
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Home', { hello: 'world' });
-    expect(res._captured.bodyHtml).toContain('<div id="app"');
-    expect(res._captured.bodyHtml).toContain('data-page=');
+    expect(res._captured.bodyHtml).toContain('<div id="app">');
+    expect(res._captured.bodyHtml).toContain('<script id="inertia-page" type="application/json">');
     expect(res._captured.bodyHtml).toContain('"component":"Home"');
+    expect(res._captured.bodyHtml).not.toContain('data-page=');
   });
 
   it('Inertia XHR returns JSON page object with X-Inertia, Vary headers', async () => {
@@ -480,13 +481,14 @@ describe('conformance / tier 6 — history', () => {
     expect((res._captured.body as { encryptHistory?: boolean }).encryptHistory).toBe(true);
   });
 
-  it('encryptHistory(false) sets page.encryptHistory: false explicitly (overrides default true)', async () => {
+  it('encryptHistory(false) suppresses emission even with default true (v3: only truthy values emitted)', async () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, { ...baseDeps(), historyEncryptionDefault: true });
     svc.encryptHistory(false);
     await svc.render('Page');
-    expect((res._captured.body as { encryptHistory?: boolean }).encryptHistory).toBe(false);
+    // v3: encryptHistory is only emitted when true; false → omit the field entirely
+    expect((res._captured.body as { encryptHistory?: boolean }).encryptHistory).toBeUndefined();
   });
 
   it('clearHistory() sets page.clearHistory: true', async () => {

@@ -38,10 +38,11 @@ describe('@Inertia decorator — E2E', () => {
     });
   });
 
-  it('still serves HTML shell on non-Inertia visit', async () => {
+  it('still serves HTML shell on non-Inertia visit (v3: JSON script tag, unescaped)', async () => {
     const res = await request(app.getHttpServer()).get('/dashboard');
     expect(res.headers['content-type']).toMatch(/html/);
-    // data-page attribute is HTML-escaped; check for escaped form
-    expect(res.text).toContain('&quot;component&quot;:&quot;Dashboard&quot;');
+    // v3: page data is in a JSON script tag (not an HTML attribute), so no HTML escaping
+    expect(res.text).toContain('<script id="inertia-page" type="application/json">');
+    expect(res.text).toContain('"component":"Dashboard"');
   });
 });

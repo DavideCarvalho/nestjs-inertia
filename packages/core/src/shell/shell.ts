@@ -1,4 +1,3 @@
-import { escapeHtml } from '../helpers/escape-html.js';
 import type { ShellRenderCtx } from '../types.js';
 
 export interface ShellRenderer {
@@ -7,7 +6,7 @@ export interface ShellRenderer {
 
 export class DefaultShellRenderer implements ShellRenderer {
   async render(ctx: ShellRenderCtx): Promise<string> {
-    const pageJson = escapeHtml(JSON.stringify(ctx.page));
+    const pageJson = JSON.stringify(ctx.page);
     return `<!doctype html>
 <html lang="en">
   <head>
@@ -15,7 +14,8 @@ export class DefaultShellRenderer implements ShellRenderer {
     <title>Inertia</title>
   </head>
   <body>
-    <div id="app" data-page="${pageJson}"></div>
+    <div id="app"></div>
+    <script id="inertia-page" type="application/json">${pageJson}</script>
   </body>
 </html>`;
   }

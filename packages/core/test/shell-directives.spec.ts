@@ -12,11 +12,12 @@ const baseCtx = (overrides: Partial<DirectiveContext> = {}): DirectiveContext =>
 });
 
 describe('processDirectives', () => {
-  it('@inertia expands to <div id="app" data-page="..."> in CSR mode', () => {
+  it('@inertia expands to <div id="app"> + <script id="inertia-page" type="application/json"> in CSR mode (v3)', () => {
     const out = processDirectives('<body>@inertia</body>', baseCtx());
-    expect(out).toContain('<div id="app"');
-    expect(out).toContain('data-page=');
+    expect(out).toContain('<div id="app">');
+    expect(out).toContain('<script id="inertia-page" type="application/json">');
     expect(out).toContain('{"component":"Home"}');
+    expect(out).not.toContain('data-page=');
   });
 
   it('@inertia expands to SSR body when ssrBody is present', () => {
@@ -127,6 +128,7 @@ describe('processDirectives', () => {
     expect(out).toContain('/@vite/client');
     expect(out).toContain('/app/client.tsx');
     expect(out).toContain('RefreshRuntime');
-    expect(out).toContain('data-page=');
+    expect(out).toContain('<script id="inertia-page" type="application/json">');
+    expect(out).not.toContain('data-page=');
   });
 });

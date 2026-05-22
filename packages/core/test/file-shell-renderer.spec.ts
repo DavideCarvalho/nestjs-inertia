@@ -19,7 +19,7 @@ function makeRoot(content: string, ext = 'html'): string {
 }
 
 describe('FileBasedShellRenderer', () => {
-  it('loads HTML template and expands @inertia directive', async () => {
+  it('loads HTML template and expands @inertia directive (v3: script#inertia-page)', async () => {
     const path = makeRoot('<!doctype html><body>@inertia</body>');
     const renderer = new FileBasedShellRenderer(path);
     const html = await renderer.render({
@@ -29,8 +29,9 @@ describe('FileBasedShellRenderer', () => {
       assetVersion: 'v1',
       ctx: { req: {}, res: {} },
     });
-    expect(html).toContain('<div id="app"');
-    expect(html).toContain('data-page=');
+    expect(html).toContain('<div id="app">');
+    expect(html).toContain('<script id="inertia-page" type="application/json">');
+    expect(html).not.toContain('data-page=');
   });
 
   it('throws UnsupportedRootViewExtensionException for unsupported extension', () => {
@@ -66,7 +67,8 @@ describe('FileBasedShellRenderer', () => {
       assetVersion: 'v1',
       ctx: { req: {}, res: {} },
     });
-    expect(html).toContain('<div id="app"');
+    expect(html).toContain('<div id="app">');
+    expect(html).toContain('<script id="inertia-page" type="application/json">');
   });
 
   it('detects dev mode from process.env.NODE_ENV', async () => {
