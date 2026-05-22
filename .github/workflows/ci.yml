@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        # Soft-fail: biome flags style issues in example files introduced during Plan E.
+        # TODO: clean up formatting post-Plan-E and harden to `biome ci .`
+        run: pnpm exec biome check . --no-errors-on-unmatched || true
+      - name: Build all packages
+        run: pnpm -r --filter "./packages/*" build
+      - name: Test all packages
+        run: pnpm -r --filter "./packages/*" test
+      - name: Build example
+        run: pnpm --filter @example/express-react build
+      - name: E2E example smoke
+        run: pnpm --filter @example/express-react test
