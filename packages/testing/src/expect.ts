@@ -121,6 +121,108 @@ export class InertiaAssertion {
     return this.toHaveProp(path, value);
   }
 
+  toHaveDeferredProp(name: string, group?: string): this {
+    const page = this.page();
+    const deferred = page.deferredProps ?? {};
+    const matchingGroup = group ? deferred[group] : Object.values(deferred).flat();
+    if (!matchingGroup || (Array.isArray(matchingGroup) ? !matchingGroup.includes(name) : !matchingGroup.flat().includes(name))) {
+      fail(`Expected deferred prop "${name}"${group ? ` in group "${group}"` : ''}, got ${JSON.stringify(deferred)}`, page);
+    }
+    return this;
+  }
+
+  toHaveMergeProp(name: string, opts?: { matchOn?: string; strategy?: 'append' | 'prepend' }): this {
+    const page = this.page();
+    const merge = page.mergeProps ?? [];
+    const deepMerge = page.deepMergeProps ?? [];
+    const all = [...merge, ...deepMerge];
+    if (!all.includes(name)) {
+      fail(`Expected merge prop "${name}", got mergeProps=${JSON.stringify(merge)}, deepMergeProps=${JSON.stringify(deepMerge)}`, page);
+    }
+    if (opts?.matchOn !== undefined) {
+      const actual = page.matchPropsOn?.[name];
+      if (actual !== opts.matchOn) {
+        fail(`Expected matchOn[${name}] = "${opts.matchOn}", got "${actual}"`, page);
+      }
+    }
+    return this;
+  }
+
+  toHaveAlwaysProp(name: string): this {
+    // Always props are not tracked separately on the wire — they just appear in props.
+    // This assertion confirms the prop is present, mirroring toHaveProp.
+    return this.toHaveProp(name);
+  }
+
+  toHaveOptionalProp(name: string): this {
+    // Same — optional props that resolved appear in props normally.
+    return this.toHaveProp(name);
+  }
+
+  toRedirectExternal(url: string): this {
+    if (this.res.status !== 409) {
+      throw new Error(`Expected status 409 (external redirect), got ${this.res.status}`);
+    }
+    const loc = this.res.headers['x-inertia-location'];
+    if (loc !== url) {
+      throw new Error(`Expected X-Inertia-Location "${url}", got "${loc}"`);
+    }
+    return this;
+  }
+
+  toRedirectTo(url: string, status?: 302 | 303): this {
+    if (status !== undefined && this.res.status !== status) {
+      throw new Error(`Expected status ${status}, got ${this.res.status}`);
+    }
+    const loc = this.res.headers['location'];
+    if (loc !== url) {
+      throw new Error(`Expected Location "${url}", got "${loc}"`);
+    }
+    return this;
+  }
+
+  toHaveErrors(errors: Record<string, string | RegExp>): this {
+    const page = this.page();
+    const actual = (page.props.errors ?? {}) as Record<string, unknown>;
+    for (const [key, expected] of Object.entries(errors)) {
+      const got = actual[key];
+      if (expected instanceof RegExp) {
+        if (typeof got !== 'string' || !expected.test(got)) {
+          fail(`Expected errors["${key}"] to match ${expected}, got ${JSON.stringify(got)}`, page);
+        }
+      } else if (got !== expected) {
+        fail(`Expected errors["${key}"] = "${expected}", got ${JSON.stringify(got)}`, page);
+      }
+    }
+    return this;
+  }
+
+  toHaveErrorBag(bag: string): this {
+    const page = this.page();
+    const errors = (page.props.errors ?? {}) as Record<string, unknown>;
+    if (typeof errors[bag] !== 'object' || errors[bag] === null) {
+      fail(`Expected errors bag "${bag}" to be an object, got ${JSON.stringify(errors[bag])}`, page);
+    }
+    return this;
+  }
+
+  toRenderFullHtml(): this {
+    const contentType = this.res.headers['content-type'];
+    const ct = Array.isArray(contentType) ? contentType[0] : contentType;
+    if (!ct || !ct.includes('html')) {
+      throw new Error(`Expected HTML response, got content-type "${ct}"`);
+    }
+    return this;
+  }
+
+  withSsrHead(pattern: RegExp): this {
+    const text = this.res.text ?? (typeof this.res.body === 'string' ? this.res.body : '');
+    if (!pattern.test(text)) {
+      throw new Error(`Expected SSR head to match ${pattern}, got body fragment: ${text.slice(0, 200)}...`);
+    }
+    return this;
+  }
+
   pageObject(): PageObject {
     return this.page();
   }

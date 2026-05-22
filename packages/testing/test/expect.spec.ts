@@ -65,3 +65,56 @@ describe('expectInertia — core assertions', () => {
       .toHaveProp('b', 2);
   });
 });
+
+describe('expectInertia — v2 markers', () => {
+  it('toHaveDeferredProp checks deferredProps', () => {
+    const res = buildRes({ component: 'X', props: {}, url: '/', version: 'v', deferredProps: { default: ['stats'] } });
+    expectInertia(res).toHaveDeferredProp('stats');
+  });
+
+  it('toHaveDeferredProp with group', () => {
+    const res = buildRes({ component: 'X', props: {}, url: '/', version: 'v', deferredProps: { secondary: ['act'] } });
+    expectInertia(res).toHaveDeferredProp('act', 'secondary');
+  });
+
+  it('toHaveMergeProp checks mergeProps list', () => {
+    const res = buildRes({ component: 'X', props: { rows: [] }, url: '/', version: 'v', mergeProps: ['rows'] });
+    expectInertia(res).toHaveMergeProp('rows');
+  });
+});
+
+describe('expectInertia — redirects', () => {
+  it('toRedirectExternal checks 409 + X-Inertia-Location', () => {
+    const res = { status: 409, body: null, headers: { 'x-inertia-location': 'https://stripe.com' } };
+    expectInertia(res).toRedirectExternal('https://stripe.com');
+  });
+
+  it('toRedirectTo checks Location header + status', () => {
+    const res = { status: 302, body: null, headers: { location: '/signin' } };
+    expectInertia(res).toRedirectTo('/signin', 302);
+  });
+});
+
+describe('expectInertia — errors', () => {
+  it('toHaveErrors checks props.errors with strings and regex', () => {
+    const res = buildRes({ component: 'X', props: { errors: { email: 'required', name: 'too short' } }, url: '/', version: 'v' });
+    expectInertia(res).toHaveErrors({ email: 'required', name: /short$/ });
+  });
+
+  it('toHaveErrorBag checks props.errors namespaced under bag', () => {
+    const res = buildRes({ component: 'X', props: { errors: { signin: { email: 'required' } } }, url: '/', version: 'v' });
+    expectInertia(res).toHaveErrorBag('signin');
+  });
+});
+
+describe('expectInertia — HTML mode', () => {
+  it('toRenderFullHtml passes when content-type is HTML', () => {
+    const res = { status: 200, body: '<html><body><div id="app"></div></body></html>', headers: { 'content-type': 'text/html' }, text: '<html><body><div id="app"></div></body></html>' };
+    expectInertia(res).toRenderFullHtml();
+  });
+
+  it('withSsrHead checks text against pattern', () => {
+    const res = { status: 200, body: null, headers: { 'content-type': 'text/html' }, text: '<html><head><title>Hello</title></head></html>' };
+    expectInertia(res).toRenderFullHtml().withSsrHead(/<title>Hello/);
+  });
+});
