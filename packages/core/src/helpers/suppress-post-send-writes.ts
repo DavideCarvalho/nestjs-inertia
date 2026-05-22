@@ -7,9 +7,10 @@ type Patchable = {
   send: Anyfn;
   header: Anyfn;
   setHeader: Anyfn;
+  end: Anyfn;
 };
 
-const KEYS = ['status', 'json', 'send', 'header', 'setHeader'] as const;
+const KEYS = ['status', 'json', 'send', 'header', 'setHeader', 'end'] as const;
 
 export function suppressPostSendWrites(res: Patchable): void {
   for (const key of KEYS) {

@@ -10,6 +10,7 @@ function makeFakeRes(headersSent = false) {
     send: vi.fn(() => { calls.push('send'); return res; }),
     header: vi.fn(() => { calls.push('header'); return res; }),
     setHeader: vi.fn(() => { calls.push('setHeader'); return res; }),
+    end: vi.fn(() => { calls.push('end'); return res; }),
   };
   return { res, calls };
 }
@@ -48,5 +49,21 @@ describe('suppressPostSendWrites', () => {
     suppressPostSendWrites(res as never);
     const ret = (res as any).status(200);
     expect(ret).toBe(res);
+  });
+
+  it('also no-ops end() when headersSent is true', () => {
+    const calls: string[] = [];
+    const res = {
+      headersSent: true,
+      status: () => res,
+      json: () => res,
+      send: () => res,
+      header: () => res,
+      setHeader: () => res,
+      end: () => { calls.push('end'); return res; },
+    };
+    suppressPostSendWrites(res as never);
+    (res as any).end();
+    expect(calls).toEqual([]);
   });
 });
