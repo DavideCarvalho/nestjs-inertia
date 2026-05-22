@@ -1,0 +1,29 @@
+---
+title: "@dudousxd/nestjs-inertia-testing"
+description: expectInertia, InertiaTestingModule, and assertion helpers for testing NestJS Inertia controllers.
+---
+
+```bash
+pnpm add -D @dudousxd/nestjs-inertia-testing
+```
+
+Drop-in test utilities for Vitest, Jest, and Node's built-in test runner.
+
+## Key API surface
+
+| Export | Description |
+|--------|-------------|
+| `expectInertia(response)` | Fluent assertion chain from a supertest response |
+| `assertInertia(payload)` | Fluent assertion chain from a raw JSON payload |
+| `InertiaTestingModule` | Pre-configured NestJS testing module |
+| `createFakeInertiaRequest(opts)` | Creates a fake `req.inertia` for unit tests |
+| `expectInertiaRequest(req)` | Assertion chain against a fake request |
+
+See [Testing guide](/nestjs-inertia/guides/testing/) for full examples.
+
+## Register matchers
+
+```ts
+// vitest.setup.ts
+import '@dudousxd/nestjs-inertia-testing/vitest';
+```

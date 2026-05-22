@@ -1,0 +1,40 @@
+---
+title: "@dudousxd/nestjs-inertia (core)"
+description: Core NestJS module, @Inertia decorator, InertiaService, and version negotiation.
+---
+
+```bash
+pnpm add @dudousxd/nestjs-inertia
+```
+
+The heart of the system. Implements the Inertia.js v2 protocol as a NestJS module.
+
+## Key API surface
+
+| Export | Description |
+|--------|-------------|
+| `InertiaModule.forRoot(options)` | Registers the module globally; sets root view, version, and shared props |
+| `InertiaModule.forRootAsync(options)` | Async variant (`useFactory`, `useClass`, `useExisting`) |
+| `InertiaModule.forFeature(options)` | Registers an additional scope with its own view/shared props |
+| `@Inertia(component)` | Method decorator — intercepts return value, renders Inertia response |
+| `@UseInertia(scope)` | Controller/method decorator — selects a `forFeature` scope |
+| `InertiaService` | Injectable service for programmatic renders and redirects |
+| `Inertia.always(fn)` | Prop marker — always resolved, even on partial reloads |
+| `Inertia.optional(fn)` | Prop marker — resolved only when explicitly requested |
+| `Inertia.defer(fn, group?)` | Prop marker — deferred to a separate request |
+| `Inertia.merge(fn, opts?)` | Prop marker — appended/prepended on reload |
+| `InertiaAuthGuard` | 409 for XHR, 302 for initial GET |
+| `InertiaNotFoundFilter` | Renders `NotFound` component outside `/api` routes |
+| `ErrorBagInterceptor` | Namespaces `errors` by `X-Inertia-Error-Bag` header |
+| `CsrfCookieInterceptor` | Sets `XSRF-TOKEN` cookie and validates `X-XSRF-TOKEN` |
+
+## Minimal forRoot options
+
+```ts
+InertiaModule.forRoot({
+  rootView: 'inertia/root.html', // path to HTML shell (relative to cwd)
+  version: '1',                  // asset version for cache-busting
+})
+```
+
+See the [Getting Started](/nestjs-inertia/getting-started/) guide for a full bootstrap example.

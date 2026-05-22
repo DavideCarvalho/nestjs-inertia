@@ -1,0 +1,23 @@
+---
+title: "@dudousxd/nestjs-inertia-codegen"
+description: CLI that emits typed pages.d.ts, routes.ts, and api.ts from your NestJS app.
+---
+
+```bash
+pnpm add -D @dudousxd/nestjs-inertia-codegen
+```
+
+Static-analysis CLI that reads your NestJS controllers and Inertia page components and emits fully typed TypeScript files.
+
+## Key API surface
+
+| CLI / export | Description |
+|--------------|-------------|
+| `nestjs-inertia codegen` | One-shot generation |
+| `nestjs-inertia codegen --watch` | Watch mode |
+| `nestjs-inertia init` | Scaffolds `nestjs-inertia.config.ts` + `.gitignore` entry |
+| `defineConfig(config)` | Type-safe config helper |
+| `generate(config)` | Programmatic API |
+| `watch(config, onChange?)` | Programmatic watch API |
+
+See [Codegen guide](/nestjs-inertia/guides/codegen/) for full configuration and output reference.

@@ -1,0 +1,48 @@
+---
+title: "@dudousxd/nestjs-inertia-vite"
+description: Vite plugin and dev-server middleware bridge for NestJS.
+---
+
+```bash
+pnpm add @dudousxd/nestjs-inertia-vite
+pnpm add -D vite @vitejs/plugin-react
+```
+
+Bridges NestJS and Vite's dev server so that HMR, React Fast Refresh, and the Vite manifest work transparently.
+
+## Key API surface
+
+| Export | Description |
+|--------|-------------|
+| `nestInertia(options)` | Vite plugin — configures React/Vue/Svelte transforms + manifest |
+| `setupInertiaVite(app, options)` | Attaches Vite dev-server middleware to the NestJS app |
+
+## Vite plugin
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import nestInertia from '@dudousxd/nestjs-inertia-vite/plugin';
+
+export default defineConfig({
+  plugins: [nestInertia({ react: true })],
+  build: {
+    outDir: 'dist/client',
+    manifest: true,
+    rollupOptions: { input: ['inertia/app.tsx'] },
+  },
+});
+```
+
+## Dev-server bootstrap
+
+```ts
+// src/main.ts
+import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite';
+
+const app = await NestFactory.create(AppModule);
+await setupInertiaVite(app, { mode: process.env.NODE_ENV });
+await app.listen(3000);
+```
+
+In development, attaches Vite in middleware mode with HMR. In production, serves hashed assets from `dist/client/` with long cache headers.

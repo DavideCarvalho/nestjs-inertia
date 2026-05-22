@@ -1,0 +1,131 @@
+---
+title: Codegen
+description: Use nestjs-inertia-codegen to emit typed pages, routes, and a typed API surface from your NestJS controllers.
+---
+
+`@dudousxd/nestjs-inertia-codegen` provides a CLI that statically analyses your NestJS application and emits TypeScript type files so that your frontend and any API client are fully type-safe.
+
+## Install
+
+```bash
+pnpm add -D @dudousxd/nestjs-inertia-codegen
+```
+
+## Configuration
+
+Create `nestjs-inertia.config.ts` at your project root:
+
+```ts
+import { defineConfig } from '@dudousxd/nestjs-inertia-codegen';
+
+export default defineConfig({
+  pages: {
+    // Glob pattern for Inertia page components
+    glob: 'inertia/pages/**/*.tsx',
+    // Named export that holds the page's prop type
+    propsExport: 'ComponentProps',
+  },
+  app: {
+    // Path to the NestJS AppModule (used to discover controllers)
+    moduleEntry: './src/app.module.ts',
+  },
+  // Optional: where to emit generated files (default: .nestjs-inertia/)
+  outDir: '.nestjs-inertia',
+});
+```
+
+## Running
+
+```bash
+pnpm nestjs-inertia codegen
+```
+
+Or add a script to `package.json`:
+
+```json
+{
+  "scripts": {
+    "codegen": "nestjs-inertia codegen"
+  }
+}
+```
+
+## Output structure
+
+```
+.nestjs-inertia/
+  pages.d.ts   — union type of all known Inertia page component names
+  routes.ts    — typed route helpers derived from @Inertia() metadata
+  api.ts       — typed client API surface derived from @ApplyContract() metadata
+```
+
+### `pages.d.ts`
+
+```ts
+export type InertiaPages = 'Dashboard' | 'Users' | 'Settings';
+```
+
+Use this type to constrain the `component` argument wherever you construct Inertia responses programmatically.
+
+### `routes.ts`
+
+```ts
+export const routes = {
+  dashboard: () => '/dashboard',
+  users: { list: () => '/api/users' },
+} as const;
+```
+
+### `api.ts`
+
+```ts
+export interface InertiaApi {
+  'users.list': {
+    method: 'GET';
+    url: '/api/users';
+    query: { active?: boolean };
+    response: Array<{ id: string; name: string }>;
+  };
+}
+```
+
+This file is consumed by `@dudousxd/nestjs-inertia-client`'s `createFetcher` to produce a fully typed client.
+
+## `@ApplyContract` example
+
+```ts
+import { Controller } from '@nestjs/common';
+import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
+import { z } from 'zod';
+
+const ListUsers = Contract.get('/api/users', {
+  query: z.object({ active: z.boolean().optional() }),
+  response: z.array(z.object({ id: z.string(), name: z.string() })),
+  name: 'users.list',
+});
+
+@Controller()
+export class UsersController {
+  @ApplyContract(ListUsers)
+  list() {
+    return [
+      { id: '1', name: 'Alice' },
+      { id: '2', name: 'Bob' },
+    ];
+  }
+}
+```
+
+After running `pnpm codegen`, the `users.list` contract appears in `api.ts`.
+
+## Watch mode
+
+```bash
+pnpm nestjs-inertia codegen --watch
+```
+
+Reruns whenever a controller or page file changes.
+
+## Generated file management
+
+Add the output directory to version control so that CI has types without running the CLI. Alternatively, add a `postinstall` script to generate on install and add `.nestjs-inertia/` to `.gitignore`.

@@ -1,0 +1,108 @@
+---
+title: Testing
+description: Use expectInertia, InertiaTestingModule, and assertInertia to test NestJS Inertia controllers.
+---
+
+## Install
+
+```bash
+pnpm add -D @dudousxd/nestjs-inertia-testing
+```
+
+## E2E with supertest
+
+The most complete approach — spins up the real HTTP stack:
+
+```ts
+import * as request from 'supertest';
+import { expectInertia } from '@dudousxd/nestjs-inertia-testing';
+
+it('renders Dashboard with user prop', async () => {
+  const res = await request(app.getHttpServer())
+    .get('/dashboard')
+    .set('X-Inertia', 'true');
+
+  expectInertia(res)
+    .toRenderComponent('Dashboard')
+    .toHaveProp('user.id', 42);
+});
+```
+
+## Unit tests with InertiaTestingModule
+
+For fast unit tests that don't spin up HTTP:
+
+```ts
+import { Test } from '@nestjs/testing';
+import {
+  InertiaTestingModule,
+  createFakeInertiaRequest,
+  expectInertiaRequest,
+} from '@dudousxd/nestjs-inertia-testing';
+
+const moduleRef = await Test.createTestingModule({
+  imports: [InertiaTestingModule.forTest({})],
+  controllers: [DashboardController],
+  providers: [{ provide: UserService, useValue: mockUsers }],
+}).compile();
+
+const controller = moduleRef.get(DashboardController);
+const fakeReq = createFakeInertiaRequest({ method: 'GET', url: '/dashboard' });
+await controller.show(fakeReq);
+
+expectInertiaRequest(fakeReq).toRenderComponent('Dashboard').toHaveProp('user.id', 42);
+```
+
+## assertInertia (plain payload)
+
+For testing codegen output or JSON fixtures directly:
+
+```ts
+import { assertInertia } from '@dudousxd/nestjs-inertia-testing';
+
+assertInertia(jsonPayload).toRenderComponent('Dashboard');
+```
+
+## Full assertion API
+
+```ts
+expectInertia(res)
+  .toRenderComponent('Dashboard')       // component name
+  .toHaveUrl('/dashboard')              // page URL
+  .toHaveProp('user.name', 'Alice')     // deep prop with value
+  .toHaveProp('count')                  // prop exists (any value)
+  .toMissProp('hidden')                 // prop absent
+  .toHaveExactProps({ user, count })    // full props equality
+  .toShareProp('auth.id', 1)            // shared prop
+  .toHaveDeferredProp('activity')       // prop marked defer()
+  .toHaveMergeProp('transactions')      // prop marked merge()
+  .toHaveAlwaysProp('user')             // prop marked always()
+  .toHaveErrors({ email: 'required' })  // validation errors
+  .toRedirectTo('/login', 302);         // redirect assertion
+```
+
+## Partial reload testing
+
+```ts
+const res = await request(app.getHttpServer())
+  .get('/dashboard')
+  .set('X-Inertia', 'true')
+  .set('X-Inertia-Partial-Component', 'Dashboard')
+  .set('X-Inertia-Partial-Data', 'stats');
+
+expectInertia(res)
+  .toHaveProp('stats')
+  .toMissProp('activity');
+```
+
+## Framework support
+
+Import the matcher extension for your test framework:
+
+```ts
+// Vitest
+import '@dudousxd/nestjs-inertia-testing/vitest';
+
+// Jest
+import '@dudousxd/nestjs-inertia-testing/jest';
+```

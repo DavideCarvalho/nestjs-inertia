@@ -1,0 +1,32 @@
+---
+title: Changelog
+description: Links to per-package changelogs and the monorepo CHANGELOG.
+---
+
+nestjs-inertia uses [Changesets](https://github.com/changesets/changesets) for versioned releases. Each package maintains its own CHANGELOG.
+
+## Per-package changelogs
+
+| Package | Changelog |
+|---------|-----------|
+| `@dudousxd/nestjs-inertia` | [packages/core/CHANGELOG.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/packages/core/CHANGELOG.md) |
+| `@dudousxd/nestjs-inertia-vite` | [packages/vite/CHANGELOG.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/packages/vite/CHANGELOG.md) |
+| `@dudousxd/nestjs-inertia-testing` | [packages/testing/CHANGELOG.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/packages/testing/CHANGELOG.md) |
+| `@dudousxd/nestjs-inertia-codegen` | [packages/codegen/CHANGELOG.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/packages/codegen/CHANGELOG.md) |
+| `@dudousxd/nestjs-inertia-client` | [packages/client/CHANGELOG.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/packages/client/CHANGELOG.md) |
+
+## Root changelog
+
+[CHANGELOG.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/CHANGELOG.md) — monorepo-level release notes.
+
+## Release process
+
+```bash
+# Add a changeset to your PR:
+pnpm changeset
+
+# Merge to main — CI opens a "Version Packages" PR automatically.
+# Merge that PR — CI publishes to npm in topological order.
+```
+
+See [CONTRIBUTING.md](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/CONTRIBUTING.md) for the full release flow.

@@ -1,0 +1,60 @@
+---
+title: Multi-App (forFeature)
+description: Run multiple independent Inertia apps (scopes) inside the same NestJS process using forFeature.
+---
+
+## Why multi-app?
+
+Sometimes you need two independent Inertia frontends served from the same NestJS process — for example a user-facing `portal` and an `admin` panel, each with its own Vite entry, HTML shell, and shared props.
+
+nestjs-inertia supports this via `InertiaModule.forFeature()`.
+
+## Configure a new scope
+
+```ts
+// admin.module.ts
+import { Module } from '@nestjs/common';
+import { InertiaModule } from '@dudousxd/nestjs-inertia';
+
+@Module({
+  imports: [
+    InertiaModule.forFeature({
+      scope: 'admin',
+      rootView: 'inertia/admin/root.html',
+      vite: { entry: 'admin/client.tsx' },
+      share: async (req) => ({ adminUser: req.user }),
+    }),
+  ],
+  controllers: [AdminDashboardController],
+})
+export class AdminModule {}
+```
+
+Each scope has its own `InertiaService`, Vite manifest, SSR loader, and shared props — completely isolated from the default scope registered by `forRoot()`.
+
+## Select a scope in a controller
+
+Use `@UseInertia('scope-name')` on a controller or a handler to bind it to a specific scope:
+
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { Inertia, UseInertia } from '@dudousxd/nestjs-inertia';
+
+@Controller('admin')
+@UseInertia('admin')
+export class AdminDashboardController {
+  @Get('/')
+  @Inertia('admin/Dashboard')
+  index() {
+    return { stats: { users: 120 } };
+  }
+}
+```
+
+## Default scope
+
+Controllers that do not use `@UseInertia` will use the default scope registered by `InertiaModule.forRoot()`.
+
+## Shared props are scope-isolated
+
+Shared props from `forRoot.share` are **not** injected into `forFeature` scopes and vice-versa. Each scope's `share` function only runs for controllers bound to that scope.

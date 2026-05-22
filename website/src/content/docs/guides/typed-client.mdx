@@ -1,0 +1,94 @@
+---
+title: Typed Client
+description: Use Contract, @ApplyContract, createFetcher, and SSR hydration from @dudousxd/nestjs-inertia-client.
+---
+
+`@dudousxd/nestjs-inertia-client` provides a Tuyau-style typed HTTP client that bridges your NestJS backend and frontend with end-to-end type safety.
+
+## Install
+
+```bash
+pnpm add @dudousxd/nestjs-inertia-client
+```
+
+## Declare a Contract
+
+A `Contract` describes the type signature of a REST endpoint:
+
+```ts
+import { Contract } from '@dudousxd/nestjs-inertia-client';
+import { z } from 'zod';
+
+const ListUsers = Contract.get('/api/users', {
+  query: z.object({ active: z.boolean().optional() }),
+  response: z.array(z.object({ id: z.string(), name: z.string() })),
+  name: 'users.list',
+});
+```
+
+## Attach with @ApplyContract
+
+```ts
+import { Controller } from '@nestjs/common';
+import { ApplyContract } from '@dudousxd/nestjs-inertia-client';
+
+@Controller()
+export class UsersController {
+  @ApplyContract(ListUsers)
+  list(@Query() q: z.infer<typeof ListUsers.query>) {
+    return this.usersService.list(q);
+  }
+}
+```
+
+Run `pnpm nestjs-inertia codegen` to emit the typed `api.ts` from this contract.
+
+## createFetcher
+
+```ts
+import { createFetcher } from '@dudousxd/nestjs-inertia-client';
+import type { InertiaApi } from './.nestjs-inertia/api.js';
+
+const api = createFetcher<InertiaApi>({ baseURL: '' });
+
+// TypeScript knows the query shape and response type:
+const users = await api['users.list']({ query: { active: true } });
+```
+
+## TanStack Query integration
+
+Codegen emits `queryOptions` / `mutationOptions` helpers for TanStack Query v5:
+
+```tsx
+// React
+import { useQuery } from '@tanstack/react-query';
+import { api } from './.nestjs-inertia/api';
+
+const { data } = useQuery(api['users.list'].queryOptions({ active: true }));
+```
+
+The same `queryOptions` object works with Vue Query and Svelte Query — zero framework-specific adapters needed.
+
+## SSR hydration
+
+```ts
+import { hydrateClientFromInertia } from '@dudousxd/nestjs-inertia-client/ssr';
+import { createServer } from '@inertiajs/react/server';
+
+export default createServer(async (page) => {
+  const queryClient = hydrateClientFromInertia(page);
+  return createInertiaApp({ /* ... */ });
+});
+```
+
+`hydrateClientFromInertia` initialises a TanStack Query `QueryClient` from the Inertia initial-page payload so the client can rehydrate without a redundant network request.
+
+## InferResponse helper
+
+```ts
+import type { InferResponse } from './.nestjs-inertia/api';
+
+export type ComponentProps = {
+  users: InferResponse<'users.list'>; // reuses the server type
+};
+```

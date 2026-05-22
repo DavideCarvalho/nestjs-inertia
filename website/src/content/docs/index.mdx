@@ -1,0 +1,37 @@
+---
+title: nestjs-inertia
+description: Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.
+template: splash
+hero:
+  tagline: Build server-driven SPAs with NestJS and Inertia.js — full type safety, multi-app support, and Tuyau-style typed client.
+  actions:
+    - text: Get Started
+      link: /nestjs-inertia/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/DavideCarvalho/nestjs-inertia
+      icon: external
+---
+
+## What is nestjs-inertia?
+
+`nestjs-inertia` is a TypeScript-first monorepo of five focused packages that implement the [Inertia.js v2](https://inertiajs.com/) protocol for NestJS applications.
+
+| Package | Description |
+|---------|-------------|
+| `@dudousxd/nestjs-inertia` | Core protocol + NestJS module |
+| `@dudousxd/nestjs-inertia-vite` | Vite dev/build helpers + plugin |
+| `@dudousxd/nestjs-inertia-testing` | `expectInertia` matchers, fakes, and TestingModule |
+| `@dudousxd/nestjs-inertia-codegen` | Typed pages, routes, and `api.ts` via CLI |
+| `@dudousxd/nestjs-inertia-client` | Tuyau-style typed HTTP client + SSR hydration |
+
+> **Alpha status:** All packages are at `0.7.0-alpha.0`. The API is stabilising — not recommended for production use yet.
+
+## Quick install
+
+```bash
+pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+```
+
+See [Getting Started](/nestjs-inertia/getting-started/) for the full 5-minute walkthrough.

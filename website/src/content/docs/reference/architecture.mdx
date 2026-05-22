@@ -1,0 +1,92 @@
+---
+title: Architecture
+description: Package responsibilities, dependency graph, and request lifecycle for nestjs-inertia.
+---
+
+nestjs-inertia is a TypeScript-first monorepo of five focused packages that together implement the [Inertia.js](https://inertiajs.com/) protocol for NestJS applications.
+
+## Package map
+
+```
+                       ┌──────────────────────────────┐
+                       │   @dudousxd/nestjs-inertia   │
+                       │          (core)               │
+                       │                               │
+                       │  InertiaModule.forRoot()      │
+                       │  @Inertia() decorator         │
+                       │  InertiaService               │
+                       │  version negotiation          │
+                       └───────────┬──────────────────┘
+              ┌───────────────────┤────────────────────┐
+              │                   │                    │
+              ▼                   ▼                    ▼
+ ┌────────────────────┐  ┌─────────────────┐  ┌───────────────────────┐
+ │  nestjs-inertia-   │  │  nestjs-inertia │  │  nestjs-inertia-      │
+ │       vite         │  │    -testing     │  │      codegen          │
+ │                    │  │                 │  │                       │
+ │  Vite plugin       │  │ expectInertia() │  │  CLI: codegen         │
+ │  dev-server HMR    │  │ InertiaFaker    │  │  Emits:               │
+ │  manifest serving  │  │ TestingModule   │  │    pages.d.ts         │
+ └────────────────────┘  └─────────────────┘  │    routes.ts          │
+                                              │    api.ts             │
+                                              └──────────┬────────────┘
+                                                         │ emits
+                                                         ▼
+                                              ┌───────────────────────┐
+                                              │  nestjs-inertia-      │
+                                              │       client          │
+                                              │                       │
+                                              │  Contract builder     │
+                                              │  @ApplyContract       │
+                                              │  createFetcher        │
+                                              │  SSR hydration        │
+                                              └───────────────────────┘
+```
+
+## Package responsibilities
+
+### `@dudousxd/nestjs-inertia` (core)
+
+- `InertiaModule.forRoot(options)` — registers the module globally, configures the root view, version string, and shared-data factory.
+- `@Inertia(component)` — method decorator that intercepts a controller return value and serialises it as an Inertia response.
+- `InertiaService` — injectable service for programmatic Inertia redirects and shared-prop merging.
+- Version negotiation — compares `X-Inertia-Version` header and triggers a full reload when assets change.
+
+### `@dudousxd/nestjs-inertia-vite`
+
+- Vite plugin (`nestInertia(options)`) for React/Vue/Svelte transforms.
+- `setupInertiaVite(app, options)` — attaches the Vite dev-server middleware to the NestJS Express/Fastify app.
+- In production, reads the Vite manifest to inject hashed asset URLs into the root view.
+
+### `@dudousxd/nestjs-inertia-testing`
+
+- `expectInertia(response)` — fluent assertion chain (`toRenderComponent`, `toHaveProp`, `toHaveVersion`, …).
+- `InertiaFaker` — creates fake Inertia responses for unit tests without spinning up HTTP.
+- `createInertiaTestingModule(metadata)` — thin wrapper around NestJS `Test.createTestingModule` that pre-registers `InertiaModule`.
+
+### `@dudousxd/nestjs-inertia-codegen`
+
+CLI (`nestjs-inertia codegen`) that statically analyses the NestJS app and emits:
+- `pages.d.ts` — union of all Inertia page component names.
+- `routes.ts` — typed route helpers derived from controller metadata.
+- `api.ts` — typed client API surface derived from `@ApplyContract` metadata.
+
+### `@dudousxd/nestjs-inertia-client`
+
+- `Contract` builder — declare typed request/response schemas with Zod.
+- `@ApplyContract(contract)` — attaches the contract to a controller method (read by codegen).
+- `createFetcher(apiDef)` — creates a typed fetch client from the generated `api.ts`.
+- `hydrateClientFromInertia` — initialises TanStack Query from the Inertia initial-page payload.
+
+## Data flow (request lifecycle)
+
+```
+Browser GET /dashboard
+  → NestJS router → DashboardController.index()
+      → @Inertia('Dashboard') interceptor
+          ← { user, count }   (return value)
+      → InertiaService serializes response
+          • First visit  → HTML shell (Vite manifest + <div id="app" data-page="…">)
+          • X-Inertia    → JSON { component, props, url, version }
+  → Browser renders React page via inertia/app.tsx
+```

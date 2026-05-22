@@ -1,0 +1,68 @@
+---
+title: Installation
+description: Install nestjs-inertia packages with pnpm, npm, or yarn, and understand peer dependencies.
+---
+
+## Package manager variants
+
+### pnpm (recommended)
+
+```bash
+pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+pnpm add -D @dudousxd/nestjs-inertia-codegen
+```
+
+### npm
+
+```bash
+npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+npm install --save-dev @dudousxd/nestjs-inertia-codegen
+```
+
+### yarn
+
+```bash
+yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+yarn add -D @dudousxd/nestjs-inertia-codegen
+```
+
+## Peer dependencies
+
+| Peer dep | Required by | Condition |
+|----------|-------------|-----------|
+| `@nestjs/common >=10` | core | always |
+| `@nestjs/core >=10` | core | always |
+| `express >=4` | core | Express adapter (default) |
+| `fastify >=4` | core | Fastify adapter (optional) |
+| `vite >=5` | vite | build pipeline |
+| `@nestjs/testing >=10` | testing | test suites |
+| `typescript >=5` | codegen | CLI static analysis |
+
+### Express (default NestJS adapter)
+
+```bash
+pnpm add express
+pnpm add -D @types/express
+```
+
+### Fastify (optional)
+
+```bash
+pnpm add fastify @fastify/cookie @nestjs/platform-fastify
+```
+
+## Optional packages
+
+Install only what you need:
+
+```bash
+# Typed HTTP client
+pnpm add @dudousxd/nestjs-inertia-client
+
+# Test helpers
+pnpm add -D @dudousxd/nestjs-inertia-testing
+```
+
+## Engine requirements
+
+All packages require **Node.js >= 20**. NestJS 10 and 11 are both supported.

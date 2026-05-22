@@ -1,0 +1,22 @@
+---
+title: "@dudousxd/nestjs-inertia-client"
+description: Tuyau-style typed HTTP client with Contract builders, createFetcher, and SSR hydration.
+---
+
+```bash
+pnpm add @dudousxd/nestjs-inertia-client
+```
+
+End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen.
+
+## Key API surface
+
+| Export | Description |
+|--------|-------------|
+| `Contract.get/post/put/patch/delete` | Declare a typed REST contract with Zod schemas |
+| `@ApplyContract(contract)` | Attach a contract to a controller method (read by codegen) |
+| `createFetcher<Api>(options)` | Create a typed fetch client from `api.ts` |
+| `InferResponse<K>` | Extract the response type for a given route key |
+| `hydrateClientFromInertia(page)` | SSR: initialise TanStack Query from Inertia initial-page data |
+
+See [Typed Client guide](/nestjs-inertia/guides/typed-client/) for full usage examples.
