@@ -6,6 +6,9 @@ export default defineConfig({
     globals: false,
     include: ['test/**/*.{spec,test}.ts'],
     setupFiles: ['reflect-metadata'],
+    poolMatchGlobs: [
+      [new URL('./test/asset-version.spec.ts', import.meta.url).pathname, 'forks'],
+    ],
   },
   resolve: {
     alias: {
