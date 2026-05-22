@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-alpha.0] - 2026-05-22
+
+### Added (Plan D — Tuyau-style client)
+- `@dudousxd/nestjs-inertia-client@0.6.0-alpha.0` — new package: typed HTTP client built on a thin `fetch` wrapper
+  - `Contract` builders (`Contract.get`, `.post`, `.put`, `.patch`, `.delete`) with Zod-backed query/body/response schemas
+  - `@ApplyContract` NestJS method decorator — binds a contract to a controller handler for codegen discovery
+  - `createFetcher(opts)` — thin fetch wrapper with path-param interpolation, query-string serialization, JSON encoding, `FormData` support, and `ApiHttpError` on 4xx/5xx
+  - `ApiHttpError` with `.status` and `.body` properties
+  - `buildUrl` utility for path interpolation + query-string serialization
+  - SSR hydration helpers (`./ssr` subpath): `hydrateClientFromInertia` + `seedInitialQueries` for TanStack Query pre-seeding via Inertia shared props
+  - `invalidate` convenience wrapper around `queryClient.invalidateQueries`
+  - Full Vitest test suite: 47 tests covering fetcher, url-builder, contract, apply-contract, metadata, invalidate, SSR helpers
+- `@dudousxd/nestjs-inertia-codegen` contract discovery + `api.ts` emission (Plan D extension)
+  - `discoverContracts(opts)` — reads `CONTRACT_METADATA` via the Nest bootstrap probe to collect all `@ApplyContract`-decorated handler contracts
+  - `emitApi(contracts, outDir)` — writes `.nestjs-inertia/api.ts`: a `createApi(opts?)` factory that returns a fully-typed route tree built on `createFetcher`
+
+### Changed
+- All packages bumped to `0.6.0-alpha.0`
+
 ## [0.5.0-alpha.0] - 2026-05-22
 
 ### Added

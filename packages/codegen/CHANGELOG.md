@@ -1,5 +1,15 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## [0.6.0-alpha.0] - 2026-05-22
+
+### Added
+- **Contract discovery** — `discoverContracts(opts)` reads `CONTRACT_METADATA` via the Nest bootstrap probe to collect all `@ApplyContract`-decorated handler contracts; returns `ContractDescriptor[]` (method, path, name, query/body/response schema shapes)
+- **`api.ts` emission** — `emitApi(contracts, outDir)` writes `.nestjs-inertia/api.ts`: a `createApi(opts?)` factory returning a typed route tree built on `@dudousxd/nestjs-inertia-client`'s `createFetcher`; no file is emitted when no contracts are found
+- `generate(config)` orchestrates contract discovery + `emitApi` alongside existing page/route/index emitters
+
+### Changed
+- Version bump to `0.6.0-alpha.0`
+
 ## [0.5.0-alpha.0] - 2026-05-22
 
 ### Added
