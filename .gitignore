@@ -5,6 +5,7 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 *.log
+pnpm-debug.log*
 .env
 .env.local
 .nestjs-inertia/
