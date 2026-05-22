@@ -13,3 +13,6 @@ pnpm-debug.log*
 # Astro build artifacts
 website/.astro/
 website/dist/
+
+# Vite ephemeral build artifacts
+*.timestamp-*.mjs
