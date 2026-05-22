@@ -1,6 +1,6 @@
 const MARKER = Symbol('inertia.marker');
 
-export type MarkerKind = 'always' | 'optional' | 'defer' | 'merge';
+export type MarkerKind = 'always' | 'optional' | 'defer' | 'merge' | 'once';
 
 export interface Marker<T = unknown> {
   [MARKER]: true;
@@ -22,6 +22,9 @@ export const Inertia = {
   },
   lazy<T>(fn: () => T | Promise<T>): Marker<T> {
     return make('optional', fn);
+  },
+  once<T>(fn: () => T | Promise<T>): Marker<T> {
+    return make('once', fn);
   },
   defer<T>(fn: () => T | Promise<T>, group: string = 'default'): Marker<T> {
     return make('defer', fn, { group });

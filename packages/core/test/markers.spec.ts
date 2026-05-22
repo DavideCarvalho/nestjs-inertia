@@ -53,4 +53,19 @@ describe('Inertia markers', () => {
     const m = Inertia.lazy(() => 'x');
     expect(getMarkerKind(m)).toBe('optional');
   });
+
+  it('once() marker', () => {
+    const m = Inertia.once(() => 'X');
+    expect(isMarker(m)).toBe(true);
+    expect(getMarkerKind(m)).toBe('once');
+  });
+
+  it('once() resolves the wrapped function lazily', async () => {
+    let called = false;
+    const m = Inertia.once(() => { called = true; return 42; });
+    expect(called).toBe(false);
+    const fn = getMarkerValue(m);
+    expect(await fn()).toBe(42);
+    expect(called).toBe(true);
+  });
 });

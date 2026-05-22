@@ -2,6 +2,8 @@ import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
 import type { PageObject, Props, SharedInput, ShellRenderCtx } from './types.js';
 import type { Manifest } from './asset/version.provider.js';
 import { isMarker, getMarkerKind, getMarkerValue, getMarkerMeta } from './markers.js';
+import { nullifyUndefined } from './helpers/nullify-undefined.js';
+import { unpackDotKeys } from './helpers/set-nested.js';
 
 export interface SsrModule {
   render(page: PageObject): Promise<{ head: string[]; body: string }>;
@@ -70,7 +72,7 @@ export class InertiaService {
   }
 
   async render(component: string, props: Props = {}): Promise<void> {
-    // Version mismatch check FIRST — short-circuits before resolving any factories
+    // Version mismatch check (short-circuit before any factory resolution)
     const clientVersion = this.req.header('X-Inertia-Version');
     if (
       this.req.method === 'GET' &&
@@ -91,6 +93,12 @@ export class InertiaService {
     const partialDataHeader = this.req.header('X-Inertia-Partial-Data');
     const keep = isPartial ? (partialDataHeader ?? '').split(',').filter(Boolean) : null;
 
+    const resetHeader = this.req.header('X-Inertia-Reset');
+    const resetKeys = (resetHeader ?? '').split(',').filter(Boolean);
+
+    const resetOnceHeader = this.req.header('X-Inertia-Reset-Once');
+    const resetOnceKeys = (resetOnceHeader ?? '').split(',').filter(Boolean);
+
     const finalProps: Props = {};
     const deferredProps: Record<string, string[]> = {};
     const mergeProps: string[] = [];
@@ -106,6 +114,13 @@ export class InertiaService {
         }
         if (kind === 'optional') {
           if (keep && keep.includes(key)) {
+            finalProps[key] = await getMarkerValue(value)();
+          }
+          continue;
+        }
+        if (kind === 'once') {
+          // Initial visit (no partial) OR explicit reset-once for this key
+          if (!keep || resetOnceKeys.includes(key)) {
             finalProps[key] = await getMarkerValue(value)();
           }
           continue;
@@ -127,19 +142,34 @@ export class InertiaService {
           if (keep && !keep.includes(key) && key !== 'errors') continue;
           const resolved = await getMarkerValue(value)();
           finalProps[key] = resolved;
-          if (meta.deep) deepMergeProps.push(key);
-          else mergeProps.push(key);
+          // Suppress merge metadata if key is in X-Inertia-Reset
+          if (!resetKeys.includes(key)) {
+            if (meta.deep) deepMergeProps.push(key);
+            else mergeProps.push(key);
+          }
           if (meta.matchOn !== undefined) matchPropsOn[key] = meta.matchOn;
           continue;
         }
       }
+
+      // Non-marker branch: filter, then resolve plain function (sync or async)
       if (keep && !keep.includes(key) && key !== 'errors') continue;
-      finalProps[key] = value;
+      let resolved: unknown = value;
+      if (typeof value === 'function') {
+        resolved = await (value as () => unknown | Promise<unknown>)();
+      }
+      finalProps[key] = resolved;
     }
+
+    // Dot-notation unpacking (top-level keys with '.')
+    const unpackedProps = unpackDotKeys(finalProps);
+
+    // undefined → null wire conversion
+    const wireProps = nullifyUndefined(unpackedProps);
 
     const page: PageObject = {
       component,
-      props: finalProps,
+      props: wireProps,
       url: this.req.originalUrl,
       version: this.deps.assetVersion,
     };

@@ -254,12 +254,20 @@ describe('conformance / tier 3 — props v2', () => {
   });
 
   // Not yet implemented — Plan A.2 features
-  it.skip('[A.2] X-Inertia-Reset header suppresses merge metadata for listed keys', () => {
-    // To implement: parse X-Inertia-Reset header (csv) and omit those keys from
-    // mergeProps/deepMergeProps lists. Pattern from Laravel inertia v2.
+  it('[A.2 done] X-Inertia-Reset header suppresses merge metadata for listed keys', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true', 'x-inertia-reset': 'rows' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, baseDeps());
+    await svc.render('Page', { rows: Inertia.merge(() => [1, 2]) });
+    const body = res._captured.body as { mergeProps?: string[] };
+    expect(body.mergeProps).toBeUndefined();
   });
-  it.skip('[A.2] once() prop resolves on first visit and skips when key echoed in X-Inertia-Reset-Once', () => {
-    // To implement: add Inertia.once() helper + once-prop tracking + reset-once header.
+  it('[A.2 done] once() resolves on first visit; skips on partial without Reset-Once', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, baseDeps());
+    await svc.render('Page', { token: Inertia.once(() => 'T') });
+    expect((res._captured.body as { props: Record<string, unknown> }).props.token).toBe('T');
   });
 });
 
@@ -310,20 +318,14 @@ describe('conformance / tier 4 — partials', () => {
     expect((res._captured.body as { props: Record<string, unknown> }).props.v).toBe('resolved');
   });
 
-  it.skip('[A.2] undefined values are preserved in props (matches Laravel behavior)', async () => {
-    // Current implementation uses Object.entries() which skips undefined values in some
-    // runtime serializations, and JSON.stringify drops undefined keys — this is technically
-    // acceptable for wire protocol (JSON has no undefined), but Laravel preserves the key
-    // as null. To implement: map undefined → null before serializing, or document the gap.
-    //
-    // null IS preserved (see "null values are preserved in props" test below).
+  it('[A.2 done] undefined values are converted to null on wire (Laravel-style)', async () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Page', { a: null, b: undefined });
     const props = (res._captured.body as { props: Record<string, unknown> }).props;
-    expect('b' in props).toBe(true);
-    expect(props.b).toBeUndefined();
+    expect(props.a).toBeNull();
+    expect(props.b).toBeNull();
   });
 
   it('null values are preserved in props', async () => {
@@ -338,12 +340,19 @@ describe('conformance / tier 4 — partials', () => {
   it.skip('[A.2] X-Inertia-Partial-Except header removes listed keys (inverse of only)', () => {
     // To implement: parse X-Inertia-Partial-Except and filter props.
   });
-  it.skip('[A.2] dot-notation top-level prop "user.name" unpacks to { user: { name: ... } }', () => {
-    // To implement: top-level dot keys auto-nest before serializing. Laravel pattern.
+  it('[A.2 done] dot-notation top-level prop "user.name" unpacks to { user: { name: ... } }', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, baseDeps());
+    await svc.render('Page', { 'user.name': 'Alice' });
+    expect((res._captured.body as { props: { user: { name: string } } }).props.user.name).toBe('Alice');
   });
-  it.skip('[A.2] plain (non-marker) async function props are invoked and awaited', () => {
-    // To implement: in render(), if `typeof value === 'function'`, await it before placing in props.
-    // Currently only marker.value functions are invoked.
+  it('[A.2 done] plain (non-marker) async function props are invoked and awaited', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, baseDeps());
+    await svc.render('Page', { v: async () => 'resolved' });
+    expect((res._captured.body as { props: { v: string } }).props.v).toBe('resolved');
   });
 });
 
