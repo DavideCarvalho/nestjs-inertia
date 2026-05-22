@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0-alpha.0] - 2026-05-22
+
+### Added
+- `@dudousxd/nestjs-inertia-codegen@0.5.0-alpha.0` — new package: CLI (`nestjs-inertia init`, `nestjs-inertia codegen [--watch]`) + programmatic API (`generate`, `watch`) that scans a NestJS + Inertia.js app and emits typed artifacts to `.nestjs-inertia/`
+  - Page discovery via fast-glob + `ComponentProps` extraction
+  - Route discovery via child-process Nest bootstrap
+  - Emits `pages.d.ts`, `routes.ts`, `index.d.ts`, `components.json` cache
+  - Chokidar watch mode with 150 ms debounce + lock-file conflict guard
+  - `nestjs-inertia init` scaffolds config + `.gitignore` patch + augmentation stub
+  - `defineConfig` / `loadConfig` with tsx loader
+- `InertiaRegistry` interface in `@dudousxd/nestjs-inertia` core — enables typed augmentation by codegen output
+
+### Changed
+- All packages bumped to `0.5.0-alpha.0`
+
 ## [0.4.0-alpha.0] - 2026-05-22
 
 ### Added (companion packages)

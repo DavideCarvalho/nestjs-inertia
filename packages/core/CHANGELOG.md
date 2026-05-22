@@ -2,6 +2,14 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## [0.5.0-alpha.0] - 2026-05-22
+
+### Added
+- `InertiaRegistry` interface — empty extensible interface for codegen-driven module augmentation. Augment it in your project to get typed page names and route params.
+
+### Changed
+- Version bump to `0.5.0-alpha.0` (monorepo coordination with codegen release)
+
 ## [0.4.0-alpha.0] - 2026-05-22
 
 ### Added (companion packages)
