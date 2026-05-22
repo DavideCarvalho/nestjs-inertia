@@ -4,9 +4,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { createApp } from 'vue';
 import { route } from '../.nestjs-inertia/routes.js';
 
-// Cast: ResolverFn accepts `string` but the generated route() only accepts
-// the narrow RouteName union — safe at runtime because Link always passes a valid name.
-setRouteResolver(route as Parameters<typeof setRouteResolver>[0]);
+setRouteResolver(route);
 
 createInertiaApp({
   resolve: (name: string) => {

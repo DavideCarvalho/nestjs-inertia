@@ -13,10 +13,16 @@ type ResolverFn = (
   query?: Record<string, unknown>,
 ) => string;
 
+// Public input type is intentionally permissive so the codegen-emitted `route()` —
+// which has a narrow generic signature `<K extends RouteName>(name: K, ...)` — assigns
+// without a cast at the call site. Internally we treat the resolver as ResolverFn.
+// biome-ignore lint/suspicious/noExplicitAny: variance shim for narrow generic callers
+type ResolverInput = (name: any, params?: any, query?: any) => string;
+
 let resolver: ResolverFn | null = null;
 
-export function setRouteResolver(fn: ResolverFn | null): void {
-  resolver = fn;
+export function setRouteResolver(fn: ResolverInput | null): void {
+  resolver = fn as ResolverFn | null;
 }
 
 export function route(

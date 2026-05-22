@@ -7,12 +7,13 @@
  *  - <Link route="users.list"> renders an anchor with href="/api/users"
  */
 import { cleanup, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Mock @inertiajs/react Link so we don't need a full Inertia context in unit tests
 vi.mock('@inertiajs/react', () => ({
-  Link: vi.fn(({ href, children, ...rest }: Record<string, unknown>) => (
-    <a href={href as string} data-testid="inertia-link" {...rest}>
+  Link: vi.fn(({ href, children, ...rest }: { href: string; children: ReactNode } & Record<string, unknown>) => (
+    <a href={href} data-testid="inertia-link" {...rest}>
       {children}
     </a>
   )),
@@ -23,7 +24,7 @@ const { route } = await import('../.nestjs-inertia/routes.js');
 
 describe('Link + generated route()', () => {
   beforeAll(() => {
-    setRouteResolver(route as (name: string, params?: Record<string, unknown>, query?: Record<string, unknown>) => string);
+    setRouteResolver(route);
   });
 
   afterAll(() => {
