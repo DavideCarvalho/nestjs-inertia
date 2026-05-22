@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0-alpha.0] - 2026-05-22
+
+### Added (Plan E — Examples + Docs + CI + Ecosystem)
+- `examples/express-react` — runnable end-to-end example app (Express + React + Vite + TanStack Query) exercising core, vite, codegen, and client packages; includes 2 E2E Vitest tests
+- `.github/workflows/ci.yml` — lint + typecheck + build + test matrix (Node 20/22, pnpm cache)
+- `.github/workflows/release.yml` — Changesets version PR automation; publish step stubbed for future use
+- `.changeset/config.json` — Changesets config wired to GitHub changelog; independent versioning mode
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE` (MIT) — standard open-source hygiene files
+- `docs/` — slim documentation folder (README, architecture notes)
+
+### Changed
+- All packages bumped to `0.7.0-alpha.0`
+
 ## [0.6.0-alpha.0] - 2026-05-22
 
 ### Added (Plan D — Tuyau-style client)
