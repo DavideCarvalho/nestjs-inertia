@@ -1,4 +1,4 @@
-export const VERSION = '0.5.0-alpha.0';
+export const VERSION = '0.6.0-alpha.0';
 export { InertiaAuthGuard } from './guard/auth.guard.js';
 export type { InertiaAuthGuardOptions } from './guard/auth.guard.js';
 export { InertiaNotFoundFilter } from './filter/not-found.filter.js';
