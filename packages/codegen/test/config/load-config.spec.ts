@@ -16,6 +16,8 @@ describe('loadConfig', () => {
   beforeEach(async () => {
     tmpDir = makeTmpDir();
     await mkdir(tmpDir, { recursive: true });
+    // Force tsx to use ESM loader (not its CJS virtual module that references __filename)
+    await writeFile(join(tmpDir, 'package.json'), '{"type":"module"}');
   });
 
   afterEach(async () => {
