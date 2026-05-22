@@ -6,6 +6,3 @@ export function createInertiaDecorator(component: string): MethodDecorator {
   return SetMetadata(INERTIA_RENDER_COMPONENT, component);
 }
 
-export interface InertiaRegistry {
-  pages?: string;
-}
