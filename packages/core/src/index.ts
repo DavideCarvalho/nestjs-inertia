@@ -4,6 +4,8 @@ export type { InertiaAuthGuardOptions } from './guard/auth.guard.js';
 export { InertiaNotFoundFilter } from './filter/not-found.filter.js';
 export type { InertiaNotFoundFilterOptions } from './filter/not-found.filter.js';
 export { ErrorBagInterceptor } from './interceptor/error-bag.interceptor.js';
+export { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
+export { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
 export type { FlashStore, FlashErrors } from './flash/flash-store.js';
 export {
   InvalidInertiaConfigException,
