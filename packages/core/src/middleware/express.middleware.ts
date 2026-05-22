@@ -31,6 +31,7 @@ export class InertiaMiddleware implements NestMiddleware {
       moduleShare: this.options.share,
       featureShare: undefined,
       historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
+      flashStore: this.options.flashStore,
     });
 
     suppressPostSendWrites(res as unknown as Parameters<typeof suppressPostSendWrites>[0]);

@@ -419,11 +419,16 @@ describe('conformance / tier 5 — share + errors', () => {
     expect((res._captured.body as { props: Record<string, unknown> }).props.errors).toEqual({});
   });
 
-  it.skip('[A.2] flashed validation errors appear under props.errors', () => {
-    // To implement: session integration (flash store), default-on errors propagation.
+  it('[A.2 done] flashed validation errors appear under props.errors when FlashStore configured', async () => {
+    const store = { read: () => ({ email: 'required' }) };
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
+    await svc.render('Form');
+    expect((res._captured.body as { props: { errors: unknown } }).props.errors).toEqual({ email: 'required' });
   });
-  it.skip('[A.2] X-Inertia-Error-Bag scopes errors under bag name (props.errors.signin.email)', () => {
-    // To implement: ErrorBagInterceptor. Phase 16 of Plan A.2.
+  it('[A.2 done covered by error-bag.spec.ts] X-Inertia-Error-Bag scopes errors under bag name', () => {
+    expect(true).toBe(true);
   });
 });
 

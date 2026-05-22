@@ -1,4 +1,10 @@
 export const VERSION = '0.0.0';
+export { InertiaAuthGuard } from './guard/auth.guard.js';
+export type { InertiaAuthGuardOptions } from './guard/auth.guard.js';
+export { InertiaNotFoundFilter } from './filter/not-found.filter.js';
+export type { InertiaNotFoundFilterOptions } from './filter/not-found.filter.js';
+export { ErrorBagInterceptor } from './interceptor/error-bag.interceptor.js';
+export type { FlashStore, FlashErrors } from './flash/flash-store.js';
 export {
   InvalidInertiaConfigException,
   InertiaServiceNotAvailableException,

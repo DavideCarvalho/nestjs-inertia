@@ -1,4 +1,5 @@
 import type { InertiaScope } from './tokens.js';
+import type { FlashStore } from './flash/flash-store.js';
 
 export interface PageObject {
   component: string;
@@ -63,6 +64,7 @@ export interface InertiaModuleOptions {
   autoUpgrade303?: boolean;
   methodSpoofing?: boolean;
   codegen?: CodegenOptions;
+  flashStore?: FlashStore;
 }
 
 export interface InertiaFeatureOptions extends InertiaModuleOptions {

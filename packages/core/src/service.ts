@@ -1,6 +1,7 @@
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
 import type { PageObject, Props, SharedInput, ShellRenderCtx } from './types.js';
 import type { Manifest } from './asset/version.provider.js';
+import type { FlashStore } from './flash/flash-store.js';
 import { isMarker, getMarkerKind, getMarkerValue, getMarkerMeta } from './markers.js';
 import { nullifyUndefined } from './helpers/nullify-undefined.js';
 import { unpackDotKeys } from './helpers/set-nested.js';
@@ -21,6 +22,7 @@ export interface InertiaServiceDeps {
   moduleShare: SharedInput | undefined;
   featureShare: SharedInput | undefined;
   historyEncryptionDefault?: boolean;
+  flashStore: FlashStore | undefined;
 }
 
 export class InertiaService {
@@ -82,6 +84,18 @@ export class InertiaService {
     ) {
       this.res.status(409).setHeader('X-Inertia-Location', this.req.originalUrl).end();
       return;
+    }
+
+    // Auto-resolve errors from FlashStore if configured and not provided in props
+    if (this.deps.flashStore && props['errors'] === undefined) {
+      try {
+        const flashed = await this.deps.flashStore.read(this.req.raw);
+        if (flashed && Object.keys(flashed).length > 0) {
+          this.share({ errors: flashed });
+        }
+      } catch {
+        // Silent — errors stay {}
+      }
     }
 
     const sharedProps = await this.resolveShared();
