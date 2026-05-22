@@ -30,10 +30,33 @@ After running `codegen`, the `.nestjs-inertia/` directory will contain:
 .nestjs-inertia/
   pages.d.ts          # InertiaPages interface (page name → props type)
   routes.ts           # route() helper + RouteName union + RouteParams<K>
+  api.ts              # typed client API (emitted when @ApplyContract handlers are found)
   shared-props.d.ts   # (placeholder, future)
   index.d.ts          # barrel re-export
   components.json     # cache manifest (name, relativePath, mtime)
 ```
+
+### Contract discovery and `api.ts` emission (v0.6.0+)
+
+When controllers use `@ApplyContract` from `@dudousxd/nestjs-inertia-client`, codegen discovers the attached contract metadata during the route-discovery probe and emits `.nestjs-inertia/api.ts` — a fully-typed client module built on `createFetcher`:
+
+```ts
+// .nestjs-inertia/api.ts (generated)
+import { createFetcher } from '@dudousxd/nestjs-inertia-client';
+import type { FetcherOptions } from '@dudousxd/nestjs-inertia-client';
+
+export function createApi(opts?: FetcherOptions) {
+  const fetcher = createFetcher(opts);
+  return {
+    users: {
+      list: (query?: { page?: number }) => fetcher.get('/users', { query }),
+      create: (body: { name: string; email: string }) => fetcher.post('/users', { body }),
+    },
+  };
+}
+```
+
+No `api.ts` is emitted when no `@ApplyContract` handlers are found, or when `app.moduleEntry` is not set in the config.
 
 Add `.nestjs-inertia/` to `.gitignore` (the `init` command does this automatically).
 
