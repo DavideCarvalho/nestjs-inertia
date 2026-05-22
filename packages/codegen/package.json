@@ -24,6 +24,7 @@
   "files": [
     "dist",
     "bin",
+    "tsconfig.probe.json",
     "README.md",
     "CHANGELOG.md"
   ],
