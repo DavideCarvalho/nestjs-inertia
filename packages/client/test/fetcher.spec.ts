@@ -134,6 +134,20 @@ describe('createFetcher', () => {
     expect((init?.headers as Record<string, string>)['content-type']).toBeUndefined();
   });
 
+  it('throws clearly when globalThis.fetch is undefined and no opts.fetch is provided', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      // @ts-expect-error — intentionally unset for SSR simulation
+      globalThis.fetch = undefined;
+      const fetcher = createFetcher();
+      await expect(fetcher.get('/anything')).rejects.toThrow(
+        'No fetch implementation: pass opts.fetch or set globalThis.fetch',
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('dynamic headers() call count matches number of requests', async () => {
     const headersFn = vi.fn().mockReturnValue({ 'x-custom': 'val' });
     const f = vi.fn().mockImplementation(() =>

@@ -34,6 +34,9 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   const baseUrl = opts.baseUrl ?? '';
 
   async function request<T>(method: string, path: string, ro: RequestOpts = {}): Promise<T> {
+    if (!fetchImpl) {
+      throw new Error('No fetch implementation: pass opts.fetch or set globalThis.fetch');
+    }
     const url = buildUrl(path, ro, baseUrl);
     const headers: Record<string, string> = { ...opts.headers?.() };
     let body: BodyInit | undefined;
