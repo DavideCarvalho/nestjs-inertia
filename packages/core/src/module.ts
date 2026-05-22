@@ -324,7 +324,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
     @Inject('INERTIA_SSR_LOADER') private readonly ssrLoader: { load: () => Promise<never> },
   ) {}
 
-  onApplicationBootstrap(): void {
+  async onApplicationBootstrap(): Promise<void> {
     const adapter = this.httpAdapterHost.httpAdapter;
     if (!adapter) return;
     const platform = adapter.getType();
@@ -340,6 +340,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
         historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
         flashStore: this.options.flashStore,
       }));
+      // Phase 21: also register method spoof
+      const { registerFastifyMethodSpoof } = await import('./middleware/fastify-method-spoof.middleware.js');
+      registerFastifyMethodSpoof(fastifyApp as Parameters<typeof registerFastifyMethodSpoof>[0], this.options);
     }
   }
 
