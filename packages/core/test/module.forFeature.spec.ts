@@ -60,4 +60,17 @@ describe('InertiaModule.forFeatureAsync', () => {
       useFactory: () => ({}),
     })).toThrow(/reserved/i);
   });
+
+  it('throws when no strategy is provided', () => {
+    expect(() => InertiaModule.forFeatureAsync({ scope: 'admin' })).toThrow(/requires one of/i);
+  });
+
+  it('throws when multiple strategies are provided', () => {
+    @Injectable() class C implements InertiaOptionsFactory { createInertiaOptions() { return {}; } }
+    expect(() => InertiaModule.forFeatureAsync({
+      scope: 'admin',
+      useFactory: () => ({}),
+      useClass: C,
+    })).toThrow(/exactly one of/i);
+  });
 });

@@ -171,6 +171,20 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
 
   static forFeatureAsync(asyncOptions: InertiaFeatureAsyncOptions): DynamicModule {
     assertScopeNotReserved(asyncOptions.scope);
+
+    const has = (k: 'useFactory' | 'useClass' | 'useExisting'): boolean => asyncOptions[k] !== undefined;
+    const declared = [has('useFactory'), has('useClass'), has('useExisting')].filter(Boolean).length;
+    if (declared === 0) {
+      throw new InvalidInertiaConfigException(
+        'forFeatureAsync requires one of: useFactory, useClass, useExisting',
+      );
+    }
+    if (declared > 1) {
+      throw new InvalidInertiaConfigException(
+        'forFeatureAsync accepts exactly one of: useFactory, useClass, useExisting (got multiple)',
+      );
+    }
+
     const scope = asyncOptions.scope;
     const optionsToken = featureToken('OPTIONS', scope);
 
@@ -205,7 +219,8 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
         inject: [asyncOptions.useExisting] as never[],
       }];
     } else {
-      throw new InvalidInertiaConfigException('forFeatureAsync requires one of useFactory/useClass/useExisting');
+      // unreachable — validation above ensures exactly one strategy
+      optionsProviders = [];
     }
 
     return {
