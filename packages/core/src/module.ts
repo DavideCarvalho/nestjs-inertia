@@ -1,4 +1,4 @@
-import { type DynamicModule, Inject, type MiddlewareConsumer, Module, type NestModule, type OnApplicationBootstrap, type Provider, RequestMethod } from '@nestjs/common';
+import { type DynamicModule, Inject, Logger, type MiddlewareConsumer, Module, type NestModule, type OnApplicationBootstrap, type OnApplicationShutdown, type Provider, RequestMethod } from '@nestjs/common';
 import { APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
 import { assetVersionProvider, computeAssetVersion, loadManifest, manifestProvider } from './asset/version.provider.js';
 import type { Manifest } from './asset/version.provider.js';
@@ -16,8 +16,19 @@ import { SsrLoaderService } from './ssr/ssr-loader.service.js';
 import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
 import type { InertiaFeatureAsyncOptions, InertiaFeatureOptions, InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
 
+/** Minimal interface matching `Watcher` from `@dudousxd/nestjs-inertia-codegen`. */
+interface CodegenWatcher {
+  close(): Promise<void>;
+}
+
+/** Minimal interface matching the codegen module's public API used here. */
+interface CodegenModule {
+  loadConfig(cwd?: string): Promise<unknown>;
+  watch(config: unknown): Promise<CodegenWatcher>;
+}
+
 @Module({})
-export class InertiaModule implements NestModule, OnApplicationBootstrap {
+export class InertiaModule implements NestModule, OnApplicationBootstrap, OnApplicationShutdown {
   static forRoot(options: InertiaModuleOptions = {}): DynamicModule {
     const optionsProvider: Provider = {
       provide: INERTIA_MODULE_OPTIONS,
@@ -325,6 +336,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
     ];
   }
 
+  private readonly logger = new Logger(InertiaModule.name);
+  private codegenWatcher: CodegenWatcher | null = null;
+
   constructor(
     @Inject(HttpAdapterHost) private readonly httpAdapterHost: HttpAdapterHost,
     @Inject(INERTIA_MODULE_OPTIONS) private readonly options: InertiaModuleOptions,
@@ -334,26 +348,102 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
     @Inject('INERTIA_SSR_LOADER') private readonly ssrLoader: { load: () => Promise<never> },
   ) {}
 
+  /**
+   * Test seam: override in a subclass or via `Object.defineProperty` to inject a stub
+   * codegen module without touching NestJS DI. Production callers never touch this.
+   *
+   * @internal
+   */
+  protected _resolveCodegenModule(): Promise<CodegenModule> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return import(/* @vite-ignore */ '@dudousxd/nestjs-inertia-codegen' as string) as Promise<CodegenModule>;
+  }
+
   async onApplicationBootstrap(): Promise<void> {
+    // ── Fastify wiring (unchanged) ──────────────────────────────────────────────
     const adapter = this.httpAdapterHost.httpAdapter;
-    if (!adapter) return;
-    const platform = adapter.getType();
-    if (platform === 'fastify') {
-      const fastifyApp = adapter.getInstance() as unknown as Parameters<typeof registerFastifyInertia>[0];
-      registerFastifyInertia(fastifyApp, () => ({
-        assetVersion: this.assetVersion,
-        manifest: this.manifest,
-        ssrLoader: this.ssrLoader,
-        rootViewRender: (ctx) => this.shellRenderer.render(ctx),
-        moduleShare: this.options.share,
-        featureShare: undefined,
-        historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
-        flashStore: this.options.flashStore,
-      }));
-      // Phase 21: also register method spoof
-      const { registerFastifyMethodSpoof } = await import('./middleware/fastify-method-spoof.middleware.js');
-      registerFastifyMethodSpoof(fastifyApp as Parameters<typeof registerFastifyMethodSpoof>[0], this.options);
+    if (adapter) {
+      const platform = adapter.getType();
+      if (platform === 'fastify') {
+        const fastifyApp = adapter.getInstance() as unknown as Parameters<typeof registerFastifyInertia>[0];
+        registerFastifyInertia(fastifyApp, () => ({
+          assetVersion: this.assetVersion,
+          manifest: this.manifest,
+          ssrLoader: this.ssrLoader,
+          rootViewRender: (ctx) => this.shellRenderer.render(ctx),
+          moduleShare: this.options.share,
+          featureShare: undefined,
+          historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
+          flashStore: this.options.flashStore,
+        }));
+        // Phase 21: also register method spoof
+        const { registerFastifyMethodSpoof } = await import('./middleware/fastify-method-spoof.middleware.js');
+        registerFastifyMethodSpoof(fastifyApp as Parameters<typeof registerFastifyMethodSpoof>[0], this.options);
+      }
     }
+
+    // ── Codegen auto-bootstrap ──────────────────────────────────────────────────
+    await this._startCodegenWatcher();
+  }
+
+  /**
+   * Auto-starts the codegen file watcher in dev mode.
+   *
+   * Rules (all must pass for the watcher to start):
+   * 1. `process.env.NODE_ENV !== 'production'`
+   * 2. `options.codegen?.enabled !== false`
+   * 3. `@dudousxd/nestjs-inertia-codegen` is resolvable (peer-optional)
+   * 4. A `nestjs-inertia.config.ts` (or equivalent) is present in `process.cwd()`
+   *
+   * If the CLI watcher already holds the lock file, the codegen package returns a
+   * no-op watcher — no conflict occurs.
+   *
+   * This method NEVER throws; any unexpected error is logged as a warning.
+   */
+  private async _startCodegenWatcher(): Promise<void> {
+    try {
+      // 1. Skip in production
+      if (process.env.NODE_ENV === 'production') return;
+
+      // 2. Skip if explicitly disabled
+      if (this.options.codegen?.enabled === false) return;
+
+      // 3. Lazy-import the codegen package (peer-optional — do not fail if missing).
+      //    _resolveCodegenModule() uses a cast to prevent TS from resolving the module
+      //    at compile time. Override it in tests via subclass to inject a stub.
+      let codegen: CodegenModule;
+      try {
+        codegen = await this._resolveCodegenModule();
+      } catch {
+        // Package not installed — silent skip
+        return;
+      }
+
+      // 4. Load config — silent skip if no config file present
+      let config: unknown;
+      try {
+        config = await codegen.loadConfig(process.cwd());
+      } catch {
+        // No config or load failed — silent skip
+        return;
+      }
+
+      // 5. Start the watcher (lock-file mechanism ensures a second watcher is a no-op)
+      this.codegenWatcher = await codegen.watch(config);
+      this.logger.log('Codegen auto-watch started (dev mode).');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `Codegen auto-watch failed to start: ${message}. ` +
+        'Install @dudousxd/nestjs-inertia-codegen and add nestjs-inertia.config.ts to enable auto-watch, ' +
+        'or set codegen: { enabled: false } to suppress this warning.',
+      );
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    await this.codegenWatcher?.close();
+    this.codegenWatcher = null;
   }
 
   configure(consumer: MiddlewareConsumer): void {
