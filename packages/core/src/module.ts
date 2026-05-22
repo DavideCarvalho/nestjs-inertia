@@ -1,18 +1,20 @@
 import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider, RequestMethod } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { extname } from 'node:path';
-import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from './tokens.js';
-import { assetVersionProvider, manifestProvider } from './asset/version.provider.js';
+import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
+import { assetVersionProvider, loadManifest, computeAssetVersion, manifestProvider } from './asset/version.provider.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
 import { DefaultShellRenderer } from './shell/shell.js';
 import { FileBasedShellRenderer } from './shell/file-shell.renderer.js';
 import { SsrLoaderService } from './ssr/ssr-loader.service.js';
-import type { InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
+import type { InertiaFeatureAsyncOptions, InertiaFeatureOptions, InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
 import { InvalidInertiaConfigException, UnsupportedRootViewExtensionException } from './errors/exceptions.js';
 import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
 import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
 import type { ShellRenderer } from './shell/shell.js';
+import { InertiaScopeSwitcherInterceptor } from './interceptor/scope-switcher.interceptor.js';
+import type { Manifest } from './asset/version.provider.js';
 
 @Module({})
 export class InertiaModule implements NestModule {
@@ -58,6 +60,10 @@ export class InertiaModule implements NestModule {
         ssrProvider,
         InertiaMiddleware,
         MethodSpoofMiddleware,
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: InertiaScopeSwitcherInterceptor,
+        },
         {
           provide: APP_INTERCEPTOR,
           useClass: InertiaRenderInterceptor,
@@ -128,6 +134,10 @@ export class InertiaModule implements NestModule {
         MethodSpoofMiddleware,
         {
           provide: APP_INTERCEPTOR,
+          useClass: InertiaScopeSwitcherInterceptor,
+        },
+        {
+          provide: APP_INTERCEPTOR,
           useClass: InertiaRenderInterceptor,
         },
         {
@@ -144,6 +154,127 @@ export class InertiaModule implements NestModule {
         InertiaMiddleware,
       ],
     };
+  }
+
+  static forFeature(options: InertiaFeatureOptions): DynamicModule {
+    assertScopeNotReserved(options.scope);
+    const optionsProvider: Provider = {
+      provide: featureToken('OPTIONS', options.scope),
+      useValue: options,
+    };
+    return {
+      module: InertiaModule,
+      global: true,
+      providers: [optionsProvider, ...this.createFeatureProviders(options.scope)],
+      exports: [
+        featureToken('OPTIONS', options.scope),
+        featureToken('MANIFEST', options.scope),
+        featureToken('ASSET_VERSION', options.scope),
+        featureToken('SHELL_RENDERER', options.scope),
+        featureToken('SSR_LOADER', options.scope),
+      ],
+    };
+  }
+
+  static forFeatureAsync(asyncOptions: InertiaFeatureAsyncOptions): DynamicModule {
+    assertScopeNotReserved(asyncOptions.scope);
+    const scope = asyncOptions.scope;
+    const optionsToken = featureToken('OPTIONS', scope);
+
+    // Re-register inject tokens as providers within this module so NestJS can resolve them
+    const injectProviders: Provider[] = (asyncOptions.inject ?? [])
+      .filter((token): token is new (...args: unknown[]) => unknown => typeof token === 'function')
+      .map(token => token as unknown as Provider);
+
+    let optionsProviders: Provider[];
+    if (asyncOptions.useFactory) {
+      optionsProviders = [{
+        provide: optionsToken,
+        useFactory: async (...args: unknown[]) => {
+          const opts = await asyncOptions.useFactory!(...args);
+          return { ...opts, scope };
+        },
+        inject: (asyncOptions.inject ?? []) as never[],
+      }];
+    } else if (asyncOptions.useClass) {
+      optionsProviders = [
+        asyncOptions.useClass as unknown as Provider,
+        {
+          provide: optionsToken,
+          useFactory: async (factory: { createInertiaOptions: () => unknown }) => ({ ...(await factory.createInertiaOptions() as object), scope }),
+          inject: [asyncOptions.useClass] as never[],
+        },
+      ];
+    } else if (asyncOptions.useExisting) {
+      optionsProviders = [{
+        provide: optionsToken,
+        useFactory: async (factory: { createInertiaOptions: () => unknown }) => ({ ...(await factory.createInertiaOptions() as object), scope }),
+        inject: [asyncOptions.useExisting] as never[],
+      }];
+    } else {
+      throw new InvalidInertiaConfigException('forFeatureAsync requires one of useFactory/useClass/useExisting');
+    }
+
+    return {
+      module: InertiaModule,
+      global: true,
+      imports: (asyncOptions.imports as DynamicModule['imports'] | undefined) ?? [],
+      providers: [...injectProviders, ...optionsProviders, ...this.createFeatureProviders(scope)],
+      exports: [
+        optionsToken,
+        featureToken('MANIFEST', scope),
+        featureToken('ASSET_VERSION', scope),
+        featureToken('SHELL_RENDERER', scope),
+        featureToken('SSR_LOADER', scope),
+      ],
+    };
+  }
+
+  private static createFeatureProviders(scope: string): Provider[] {
+    return [
+      {
+        provide: featureToken('MANIFEST', scope),
+        inject: [featureToken('OPTIONS', scope)],
+        useFactory: (opts: InertiaFeatureOptions) => {
+          if (process.env.NODE_ENV !== 'production') return null;
+          return loadManifest(opts.vite?.manifestPath ?? 'dist/inertia/client/.vite/manifest.json');
+        },
+      },
+      {
+        provide: featureToken('ASSET_VERSION', scope),
+        inject: [featureToken('MANIFEST', scope), featureToken('OPTIONS', scope)],
+        useFactory: async (manifest: Manifest | null, opts: InertiaFeatureOptions): Promise<string> => {
+          if (opts.version !== undefined) {
+            return typeof opts.version === 'function' ? await opts.version() : opts.version;
+          }
+          return computeAssetVersion(manifest);
+        },
+      },
+      {
+        provide: featureToken('SHELL_RENDERER', scope),
+        inject: [featureToken('OPTIONS', scope)],
+        useFactory: (opts: InertiaFeatureOptions): ShellRenderer => {
+          const rv = opts.rootView;
+          if (typeof rv === 'function') {
+            const fn = rv as RootViewFn;
+            return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
+          }
+          if (typeof rv === 'string') {
+            const ext = extname(rv).toLowerCase();
+            if (ext !== '.html' && ext !== '.htm') {
+              throw new UnsupportedRootViewExtensionException(ext);
+            }
+            return new FileBasedShellRenderer(rv);
+          }
+          return new DefaultShellRenderer();
+        },
+      },
+      {
+        provide: featureToken('SSR_LOADER', scope),
+        inject: [featureToken('OPTIONS', scope)],
+        useFactory: (opts: InertiaFeatureOptions) => new SsrLoaderService(opts as never),
+      },
+    ];
   }
 
   private static validateAsyncOptions(asyncOptions: InertiaModuleAsyncOptions): void {

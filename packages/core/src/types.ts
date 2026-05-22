@@ -75,6 +75,15 @@ export interface InertiaOptionsFactory {
   createInertiaOptions(): Promise<InertiaModuleOptions> | InertiaModuleOptions;
 }
 
+export interface InertiaFeatureAsyncOptions {
+  scope: string;
+  imports?: unknown[];
+  inject?: unknown[];
+  useExisting?: new (...args: unknown[]) => InertiaOptionsFactory;
+  useClass?: new (...args: unknown[]) => InertiaOptionsFactory;
+  useFactory?: (...args: unknown[]) => Promise<InertiaModuleOptions> | InertiaModuleOptions;
+}
+
 export interface InertiaModuleAsyncOptions {
   imports?: unknown[];
   inject?: unknown[];

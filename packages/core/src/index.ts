@@ -13,6 +13,8 @@ export {
   UnsupportedRootViewExtensionException,
 } from './errors/exceptions.js';
 export { Inertia } from './markers.js';
+export { UseInertia, INERTIA_USE_SCOPE } from './decorator/use-inertia.decorator.js';
+export { featureToken } from './tokens.js';
 export type { InertiaRegistry } from './decorator/inertia.decorator.js';
 export { INERTIA_RENDER_COMPONENT } from './decorator/inertia.decorator.js';
 export { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
@@ -42,6 +44,7 @@ export type {
   InertiaFeatureOptions,
   InertiaOptionsFactory,
   InertiaModuleAsyncOptions,
+  InertiaFeatureAsyncOptions,
 } from './types.js';
 
 declare global {
