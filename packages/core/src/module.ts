@@ -1,5 +1,5 @@
-import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider, RequestMethod } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { type DynamicModule, Inject, type MiddlewareConsumer, Module, type NestModule, type OnApplicationBootstrap, type Provider, RequestMethod } from '@nestjs/common';
+import { APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
 import { extname } from 'node:path';
 import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
 import { assetVersionProvider, loadManifest, computeAssetVersion, manifestProvider } from './asset/version.provider.js';
@@ -15,9 +15,10 @@ import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
 import type { ShellRenderer } from './shell/shell.js';
 import { InertiaScopeSwitcherInterceptor } from './interceptor/scope-switcher.interceptor.js';
 import type { Manifest } from './asset/version.provider.js';
+import { registerFastifyInertia } from './middleware/fastify.middleware.js';
 
 @Module({})
-export class InertiaModule implements NestModule {
+export class InertiaModule implements NestModule, OnApplicationBootstrap {
   static forRoot(options: InertiaModuleOptions = {}): DynamicModule {
     const optionsProvider: Provider = {
       provide: INERTIA_MODULE_OPTIONS,
@@ -314,8 +315,40 @@ export class InertiaModule implements NestModule {
     ];
   }
 
+  constructor(
+    @Inject(HttpAdapterHost) private readonly httpAdapterHost: HttpAdapterHost,
+    @Inject(INERTIA_MODULE_OPTIONS) private readonly options: InertiaModuleOptions,
+    @Inject(INERTIA_ASSET_VERSION) private readonly assetVersion: string,
+    @Inject(INERTIA_MANIFEST) private readonly manifest: Manifest | null,
+    @Inject('INERTIA_SHELL_RENDERER') private readonly shellRenderer: ShellRenderer,
+    @Inject('INERTIA_SSR_LOADER') private readonly ssrLoader: { load: () => Promise<never> },
+  ) {}
+
+  onApplicationBootstrap(): void {
+    const adapter = this.httpAdapterHost.httpAdapter;
+    if (!adapter) return;
+    const platform = adapter.getType();
+    if (platform === 'fastify') {
+      const fastifyApp = adapter.getInstance() as unknown as Parameters<typeof registerFastifyInertia>[0];
+      registerFastifyInertia(fastifyApp, () => ({
+        assetVersion: this.assetVersion,
+        manifest: this.manifest,
+        ssrLoader: this.ssrLoader,
+        rootViewRender: (ctx) => this.shellRenderer.render(ctx),
+        moduleShare: this.options.share,
+        featureShare: undefined,
+        historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
+        flashStore: this.options.flashStore,
+      }));
+    }
+  }
+
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(MethodSpoofMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
-    consumer.apply(InertiaMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
+    const adapter = this.httpAdapterHost.httpAdapter;
+    if (!adapter || adapter.getType() === 'express') {
+      consumer.apply(MethodSpoofMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
+      consumer.apply(InertiaMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
+    }
+    // Fastify wiring happens in onApplicationBootstrap
   }
 }
