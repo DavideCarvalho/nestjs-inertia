@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@dudousxd/nestjs-inertia": "workspace:*",
-    "@dudousxd/nestjs-inertia-vite": "workspace:*",
-    "@dudousxd/nestjs-inertia-codegen": "workspace:*",
     "@dudousxd/nestjs-inertia-client": "workspace:*",
+    "@dudousxd/nestjs-inertia-codegen": "workspace:*",
+    "@dudousxd/nestjs-inertia-vite": "workspace:*",
     "@inertiajs/react": "^2.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
@@ -29,11 +29,14 @@
   },
   "devDependencies": {
     "@dudousxd/nestjs-inertia-testing": "workspace:*",
-    "@vitejs/plugin-react": "^4.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/express": "^4.17.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^29.1.1",
     "tsx": "^4.16.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0"

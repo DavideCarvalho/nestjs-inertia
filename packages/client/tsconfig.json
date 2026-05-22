@@ -4,8 +4,10 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": ".tsbuildinfo",
-    "types": ["node"]
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["test/**", "dist/**"]
 }

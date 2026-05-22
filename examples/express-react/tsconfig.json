@@ -12,6 +12,10 @@
     "src/**/*.ts",
     "inertia/**/*.tsx",
     "inertia/**/*.ts",
+    "test/**/*.tsx",
+    "test/**/*.ts",
+    ".nestjs-inertia/**/*.ts",
+    "nestjs-inertia.d.ts",
     "vite.config.ts",
     "nestjs-inertia.config.ts"
   ],

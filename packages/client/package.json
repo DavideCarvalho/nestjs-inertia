@@ -20,9 +20,17 @@
     "./ssr": {
       "types": "./dist/ssr/hydrate.d.ts",
       "import": "./dist/ssr/hydrate.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
     }
   },
-  "files": ["dist", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -31,19 +39,40 @@
   },
   "peerDependencies": {
     "@dudousxd/nestjs-inertia": "workspace:*",
+    "@inertiajs/react": "^2.0.0",
     "@nestjs/common": "^10.0.0 || ^11.0.0",
     "@tanstack/query-core": "^5.0.0",
+    "react": "^18.0.0",
     "zod": "^3.22.0"
+  },
+  "peerDependenciesMeta": {
+    "@inertiajs/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@dudousxd/nestjs-inertia": "workspace:*",
+    "@inertiajs/react": "^2.0.0",
     "@nestjs/common": "^11.0.0",
     "@tanstack/query-core": "^5.51.0",
-    "zod": "^3.23.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "jsdom": "^29.1.1",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "reflect-metadata": "^0.2.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0",
-    "@types/node": "^20.0.0",
-    "reflect-metadata": "^0.2.0"
+    "zod": "^3.23.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
