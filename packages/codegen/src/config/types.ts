@@ -4,6 +4,12 @@ export interface UserConfig {
     propsExport?: string;
     componentNameStrategy?: 'relative-no-ext' | 'kebab' | ((path: string) => string);
   };
+  contracts?: {
+    /** Glob pattern (relative to cwd) for controller files. Default: `'src/**\/\*.controller.ts'` */
+    glob?: string;
+    /** Debounce delay in ms before re-running route discovery. Default: `500` */
+    debounceMs?: number;
+  };
   scopes?: Record<string, ScopeConfig>;
   codegen?: {
     outDir?: string;
@@ -26,6 +32,13 @@ export interface ResolvedPagesConfig {
   componentNameStrategy: 'relative-no-ext' | 'kebab' | ((path: string) => string);
 }
 
+export interface ResolvedContractsConfig {
+  /** Glob pattern relative to `codegen.cwd` for watching controller files. */
+  glob: string;
+  /** Debounce delay in ms before re-running route discovery. */
+  debounceMs: number;
+}
+
 export interface ResolvedCodegenConfig {
   outDir: string;
   cwd: string;
@@ -38,6 +51,7 @@ export interface ResolvedAppConfig {
 
 export interface ResolvedConfig {
   pages: ResolvedPagesConfig;
+  contracts: ResolvedContractsConfig;
   scopes: Record<string, ScopeConfig>;
   codegen: ResolvedCodegenConfig;
   app: ResolvedAppConfig | null;

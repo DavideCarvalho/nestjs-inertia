@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ResolvedConfig } from '../../src/config/types.js';
+import type { RouteDescriptor } from '../../src/discovery/routes.js';
 import { watch } from '../../src/watch/watcher.js';
 
 // Helper: poll until predicate returns true or timeout expires
@@ -19,12 +20,16 @@ async function waitForCondition(
   throw new Error(`Condition not met within ${timeoutMs}ms`);
 }
 
-function makeConfig(pagesDir: string, outDir: string): ResolvedConfig {
+function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string): ResolvedConfig {
   return {
     pages: {
       glob: '**/*.tsx',
       propsExport: 'ComponentProps',
       componentNameStrategy: 'relative-no-ext',
+    },
+    contracts: {
+      glob: contractsGlob ?? 'src/**/*.controller.ts',
+      debounceMs: 500,
     },
     scopes: {},
     codegen: { outDir, cwd: pagesDir },
@@ -112,5 +117,65 @@ describe('watch', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('already watching'));
     warnSpy.mockRestore();
+  });
+
+  it('re-emits routes.ts and calls onChange when a controller file changes', async () => {
+    tmpBase = await mkdtemp(join(tmpdir(), 'watcher-contracts-spec-'));
+    const projectDir = join(tmpBase, 'project');
+    const srcDir = join(projectDir, 'src');
+    const outDir = join(tmpBase, '.nestjs-inertia');
+    await mkdir(srcDir, { recursive: true });
+
+    // Seed a page file
+    await writeFile(
+      join(projectDir, 'Home.tsx'),
+      'export type ComponentProps = { title: string };\nexport default function Home() { return null; }\n',
+      'utf8',
+    );
+
+    // Seed a controller file that will be watched
+    const controllerPath = join(srcDir, 'app.controller.ts');
+    await writeFile(
+      controllerPath,
+      '// initial controller\n',
+      'utf8',
+    );
+
+    // Stub discoverRoutes to avoid spawning Nest — returns a deterministic route table
+    const stubRoutes: RouteDescriptor[] = [
+      { method: 'GET', path: '/stub', name: 'StubController.index', params: [] },
+    ];
+    let discoverCallCount = 0;
+    const stubDiscoverRoutes = async () => {
+      discoverCallCount++;
+      return stubRoutes;
+    };
+
+    const config = makeConfig(projectDir, outDir, 'src/**/*.controller.ts');
+    let onChangeCalled = 0;
+    const watcher = await watch(config, () => { onChangeCalled++; }, stubDiscoverRoutes);
+    watchers.push(watcher);
+
+    // Give chokidar time to set up its internal watch
+    await new Promise((r) => setTimeout(r, 300));
+
+    const initialDiscoverCount = discoverCallCount;
+
+    // Modify the controller file to trigger the contracts watcher
+    await writeFile(
+      controllerPath,
+      '// initial controller\n// modified\n',
+      'utf8',
+    );
+
+    // Wait for onChange to fire (500ms debounce + processing time, 3s timeout)
+    await waitForCondition(() => onChangeCalled > 0, 3000);
+
+    // discoverRoutes should have been called at least once after the change
+    expect(discoverCallCount).toBeGreaterThan(initialDiscoverCount);
+
+    // routes.ts should have been regenerated with stub route
+    const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
+    expect(routesContent).toContain('StubController.index');
   });
 });

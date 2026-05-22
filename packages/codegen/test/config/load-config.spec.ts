@@ -64,5 +64,23 @@ export default config;
     expect(config.codegen.outDir).toBe(join(tmpDir, '.nestjs-inertia'));
     expect(config.scopes).toEqual({});
     expect(config.app).toBeNull();
+    // contracts defaults
+    expect(config.contracts.glob).toBe('src/**/*.controller.ts');
+    expect(config.contracts.debounceMs).toBe(500);
+  });
+
+  it('respects user-supplied contracts config', async () => {
+    await writeFile(
+      join(tmpDir, 'nestjs-inertia.config.ts'),
+      `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  contracts: { glob: 'app/**/*.controller.ts', debounceMs: 1000 },
+};`,
+    );
+
+    const config = await loadConfig(tmpDir);
+
+    expect(config.contracts.glob).toBe('app/**/*.controller.ts');
+    expect(config.contracts.debounceMs).toBe(1000);
   });
 });

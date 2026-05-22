@@ -1,10 +1,15 @@
 import { join } from 'node:path';
 import chokidar from 'chokidar';
 import type { ResolvedConfig } from '../config/types.js';
+import type { RouteDescriptor } from '../discovery/routes.js';
+import { discoverRoutes as defaultDiscoverRoutes } from '../discovery/routes.js';
+import { emitApi } from '../emit/emit-api.js';
+import { emitIndex } from '../emit/emit-index.js';
+import { emitRoutes } from '../emit/emit-routes.js';
 import { generate } from '../generate.js';
 import { acquireLock } from './lock-file.js';
 
-const DEBOUNCE_MS = 150;
+const PAGES_DEBOUNCE_MS = 150;
 
 export interface Watcher {
   close(): Promise<void>;
@@ -14,15 +19,29 @@ export interface Watcher {
 const NO_OP_WATCHER: Watcher = { close: async () => {} };
 
 /**
- * Start a chokidar watcher over `config.pages.glob`.
+ * Start two chokidar watchers:
  *
- * - Acquires a lock in `config.codegen.outDir`; if another live process already
- *   holds the lock, logs a warning and returns a no-op watcher.
- * - On any file change, debounces 150 ms then runs `generate(config)` and
- *   calls `onChange?.()`.
- * - Releases the lock when the watcher is closed.
+ * 1. **Pages watcher** (`config.pages.glob`, 150 ms debounce) — runs `generate(config)` on
+ *    any page file change, regenerating `pages.d.ts` and the cache manifest.
+ *
+ * 2. **Contracts watcher** (`config.contracts.glob`, configurable debounce — default 500 ms) —
+ *    re-runs route discovery, then re-emits `routes.ts` and (when contracts are present)
+ *    `api.ts` + `index.d.ts`.
+ *
+ * Both watchers share a single lock file in `config.codegen.outDir`. If another live process
+ * already holds the lock, logs a warning and returns a no-op watcher.
+ *
+ * The optional `discoverRoutesImpl` parameter exists as a test seam: pass a stub to avoid
+ * spawning a real NestJS app in unit tests.
  */
-export async function watch(config: ResolvedConfig, onChange?: () => void): Promise<Watcher> {
+export async function watch(
+  config: ResolvedConfig,
+  onChange?: () => void,
+  discoverRoutesImpl?: (opts: {
+    moduleEntry: string;
+    tsconfig?: string | undefined;
+  }) => Promise<RouteDescriptor[]>,
+): Promise<Watcher> {
   const lock = await acquireLock(config.codegen.outDir);
 
   if (lock === null) {
@@ -39,40 +58,99 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
     // Best-effort; don't crash the watcher on initial generation failure
   }
 
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  // ── Pages watcher (fast path — no route discovery) ──────────────────────────
+  let pagesDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const fsWatcher = chokidar.watch(join(config.codegen.cwd, config.pages.glob), {
+  const pagesWatcher = chokidar.watch(join(config.codegen.cwd, config.pages.glob), {
     ignoreInitial: true,
     persistent: true,
     awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 },
   });
 
-  function scheduleRegenerate(): void {
-    if (debounceTimer !== undefined) {
-      clearTimeout(debounceTimer);
+  function schedulePagesRegenerate(): void {
+    if (pagesDebounceTimer !== undefined) {
+      clearTimeout(pagesDebounceTimer);
     }
-    debounceTimer = setTimeout(async () => {
-      debounceTimer = undefined;
+    pagesDebounceTimer = setTimeout(async () => {
+      pagesDebounceTimer = undefined;
       try {
         await generate(config);
       } catch {
         // Swallow errors in watch mode
       }
       onChange?.();
-    }, DEBOUNCE_MS);
+    }, PAGES_DEBOUNCE_MS);
   }
 
-  fsWatcher.on('add', scheduleRegenerate);
-  fsWatcher.on('change', scheduleRegenerate);
-  fsWatcher.on('unlink', scheduleRegenerate);
+  pagesWatcher.on('add', schedulePagesRegenerate);
+  pagesWatcher.on('change', schedulePagesRegenerate);
+  pagesWatcher.on('unlink', schedulePagesRegenerate);
+
+  // ── Contracts watcher (slow path — runs route discovery) ─────────────────────
+  let contractsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const contractsWatcher = chokidar.watch(
+    join(config.codegen.cwd, config.contracts.glob),
+    {
+      ignoreInitial: true,
+      persistent: true,
+      awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 },
+    },
+  );
+
+  const resolvedDiscoverRoutes = discoverRoutesImpl ?? defaultDiscoverRoutes;
+
+  function scheduleContractsRegenerate(): void {
+    if (contractsDebounceTimer !== undefined) {
+      clearTimeout(contractsDebounceTimer);
+    }
+    contractsDebounceTimer = setTimeout(async () => {
+      contractsDebounceTimer = undefined;
+      try {
+        let routes: RouteDescriptor[] = [];
+
+        // Use the injected stub unconditionally (test seam), or only discover
+        // when app config is present (production path).
+        const hasCustomImpl = discoverRoutesImpl !== undefined;
+        if (hasCustomImpl || config.app) {
+          routes = await resolvedDiscoverRoutes({
+            moduleEntry: config.app?.moduleEntry ?? '',
+            tsconfig: config.app?.tsconfig ?? undefined,
+          });
+        }
+        // else: no app config and no injected impl — re-emit empty routes below
+
+        await emitRoutes(routes, config.codegen.outDir);
+
+        const hasContracts = routes.some((r) => r.contract);
+        await emitIndex(config.codegen.outDir, hasContracts);
+
+        if (hasContracts) {
+          await emitApi(routes, config.codegen.outDir);
+        }
+      } catch {
+        // Swallow errors in watch mode
+      }
+      onChange?.();
+    }, config.contracts.debounceMs);
+  }
+
+  contractsWatcher.on('add', scheduleContractsRegenerate);
+  contractsWatcher.on('change', scheduleContractsRegenerate);
+  contractsWatcher.on('unlink', scheduleContractsRegenerate);
 
   return {
     close: async () => {
-      if (debounceTimer !== undefined) {
-        clearTimeout(debounceTimer);
-        debounceTimer = undefined;
+      if (pagesDebounceTimer !== undefined) {
+        clearTimeout(pagesDebounceTimer);
+        pagesDebounceTimer = undefined;
       }
-      await fsWatcher.close();
+      if (contractsDebounceTimer !== undefined) {
+        clearTimeout(contractsDebounceTimer);
+        contractsDebounceTimer = undefined;
+      }
+      await pagesWatcher.close();
+      await contractsWatcher.close();
       await lock.release();
     },
   };

@@ -77,6 +77,12 @@ export default defineConfig({
     // Options: 'relative-no-ext' | 'kebab' | ((relativePath: string) => string)
     componentNameStrategy: 'relative-no-ext',
   },
+  contracts: {
+    // Glob for controller files watched in --watch mode (default: 'src/**/*.controller.ts')
+    glob: 'src/**/*.controller.ts',
+    // Debounce delay in ms before re-running route discovery (default: 500)
+    debounceMs: 500,
+  },
   codegen: {
     // Output directory for generated artifacts (default: '.nestjs-inertia')
     outDir: '.nestjs-inertia',
@@ -111,7 +117,11 @@ Options:
   --version, -v     Show version
 ```
 
-> **Watch mode limitation:** `--watch` tracks page file changes only. It does **not** re-run route or contract discovery when you add or modify a controller. Route/contract artifacts (`routes.ts`, `api.ts`) are written once during the initial `generate()` pass. To pick up controller changes, restart the watcher (or run `nestjs-inertia codegen` one-shot).
+> **Watch mode — two watchers:** `--watch` runs two independent file watchers:
+> 1. **Pages watcher** (`pages.glob`, 150 ms debounce) — regenerates `pages.d.ts` on any page file change.
+> 2. **Contracts watcher** (`contracts.glob`, default `src/**/*.controller.ts`, 500 ms debounce) — re-runs route discovery and regenerates `routes.ts` and `api.ts` whenever a controller file changes.
+>
+> Configure the contracts glob and debounce via the `contracts` key in `nestjs-inertia.config.ts`.
 
 ## Programmatic API
 

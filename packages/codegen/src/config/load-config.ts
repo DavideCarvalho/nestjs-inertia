@@ -61,6 +61,10 @@ function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
       propsExport: userConfig.pages.propsExport ?? 'ComponentProps',
       componentNameStrategy: userConfig.pages.componentNameStrategy ?? 'relative-no-ext',
     },
+    contracts: {
+      glob: userConfig.contracts?.glob ?? 'src/**/*.controller.ts',
+      debounceMs: userConfig.contracts?.debounceMs ?? 500,
+    },
     scopes: userConfig.scopes ?? {},
     codegen: {
       outDir,
