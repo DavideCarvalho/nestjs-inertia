@@ -1,5 +1,5 @@
 import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider } from '@nestjs/common';
-import { INERTIA_MODULE_OPTIONS } from './tokens.js';
+import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from './tokens.js';
 import { assetVersionProvider, manifestProvider } from './asset/version.provider.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
 import { DefaultShellRenderer } from './shell/shell.js';
@@ -37,6 +37,8 @@ export class InertiaModule implements NestModule {
       ],
       exports: [
         INERTIA_MODULE_OPTIONS,
+        INERTIA_MANIFEST,
+        INERTIA_ASSET_VERSION,
         'INERTIA_SHELL_RENDERER',
         'INERTIA_SSR_LOADER',
         InertiaMiddleware,
