@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import pkg from '../package.json' with { type: 'json' };
 import { VERSION } from '../src/index.js';
 
 describe('package smoke', () => {
   it('exports VERSION constant', () => {
-    expect(VERSION).toBe('0.0.0');
+    expect(typeof VERSION).toBe('string');
+  });
+
+  it('VERSION matches package.json version', () => {
+    expect(VERSION).toBe(pkg.version);
   });
 });
