@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "types": ["node", "reflect-metadata", "vite/client"],
+    "jsx": "preserve",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "inertia/**/*.vue",
+    "inertia/**/*.ts",
+    ".nestjs-inertia/**/*.ts",
+    "nestjs-inertia.d.ts",
+    "vite.config.ts",
+    "nestjs-inertia.config.ts"
+  ],
+  "exclude": ["dist/**", "node_modules/**"]
+}
