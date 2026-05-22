@@ -66,6 +66,9 @@ importers:
       '@dudousxd/nestjs-inertia':
         specifier: workspace:*
         version: link:../core
+      '@dudousxd/nestjs-inertia-client':
+        specifier: workspace:*
+        version: link:../client
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.23(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -93,6 +96,9 @@ importers:
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.41)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
 
   packages/core:
     devDependencies:

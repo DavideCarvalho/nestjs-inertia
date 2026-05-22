@@ -39,7 +39,7 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     }
     const url = buildUrl(path, ro, baseUrl);
     const headers: Record<string, string> = { ...opts.headers?.() };
-    let body: BodyInit | undefined;
+    let body: string | FormData | undefined = undefined;
 
     if (ro.body !== undefined) {
       if (isFormData(ro.body)) {
@@ -55,7 +55,7 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
       headers['accept'] = 'application/json';
     }
 
-    const res = await fetchImpl(url, { method, headers, body });
+    const res = await fetchImpl(url, { method, headers, ...(body !== undefined ? { body } : {}) });
 
     if (!res.ok) {
       const err = await ApiHttpError.fromResponse(res);
