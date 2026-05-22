@@ -1,10 +1,13 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ResolvedConfig } from '../../src/config/types.js';
 import type { RouteDescriptor } from '../../src/discovery/routes.js';
 import { watch } from '../../src/watch/watcher.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Helper: poll until predicate returns true or timeout expires
 async function waitForCondition(
@@ -20,7 +23,7 @@ async function waitForCondition(
   throw new Error(`Condition not met within ${timeoutMs}ms`);
 }
 
-function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string): ResolvedConfig {
+function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string, useStaticDiscovery?: boolean): ResolvedConfig {
   return {
     pages: {
       glob: '**/*.tsx',
@@ -30,6 +33,7 @@ function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string): R
     contracts: {
       glob: contractsGlob ?? 'src/**/*.controller.ts',
       debounceMs: 500,
+      useStaticDiscovery: useStaticDiscovery ?? false,
     },
     scopes: {},
     codegen: { outDir, cwd: pagesDir },
@@ -177,5 +181,41 @@ describe('watch', () => {
     // routes.ts should have been regenerated with stub route
     const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
     expect(routesContent).toContain('StubController.index');
+  });
+
+  it('uses static discovery (discoverContractsFast) when useStaticDiscovery is true', async () => {
+    const fixturesDir = resolve(__dirname, '../__fixtures__/app');
+    tmpBase = await mkdtemp(join(tmpdir(), 'watcher-static-spec-'));
+    const outDir = join(tmpBase, '.nestjs-inertia');
+    await mkdir(outDir, { recursive: true });
+
+    // The fixture dir has contract-users.controller.ts, which the fast path should discover
+    const config = makeConfig(fixturesDir, outDir, 'contract-users.controller.ts', true);
+    config.codegen = { outDir, cwd: fixturesDir };
+
+    let onChangeCalled = 0;
+    // Do NOT pass a discoverRoutesImpl stub — the watcher should use static discovery instead
+    const watcher = await watch(config, () => { onChangeCalled++; });
+    watchers.push(watcher);
+
+    // Give chokidar time to set up
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Touch the fixture controller to trigger the contracts watcher
+    const controllerPath = join(fixturesDir, 'contract-users.controller.ts');
+    const originalContent = await readFile(controllerPath, 'utf8');
+    await writeFile(controllerPath, originalContent + '\n// touched\n', 'utf8');
+
+    try {
+      // Wait for onChange to fire
+      await waitForCondition(() => onChangeCalled > 0, 4000);
+
+      // The api.ts should reference the users.list contract name (from contract options)
+      const apiContent = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(apiContent).toContain('users.list');
+    } finally {
+      // Restore original fixture content
+      await writeFile(controllerPath, originalContent, 'utf8');
+    }
   });
 });

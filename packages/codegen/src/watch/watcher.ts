@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import chokidar from 'chokidar';
 import type { ResolvedConfig } from '../config/types.js';
+import { discoverContractsFast } from '../discovery/contracts-fast.js';
 import type { RouteDescriptor } from '../discovery/routes.js';
 import { discoverRoutes as defaultDiscoverRoutes } from '../discovery/routes.js';
 import { emitApi } from '../emit/emit-api.js';
@@ -100,6 +101,10 @@ export async function watch(
 
   const resolvedDiscoverRoutes = discoverRoutesImpl ?? defaultDiscoverRoutes;
 
+  // Static discovery is active when explicitly opted-in via useStaticDiscovery flag,
+  // and no custom impl (test seam) has been injected.
+  const useStatic = config.contracts.useStaticDiscovery === true && discoverRoutesImpl === undefined;
+
   function scheduleContractsRegenerate(): void {
     if (contractsDebounceTimer !== undefined) {
       clearTimeout(contractsDebounceTimer);
@@ -109,16 +114,25 @@ export async function watch(
       try {
         let routes: RouteDescriptor[] = [];
 
-        // Use the injected stub unconditionally (test seam), or only discover
-        // when app config is present (production path).
-        const hasCustomImpl = discoverRoutesImpl !== undefined;
-        if (hasCustomImpl || config.app) {
-          routes = await resolvedDiscoverRoutes({
-            moduleEntry: config.app?.moduleEntry ?? '',
+        if (useStatic) {
+          // Fast path: static AST discovery via ts-morph — no NestJS bootstrap
+          routes = await discoverContractsFast({
+            cwd: config.codegen.cwd,
+            glob: config.contracts.glob,
             tsconfig: config.app?.tsconfig ?? undefined,
           });
+        } else {
+          // Use the injected stub unconditionally (test seam), or only discover
+          // when app config is present (production path).
+          const hasCustomImpl = discoverRoutesImpl !== undefined;
+          if (hasCustomImpl || config.app) {
+            routes = await resolvedDiscoverRoutes({
+              moduleEntry: config.app?.moduleEntry ?? '',
+              tsconfig: config.app?.tsconfig ?? undefined,
+            });
+          }
+          // else: no app config and no injected impl — re-emit empty routes below
         }
-        // else: no app config and no injected impl — re-emit empty routes below
 
         await emitRoutes(routes, config.codegen.outDir);
 
