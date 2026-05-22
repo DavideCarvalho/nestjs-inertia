@@ -1,7 +1,11 @@
 import { escapeHtml } from '../helpers/escape-html.js';
 import type { ShellRenderCtx } from '../types.js';
 
-export class DefaultShellRenderer {
+export interface ShellRenderer {
+  render(ctx: ShellRenderCtx): Promise<string>;
+}
+
+export class DefaultShellRenderer implements ShellRenderer {
   async render(ctx: ShellRenderCtx): Promise<string> {
     const pageJson = escapeHtml(JSON.stringify(ctx.page));
     return `<!doctype html>

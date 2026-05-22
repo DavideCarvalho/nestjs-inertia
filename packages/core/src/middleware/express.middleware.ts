@@ -4,13 +4,10 @@ import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from 
 import { expressAdapter } from '../adapter/express.js';
 import { InertiaService } from '../service.js';
 import { suppressPostSendWrites } from '../helpers/suppress-post-send-writes.js';
-import type { InertiaModuleOptions, ShellRenderCtx } from '../types.js';
+import type { InertiaModuleOptions } from '../types.js';
 import type { Manifest } from '../asset/version.provider.js';
 import type { SsrLoader } from '../service.js';
-
-export interface ShellRenderer {
-  render(ctx: ShellRenderCtx): Promise<string>;
-}
+import type { ShellRenderer } from '../shell/shell.js';
 
 @Injectable()
 export class InertiaMiddleware implements NestMiddleware {

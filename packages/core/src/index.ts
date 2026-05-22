@@ -1,5 +1,6 @@
 export const VERSION = '0.0.0';
 export { Inertia } from './markers.js';
+export type { ShellRenderer } from './shell/shell.js';
 export { InertiaService } from './service.js';
 export { InertiaModule } from './module.js';
 export {
