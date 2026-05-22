@@ -29,6 +29,15 @@ export default defineConfig({
     // Path to the NestJS AppModule (used to discover controllers)
     moduleEntry: './src/app.module.ts',
   },
+  contracts: {
+    // Glob for controller files watched in auto/manual watch mode
+    glob: 'src/**/*.controller.ts',
+    // Debounce before re-running contract discovery on file change
+    debounceMs: 500,
+    // Fast path: static AST discovery via ts-morph (~100-500ms).
+    // Set to false to use the heavy Nest-bootstrap probe (~2-10s) instead.
+    useStaticDiscovery: true,
+  },
   // Optional: where to emit generated files (default: .nestjs-inertia/)
   outDir: '.nestjs-inertia',
 });

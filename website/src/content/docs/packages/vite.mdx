@@ -22,17 +22,21 @@ Bridges NestJS and Vite's dev server so that HMR, React Fast Refresh, and the Vi
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite';
-import nestInertia from '@dudousxd/nestjs-inertia-vite/plugin';
+import { nestInertia } from '@dudousxd/nestjs-inertia-vite';
 
 export default defineConfig({
-  plugins: [nestInertia({ react: true })],
-  build: {
-    outDir: 'dist/client',
-    manifest: true,
-    rollupOptions: { input: ['inertia/app.tsx'] },
-  },
+  plugins: [
+    nestInertia({
+      react: true,                 // also: vue: true | svelte: true
+      root: '.',                   // optional — defaults to 'inertia'
+      entry: 'inertia/app.tsx',    // optional — defaults to 'inertia/app/client.tsx'
+    }),
+  ],
+  // The plugin only sets root/input if you haven't already — your values win.
 });
 ```
+
+The `root` and `entry` options override the plugin's defaults. If you set `build.rollupOptions.input` or `root` directly in your Vite config, those win — the plugin respects user overrides.
 
 ## Dev-server bootstrap
 
@@ -41,8 +45,13 @@ export default defineConfig({
 import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite';
 
 const app = await NestFactory.create(AppModule);
-await setupInertiaVite(app, { mode: process.env.NODE_ENV });
+await setupInertiaVite(app, {
+  mode: process.env.NODE_ENV ?? 'development',
+  root: 'inertia',              // Vite root (where index.html lives)
+  publicDir: 'dist/inertia/client',
+  outDir: 'dist/inertia',
+});
 await app.listen(3000);
 ```
 
-In development, attaches Vite in middleware mode with HMR. In production, serves hashed assets from `dist/client/` with long cache headers.
+In development, attaches Vite in middleware mode with HMR. In production, serves hashed assets from `publicDir` with long cache headers using the Vite manifest.
