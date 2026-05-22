@@ -2,6 +2,15 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## [0.4.0-alpha.0] - 2026-05-22
+
+### Added (companion packages)
+- `@dudousxd/nestjs-inertia-vite@0.1.0-alpha.0` — Vite dev/build helpers + plugin (`nestInertia({ ssr, react|vue|svelte, ... })`)
+- `@dudousxd/nestjs-inertia-testing@0.1.0-alpha.0` — `expectInertia(res)` fluent matchers + `assertInertia(payload)` + `createFakeInertiaRequest/Response` + `InertiaTestingModule.forTest()` + Jest/Vitest `expect.extend` integration
+
+### Changed
+- `@dudousxd/nestjs-inertia` core bumped to `0.4.0-alpha.0` (monorepo coordination; no source changes)
+
 ## [0.3.0-alpha.0] - 2026-05-22
 
 ### Added

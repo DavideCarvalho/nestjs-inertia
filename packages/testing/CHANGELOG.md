@@ -1,3 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-testing
 
-For repository-wide changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
+## [0.1.0-alpha.0] - 2026-05-22
+
+### Added
+- `expectInertia(res)` fluent matcher API
+- `assertInertia(payload)` for plain Node assert / ava / Node test runner
+- `createFakeInertiaRequest` + `createFakeInertiaResponse` fakes
+- `InertiaTestingModule.forTest()` wrapper over `InertiaModule.forRoot`
+- Jest matcher integration via `@dudousxd/nestjs-inertia-testing/jest`
+- Vitest matcher integration via `@dudousxd/nestjs-inertia-testing/vitest`
