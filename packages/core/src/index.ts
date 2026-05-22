@@ -1,4 +1,9 @@
 export const VERSION = '0.0.0';
+export {
+  InvalidInertiaConfigException,
+  InertiaServiceNotAvailableException,
+  UnsupportedRootViewExtensionException,
+} from './errors/exceptions.js';
 export { Inertia } from './markers.js';
 export type { ShellRenderer } from './shell/shell.js';
 export { InertiaService } from './service.js';
@@ -24,6 +29,8 @@ export type {
   CodegenOptions,
   InertiaModuleOptions,
   InertiaFeatureOptions,
+  InertiaOptionsFactory,
+  InertiaModuleAsyncOptions,
 } from './types.js';
 
 declare global {

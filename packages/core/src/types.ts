@@ -68,3 +68,15 @@ export interface InertiaModuleOptions {
 export interface InertiaFeatureOptions extends InertiaModuleOptions {
   scope: InertiaScope;
 }
+
+export interface InertiaOptionsFactory {
+  createInertiaOptions(): Promise<InertiaModuleOptions> | InertiaModuleOptions;
+}
+
+export interface InertiaModuleAsyncOptions {
+  imports?: unknown[];
+  inject?: unknown[];
+  useExisting?: new (...args: unknown[]) => InertiaOptionsFactory;
+  useClass?: new (...args: unknown[]) => InertiaOptionsFactory;
+  useFactory?: (...args: unknown[]) => Promise<InertiaModuleOptions> | InertiaModuleOptions;
+}
