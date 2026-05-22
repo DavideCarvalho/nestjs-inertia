@@ -12,7 +12,7 @@ export interface FakeInertiaResponse {
 }
 
 export function createFakeInertiaResponse(): FakeInertiaResponse {
-  const captured = { status: 200, headers: {} as Record<string, string>, body: undefined as unknown, bodyHtml: undefined as string | undefined, ended: false };
+  const captured: { status: number; headers: Record<string, string>; body?: unknown; bodyHtml?: string; ended: boolean } = { status: 200, headers: {} as Record<string, string>, ended: false };
   let sent = false;
   const res: FakeInertiaResponse = {
     get statusCode() { return captured.status; },

@@ -125,7 +125,7 @@ export class InertiaAssertion {
     const page = this.page();
     const deferred = page.deferredProps ?? {};
     const matchingGroup = group ? deferred[group] : Object.values(deferred).flat();
-    if (!matchingGroup || (Array.isArray(matchingGroup) ? !matchingGroup.includes(name) : !matchingGroup.flat().includes(name))) {
+    if (!matchingGroup || !matchingGroup.includes(name)) {
       fail(`Expected deferred prop "${name}"${group ? ` in group "${group}"` : ''}, got ${JSON.stringify(deferred)}`, page);
     }
     return this;

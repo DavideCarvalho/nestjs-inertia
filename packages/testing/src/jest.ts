@@ -9,10 +9,11 @@ function runAssertion(received: unknown, name: string, args: unknown[]): { pass:
     status: res.status ?? 200,
     body: res.body,
     headers: res.headers ?? {},
-    text: res.text,
+    ...(res.text !== undefined ? { text: res.text } : {}),
   });
   try {
-    (assertion as unknown as Record<string, (...a: unknown[]) => InertiaAssertion>)[name](...args);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    (assertion as unknown as Record<string, (...a: unknown[]) => InertiaAssertion>)[name]!(...args);
     return { pass: true, message: () => `Expected NOT ${name}(${args.join(', ')})` };
   } catch (err) {
     return { pass: false, message: () => (err as Error).message };
