@@ -73,6 +73,21 @@ describe('InertiaService.render — version mismatch', () => {
     await svc.render('Home');
     expect(res._captured.status).toBe(200);
   });
+
+  it('does NOT call shared/props factories when version is stale (GET)', async () => {
+    let sharedCalled = false;
+    let propCalled = false;
+    const req = fakeRequest({ headers: { 'x-inertia': 'true', 'x-inertia-version': 'old' } });
+    const { svc, res } = makeService(req, fakeResponse(), {
+      moduleShare: async () => { sharedCalled = true; return {}; },
+    });
+    // marker that, if invoked, would set propCalled
+    const { Inertia } = await import('../src/markers.js');
+    await svc.render('Home', { x: Inertia.always(() => { propCalled = true; return 1; }) });
+    expect(res._captured.status).toBe(409);
+    expect(sharedCalled).toBe(false);
+    expect(propCalled).toBe(false);
+  });
 });
 
 describe('InertiaService.share', () => {

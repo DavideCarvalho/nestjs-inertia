@@ -66,6 +66,18 @@ export class InertiaService {
   }
 
   async render(component: string, props: Props = {}): Promise<void> {
+    // Version mismatch check FIRST — short-circuits before resolving any factories
+    const clientVersion = this.req.header('X-Inertia-Version');
+    if (
+      this.req.method === 'GET' &&
+      this.req.header('X-Inertia') &&
+      clientVersion !== undefined &&
+      clientVersion !== this.deps.assetVersion
+    ) {
+      this.res.status(409).setHeader('X-Inertia-Location', this.req.originalUrl).end();
+      return;
+    }
+
     const sharedProps = await this.resolveShared();
     const rawProps: Props = { ...sharedProps, ...props };
     if (rawProps['errors'] === undefined) rawProps['errors'] = {};
@@ -134,17 +146,6 @@ export class InertiaService {
     if (this.encryptHistoryFlag !== undefined) page.encryptHistory = this.encryptHistoryFlag;
     else if (this.deps.historyEncryptionDefault) page.encryptHistory = true;
     if (this.clearHistoryFlag) page.clearHistory = true;
-
-    const clientVersion = this.req.header('X-Inertia-Version');
-    if (
-      this.req.method === 'GET' &&
-      this.req.header('X-Inertia') &&
-      clientVersion !== undefined &&
-      clientVersion !== this.deps.assetVersion
-    ) {
-      this.res.status(409).setHeader('X-Inertia-Location', this.req.originalUrl).end();
-      return;
-    }
 
     if (this.req.header('X-Inertia')) {
       this.res
