@@ -24,13 +24,21 @@ Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed
 
 ## Examples
 
-The [`examples/express-react/`](examples/express-react/) directory contains an end-to-end demo application using Express + React that exercises all five packages. It is the canonical reference for how the pieces fit together.
+Three end-to-end example apps demonstrate different adapter + frontend combinations:
 
-To run the example:
+| Example | Stack | Run |
+|---------|-------|-----|
+| [`examples/express-react/`](examples/express-react/) | Express + React + Vite | `pnpm --filter @example/express-react dev` |
+| [`examples/fastify-vue/`](examples/fastify-vue/) | Fastify + Vue 3 + Vite | `pnpm --filter @example/fastify-vue dev` |
+| [`examples/express-svelte/`](examples/express-svelte/) | Express + Svelte 5 + Vite | `pnpm --filter @example/express-svelte dev` |
+
+`express-react` is the canonical reference that exercises all five packages including the typed `<Link>` component and `@ApplyContract` codegen.
+
+To run any example:
 
 ```bash
 pnpm install
-pnpm --filter @example/express-react dev
+pnpm --filter @example/express-react dev  # or fastify-vue / express-svelte
 ```
 
 ## Docs

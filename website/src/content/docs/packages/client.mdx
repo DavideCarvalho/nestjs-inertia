@@ -7,7 +7,17 @@ description: Tuyau-style typed HTTP client with Contract builders, createFetcher
 pnpm add @dudousxd/nestjs-inertia-client
 ```
 
-End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen.
+End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus typed `<Link>` components for React, Vue, and Svelte.
+
+## Subpath exports
+
+| Subpath | Contents |
+|---------|----------|
+| `@dudousxd/nestjs-inertia-client` | Core: `Contract`, `@ApplyContract`, `createFetcher`, `setRouteResolver`, `invalidate`, etc. |
+| `@dudousxd/nestjs-inertia-client/react` | Typed `<Link>` component for React + `@inertiajs/react` |
+| `@dudousxd/nestjs-inertia-client/vue` | Typed `<Link>` component for Vue 3 + `@inertiajs/vue3` |
+| `@dudousxd/nestjs-inertia-client/svelte` | Typed `<Link>` component for Svelte 5 + `@inertiajs/svelte` |
+| `@dudousxd/nestjs-inertia-client/ssr` | SSR hydration helpers (`hydrateClientFromInertia`, `seedInitialQueries`) |
 
 ## Key API surface
 
@@ -16,7 +26,10 @@ End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen.
 | `Contract.get/post/put/patch/delete` | Declare a typed REST contract with Zod schemas |
 | `@ApplyContract(contract)` | Attach a contract to a controller method (read by codegen) |
 | `createFetcher<Api>(options)` | Create a typed fetch client from `api.ts` |
+| `setRouteResolver(fn)` | Wire the codegen `route()` function into typed `Link` components |
 | `InferResponse<K>` | Extract the response type for a given route key |
 | `hydrateClientFromInertia(page)` | SSR: initialise TanStack Query from Inertia initial-page data |
 
-See [Typed Client guide](/nestjs-inertia/guides/typed-client/) for full usage examples.
+See [Typed Client guide](/nestjs-inertia/guides/typed-client/) for full HTTP client usage.
+
+See [Typed Link guide](/nestjs-inertia/guides/typed-link/) for `<Link>` component usage across React, Vue, and Svelte.

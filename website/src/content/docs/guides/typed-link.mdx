@@ -1,0 +1,100 @@
+---
+title: Typed Link
+description: Use the typed <Link> component for React, Vue 3, and Svelte with full route-name and routeParams autocomplete.
+---
+
+The `@dudousxd/nestjs-inertia-client` package ships typed `<Link>` components for React, Vue 3, and Svelte. Each component wraps the corresponding `@inertiajs/*` `Link` but adds a `route` prop that is autocompleted from your codegen-emitted `RouteParamsMap`, and a conditionally required `routeParams` prop typed to the exact parameters of that route.
+
+## Install
+
+```bash
+pnpm add @dudousxd/nestjs-inertia-client
+```
+
+## Module augmentation
+
+Running `nestjs-inertia init` scaffolds an augmentation stub in your frontend entry. If you haven't run it yet, add the following to your frontend types file (e.g. `src/inertia.d.ts`):
+
+```ts
+import type { RouteParamsMap } from './.nestjs-inertia/routes.js';
+
+declare module '@dudousxd/nestjs-inertia' {
+  interface InertiaRegistry {
+    routes: RouteParamsMap;
+  }
+}
+```
+
+Re-run codegen after adding new routes to keep `RouteParamsMap` up to date:
+
+```bash
+pnpm nestjs-inertia codegen
+```
+
+## Boot wiring
+
+Call `setRouteResolver` once in your entry file (before the app mounts) to wire the codegen `route()` function into all typed `Link` components:
+
+```ts
+import { setRouteResolver } from '@dudousxd/nestjs-inertia-client';
+import { route } from './.nestjs-inertia/routes.js';
+
+setRouteResolver(route);
+```
+
+## React example
+
+```tsx
+import { Link } from '@dudousxd/nestjs-inertia-client/react';
+
+// Route with no params — routeParams is omitted
+<Link route="users.index">All users</Link>
+
+// Route with params — routeParams is required and typed
+<Link route="users.show" routeParams={{ id: '42' }}>View user</Link>
+```
+
+Import from the `/react` subpath. The component accepts all standard `@inertiajs/react` `Link` props plus `route` and `routeParams`.
+
+## Vue example
+
+```vue
+<script setup lang="ts">
+import { Link } from '@dudousxd/nestjs-inertia-client/vue';
+</script>
+
+<template>
+  <!-- Route with no params -->
+  <Link route="users.index">All users</Link>
+
+  <!-- Route with params -->
+  <Link route="users.show" :routeParams="{ id: '42' }">View user</Link>
+</template>
+```
+
+Import from the `/vue` subpath. The component forwards all `@inertiajs/vue3` `Link` props.
+
+## Svelte example
+
+```svelte
+<script lang="ts">
+  import Link from '@dudousxd/nestjs-inertia-client/svelte';
+</script>
+
+<!-- Route with no params -->
+<Link route="users.index">All users</Link>
+
+<!-- Route with params -->
+<Link route="users.show" routeParams={{ id: '42' }}>View user</Link>
+```
+
+Import from the `/svelte` subpath. The component wraps `@inertiajs/svelte`'s `Link`.
+
+## Conditional `routeParams` behaviour
+
+`routeParams` is typed as a mapped type derived from `RouteParamsMap`:
+
+- When the selected route has **no dynamic segments** (e.g. `/users`), the `routeParams` prop is `never` and should be omitted. TypeScript will error if you pass it.
+- When the selected route has **dynamic segments** (e.g. `/users/:id`), the `routeParams` prop is `{ id: string }` and is **required**. TypeScript will error if you omit it.
+
+This means all routing mistakes are caught at compile time — no runtime "missing param" errors.
