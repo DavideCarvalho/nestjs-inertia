@@ -8,6 +8,11 @@ interface FastifyApp {
 }
 
 export function registerFastifyInertia(app: FastifyApp, depsFactory: () => InertiaServiceDeps): void {
+  // Guard against double-registration when forRoot + forFeature both call onApplicationBootstrap
+  const appAsAny = app as unknown as { _inertiaRegistered?: boolean };
+  if (appAsAny._inertiaRegistered) return;
+  appAsAny._inertiaRegistered = true;
+
   app.decorateRequest('inertia', null);
   app.addHook('onRequest', async (req: unknown, reply: unknown) => {
     const adaptedReq = fastifyAdapter.adaptRequest(req);

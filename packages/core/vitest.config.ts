@@ -13,6 +13,7 @@ export default defineConfig({
       [new URL('./test/e2e/ssr.e2e-spec.ts', import.meta.url).pathname, 'forks'],
       [new URL('./test/e2e/template-engines.e2e-spec.ts', import.meta.url).pathname, 'forks'],
       [new URL('./test/e2e/fastify-parity.e2e-spec.ts', import.meta.url).pathname, 'forks'],
+      [new URL('./test/e2e/forFeature-fastify.e2e-spec.ts', import.meta.url).pathname, 'forks'],
     ],
   },
   resolve: {

@@ -1,9 +1,10 @@
 import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
-import { Reflector, ModuleRef } from '@nestjs/core';
+import { Reflector, ModuleRef, HttpAdapterHost } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { INERTIA_USE_SCOPE } from '../decorator/use-inertia.decorator.js';
 import { featureToken } from '../tokens.js';
 import { expressAdapter } from '../adapter/express.js';
+import { fastifyAdapter } from '../adapter/fastify.js';
 import { InertiaService, type InertiaServiceDeps } from '../service.js';
 import type { ShellRenderer } from '../shell/shell.js';
 import type { Manifest } from '../asset/version.provider.js';
@@ -14,6 +15,7 @@ export class InertiaScopeSwitcherInterceptor implements NestInterceptor {
   constructor(
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(ModuleRef) private readonly moduleRef: ModuleRef,
+    @Inject(HttpAdapterHost) private readonly httpAdapterHost: HttpAdapterHost,
   ) {}
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -40,9 +42,12 @@ export class InertiaScopeSwitcherInterceptor implements NestInterceptor {
         historyEncryptionDefault: (opts as { historyEncryption?: { default?: boolean } }).historyEncryption?.default ?? false,
         flashStore: (opts as { flashStore?: InertiaModuleOptions['flashStore'] }).flashStore,
       };
+      const platform = this.httpAdapterHost.httpAdapter?.getType();
+      const adapter = platform === 'fastify' ? fastifyAdapter : expressAdapter;
+
       req.inertia = new InertiaService(
-        expressAdapter.adaptRequest(req),
-        expressAdapter.adaptResponse(res),
+        adapter.adaptRequest(req),
+        adapter.adaptResponse(res),
         deps,
       );
     }

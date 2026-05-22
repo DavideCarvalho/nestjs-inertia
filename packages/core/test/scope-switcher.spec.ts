@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import 'reflect-metadata';
 import { Reflector } from '@nestjs/core';
-import type { ModuleRef } from '@nestjs/core';
+import type { ModuleRef, HttpAdapterHost } from '@nestjs/core';
 import { lastValueFrom, of } from 'rxjs';
 import { InertiaScopeSwitcherInterceptor } from '../src/interceptor/scope-switcher.interceptor.js';
 import { UseInertia } from '../src/decorator/use-inertia.decorator.js';
 import { featureToken } from '../src/tokens.js';
+
+const fakeHttpAdapterHost = (type: 'express' | 'fastify' = 'express') =>
+  ({ httpAdapter: { getType: () => type } }) as unknown as HttpAdapterHost;
 
 describe('InertiaScopeSwitcherInterceptor', () => {
   it('passes through when no @UseInertia metadata', async () => {
@@ -17,7 +20,7 @@ describe('InertiaScopeSwitcherInterceptor', () => {
       getHandler: () => handler,
       getClass: () => class {},
     } as never;
-    const interceptor = new InertiaScopeSwitcherInterceptor(reflector, moduleRef);
+    const interceptor = new InertiaScopeSwitcherInterceptor(reflector, moduleRef, fakeHttpAdapterHost());
     await lastValueFrom(interceptor.intercept(ctx, { handle: () => of('passed') }), { defaultValue: undefined });
     expect(moduleRef.get).not.toHaveBeenCalled();
   });
@@ -32,7 +35,7 @@ describe('InertiaScopeSwitcherInterceptor', () => {
       getHandler: () => Ctrl.prototype.show,
       getClass: () => Ctrl,
     } as never;
-    const interceptor = new InertiaScopeSwitcherInterceptor(reflector, moduleRef);
+    const interceptor = new InertiaScopeSwitcherInterceptor(reflector, moduleRef, fakeHttpAdapterHost());
     await lastValueFrom(interceptor.intercept(ctx, { handle: () => of('passed') }), { defaultValue: undefined });
     expect(moduleRef.get).not.toHaveBeenCalled();
   });
@@ -60,7 +63,7 @@ describe('InertiaScopeSwitcherInterceptor', () => {
       getHandler: () => Ctrl.prototype.show,
       getClass: () => Ctrl,
     } as never;
-    const interceptor = new InertiaScopeSwitcherInterceptor(reflector, moduleRef);
+    const interceptor = new InertiaScopeSwitcherInterceptor(reflector, moduleRef, fakeHttpAdapterHost());
     await lastValueFrom(interceptor.intercept(ctx, { handle: () => of('done') }), { defaultValue: undefined });
     expect(typeof req.inertia as unknown).toBe('object');
     expect(moduleRef.get).toHaveBeenCalledWith(featureToken('OPTIONS', 'admin'), expect.objectContaining({ strict: false }));
