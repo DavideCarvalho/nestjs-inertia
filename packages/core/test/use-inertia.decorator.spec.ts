@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import 'reflect-metadata';
 import { Reflector } from '@nestjs/core';
-import { UseInertia, INERTIA_USE_SCOPE } from '../src/decorator/use-inertia.decorator.js';
+import { INERTIA_USE_SCOPE, UseInertia } from '../src/decorator/use-inertia.decorator.js';
 
 describe('@UseInertia decorator', () => {
   it('sets scope metadata on method', () => {

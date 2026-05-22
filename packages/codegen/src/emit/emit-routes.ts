@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RouteDescriptor } from '../discovery/routes.js';
 
@@ -21,9 +21,7 @@ function buildRoutesFile(routes: RouteDescriptor[]): string {
     return buildEmpty();
   }
 
-  const entries = routes
-    .map((r) => `  '${r.name}': '${r.path}',`)
-    .join('\n');
+  const entries = routes.map((r) => `  '${r.name}': '${r.path}',`).join('\n');
 
   const routeNameUnion = routes.map((r) => `  | '${r.name}'`).join('\n');
 
@@ -37,7 +35,7 @@ function buildRoutesFile(routes: RouteDescriptor[]): string {
     '',
     '/** Union of all known route names. */',
     'export type RouteName =',
-    routeNameUnion + ';',
+    `${routeNameUnion};`,
     '',
     '/**',
     ' * Extracts path-parameter names from a route path string.',
@@ -77,8 +75,8 @@ function buildRoutesFile(routes: RouteDescriptor[]): string {
     '  const params = args[0] as Record<string, string> | undefined;',
     '  if (params) {',
     '    path = path.replace(/:([^/]+)/g, (_, key) => {',
-    "      const val = params[key];",
-    "      if (val === undefined) throw new Error(`Missing route param: ${key}`);",
+    '      const val = params[key];',
+    '      if (val === undefined) throw new Error(`Missing route param: ${key}`);',
     '      return encodeURIComponent(val);',
     '    });',
     '  }',

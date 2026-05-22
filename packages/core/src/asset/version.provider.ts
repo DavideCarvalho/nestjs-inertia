@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { type Provider } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import type { InertiaModuleOptions } from '../types.js';
 
@@ -44,10 +44,7 @@ export const manifestProvider: Provider = {
 export const assetVersionProvider: Provider = {
   provide: INERTIA_ASSET_VERSION,
   inject: [INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS],
-  useFactory: async (
-    manifest: Manifest | null,
-    opts: InertiaModuleOptions,
-  ): Promise<string> => {
+  useFactory: async (manifest: Manifest | null, opts: InertiaModuleOptions): Promise<string> => {
     if (opts.version !== undefined) {
       return typeof opts.version === 'function' ? await opts.version() : opts.version;
     }

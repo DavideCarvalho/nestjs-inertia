@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { resolveTemplateEngine } from '../src/shell/template-engine.registry.js';
+import { describe, expect, it } from 'vitest';
 import { UnsupportedRootViewExtensionException } from '../src/index.js';
+import { resolveTemplateEngine } from '../src/shell/template-engine.registry.js';
 
 describe('resolveTemplateEngine', () => {
   it('resolves .hbs to handlebars adapter', async () => {
@@ -24,6 +24,8 @@ describe('resolveTemplateEngine', () => {
   });
 
   it('throws for unknown extension', async () => {
-    await expect(resolveTemplateEngine('.unknown')).rejects.toThrow(UnsupportedRootViewExtensionException);
+    await expect(resolveTemplateEngine('.unknown')).rejects.toThrow(
+      UnsupportedRootViewExtensionException,
+    );
   });
 });

@@ -11,11 +11,7 @@ export interface BuildUrlOptions {
  *   buildUrl('/users', { query: { active: true } })                        → '/users?active=true'
  *   buildUrl('/users', {}, 'https://api.test')                             → 'https://api.test/users'
  */
-export function buildUrl(
-  path: string,
-  opts: BuildUrlOptions = {},
-  baseUrl?: string,
-): string {
+export function buildUrl(path: string, opts: BuildUrlOptions = {}, baseUrl?: string): string {
   // Interpolate path params
   let resolved = path.replace(/:(\w+)/g, (_match, key: string) => {
     const val = opts.params?.[key];

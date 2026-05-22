@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { setNested, unpackDotKeys } from '../src/helpers/set-nested.js';
 
 describe('setNested', () => {
@@ -28,15 +28,18 @@ describe('setNested', () => {
 
   it('throws when intermediate path conflicts with existing non-object', () => {
     const target = { user: 'string-value' };
-    expect(() => setNested(target as Record<string, unknown>, ['user', 'name'], 'X'))
-      .toThrow(/conflict/i);
+    expect(() => setNested(target as Record<string, unknown>, ['user', 'name'], 'X')).toThrow(
+      /conflict/i,
+    );
   });
 });
 
 describe('unpackDotKeys', () => {
   it('unpacks dot-notation top-level keys', () => {
-    expect(unpackDotKeys({ 'user.name': 'A', 'user.age': 30, plain: 1 }))
-      .toEqual({ user: { name: 'A', age: 30 }, plain: 1 });
+    expect(unpackDotKeys({ 'user.name': 'A', 'user.age': 30, plain: 1 })).toEqual({
+      user: { name: 'A', age: 30 },
+      plain: 1,
+    });
   });
 
   it('leaves non-dot keys untouched', () => {
@@ -44,7 +47,6 @@ describe('unpackDotKeys', () => {
   });
 
   it('throws when a dot key conflicts with a non-dot key with same parent', () => {
-    expect(() => unpackDotKeys({ user: 'X', 'user.name': 'Y' }))
-      .toThrow(/conflict/i);
+    expect(() => unpackDotKeys({ user: 'X', 'user.name': 'Y' })).toThrow(/conflict/i);
   });
 });

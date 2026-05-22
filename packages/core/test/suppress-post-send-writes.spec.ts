@@ -1,16 +1,34 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { suppressPostSendWrites } from '../src/helpers/suppress-post-send-writes.js';
 
 function makeFakeRes(headersSent = false) {
   const calls: string[] = [];
   const res: Record<string, unknown> = {
     headersSent,
-    status: vi.fn(() => { calls.push('status'); return res; }),
-    json: vi.fn(() => { calls.push('json'); return res; }),
-    send: vi.fn(() => { calls.push('send'); return res; }),
-    header: vi.fn(() => { calls.push('header'); return res; }),
-    setHeader: vi.fn(() => { calls.push('setHeader'); return res; }),
-    end: vi.fn(() => { calls.push('end'); return res; }),
+    status: vi.fn(() => {
+      calls.push('status');
+      return res;
+    }),
+    json: vi.fn(() => {
+      calls.push('json');
+      return res;
+    }),
+    send: vi.fn(() => {
+      calls.push('send');
+      return res;
+    }),
+    header: vi.fn(() => {
+      calls.push('header');
+      return res;
+    }),
+    setHeader: vi.fn(() => {
+      calls.push('setHeader');
+      return res;
+    }),
+    end: vi.fn(() => {
+      calls.push('end');
+      return res;
+    }),
   };
   return { res, calls };
 }
@@ -60,7 +78,10 @@ describe('suppressPostSendWrites', () => {
       send: () => res,
       header: () => res,
       setHeader: () => res,
-      end: () => { calls.push('end'); return res; },
+      end: () => {
+        calls.push('end');
+        return res;
+      },
     };
     suppressPostSendWrites(res as never);
     (res as any).end();

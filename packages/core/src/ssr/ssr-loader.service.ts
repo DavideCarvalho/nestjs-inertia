@@ -1,6 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import type { InertiaModuleOptions, PageObject } from '../types.js';
 

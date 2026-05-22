@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { discoverPages } from '../../src/discovery/pages.js';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { discoverPages } from '../../src/discovery/pages.js';
 
 describe('discoverPages', () => {
   const fixturesDir = resolve(__dirname, '../__fixtures__/pages-react');

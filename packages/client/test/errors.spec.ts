@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ApiHttpError } from '../src/fetcher/errors.js';
 
 describe('ApiHttpError', () => {

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { Module } from '@nestjs/common';
 import { InertiaModule } from '@dudousxd/nestjs-inertia';
+import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller.js';
 import { UsersController } from './users.controller.js';
 

@@ -1,17 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { Inertia } from '@dudousxd/nestjs-inertia';
+import { Controller, Get, type INestApplication, Req } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import request from 'supertest';
-import { Inertia } from '@dudousxd/nestjs-inertia';
-import { InertiaTestingModule } from '../src/testing-module.js';
+import { describe, expect, it } from 'vitest';
 import { expectInertia } from '../src/expect.js';
+import { InertiaTestingModule } from '../src/testing-module.js';
 
 @Controller()
 class Ctrl {
   @Get('/')
   @Inertia('Home')
-  show() { return { hello: 'test' }; }
+  show() {
+    return { hello: 'test' };
+  }
 }
 
 describe('InertiaTestingModule', () => {

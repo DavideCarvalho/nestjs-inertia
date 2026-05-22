@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
 import { fakeResponse } from './helpers/fake-response.js';

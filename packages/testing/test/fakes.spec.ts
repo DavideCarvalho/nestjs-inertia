@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createFakeInertiaRequest } from '../src/fakes/fake-request.js';
 import { createFakeInertiaResponse } from '../src/fakes/fake-response.js';
 
@@ -11,7 +11,11 @@ describe('createFakeInertiaRequest', () => {
   });
 
   it('respects overrides', () => {
-    const req = createFakeInertiaRequest({ method: 'POST', url: '/foo', headers: { 'x-inertia': 'true' } });
+    const req = createFakeInertiaRequest({
+      method: 'POST',
+      url: '/foo',
+      headers: { 'x-inertia': 'true' },
+    });
     expect(req.method).toBe('POST');
     expect(req.url).toBe('/foo');
     expect(req.header('X-Inertia')).toBe('true');

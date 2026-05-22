@@ -1,12 +1,12 @@
-import { describe, it, expectTypeOf } from 'vitest';
+import { describe, expectTypeOf, it } from 'vitest';
 import type {
+  InertiaFeatureOptions,
+  InertiaModuleOptions,
   PageObject,
-  SsrResult,
+  Props,
   SharedFactory,
   SharedInput,
-  Props,
-  InertiaModuleOptions,
-  InertiaFeatureOptions,
+  SsrResult,
 } from '../src/types.js';
 
 describe('types', () => {
@@ -28,7 +28,9 @@ describe('types', () => {
   });
 
   it('InertiaModuleOptions has rootView and share', () => {
-    expectTypeOf<InertiaModuleOptions['rootView']>().toMatchTypeOf<string | ((ctx: unknown) => string | Promise<string>) | undefined>();
+    expectTypeOf<InertiaModuleOptions['rootView']>().toMatchTypeOf<
+      string | ((ctx: unknown) => string | Promise<string>) | undefined
+    >();
   });
 
   it('Props is a Record<string, unknown>', () => {

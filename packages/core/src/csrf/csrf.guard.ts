@@ -1,6 +1,6 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { verifyCsrfToken } from './csrf-token.js';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { InvalidCsrfTokenException } from '../errors/exceptions.js';
+import { verifyCsrfToken } from './csrf-token.js';
 
 export interface CsrfGuardOptions {
   secret: string;

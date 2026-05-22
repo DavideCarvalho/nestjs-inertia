@@ -1,5 +1,10 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Injectable,
+  type NestInterceptor,
+} from '@nestjs/common';
+import type { Observable } from 'rxjs';
 import { generateCsrfToken, verifyCsrfToken } from './csrf-token.js';
 
 export interface CsrfCookieOptions {

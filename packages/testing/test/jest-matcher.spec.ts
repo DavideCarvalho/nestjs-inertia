@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('jest.ts module loads', () => {
   it('importing jest matchers does not throw', async () => {

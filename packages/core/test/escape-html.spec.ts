@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { escapeHtml } from '../src/helpers/escape-html.js';
 
 describe('escapeHtml', () => {
@@ -13,8 +13,9 @@ describe('escapeHtml', () => {
   });
 
   it('escapes all dangerous chars in one string', () => {
-    expect(escapeHtml(`<div class="x" data-x='y'>&</div>`))
-      .toBe('&lt;div class=&quot;x&quot; data-x=&#39;y&#39;&gt;&amp;&lt;/div&gt;');
+    expect(escapeHtml(`<div class="x" data-x='y'>&</div>`)).toBe(
+      '&lt;div class=&quot;x&quot; data-x=&#39;y&#39;&gt;&amp;&lt;/div&gt;',
+    );
   });
 
   it('does not touch safe chars', () => {

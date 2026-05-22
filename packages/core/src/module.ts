@@ -1,20 +1,20 @@
 import { type DynamicModule, Inject, type MiddlewareConsumer, Module, type NestModule, type OnApplicationBootstrap, type Provider, RequestMethod } from '@nestjs/common';
 import { APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
-import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
-import { assetVersionProvider, loadManifest, computeAssetVersion, manifestProvider } from './asset/version.provider.js';
-import { InertiaMiddleware } from './middleware/express.middleware.js';
-import { DefaultShellRenderer } from './shell/shell.js';
-import { FileBasedShellRenderer } from './shell/file-shell.renderer.js';
-import { SsrLoaderService } from './ssr/ssr-loader.service.js';
-import type { InertiaFeatureAsyncOptions, InertiaFeatureOptions, InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
-import { InvalidInertiaConfigException } from './errors/exceptions.js';
-import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
-import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
-import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
-import type { ShellRenderer } from './shell/shell.js';
-import { InertiaScopeSwitcherInterceptor } from './interceptor/scope-switcher.interceptor.js';
+import { assetVersionProvider, computeAssetVersion, loadManifest, manifestProvider } from './asset/version.provider.js';
 import type { Manifest } from './asset/version.provider.js';
+import { InvalidInertiaConfigException } from './errors/exceptions.js';
+import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
+import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
+import { InertiaScopeSwitcherInterceptor } from './interceptor/scope-switcher.interceptor.js';
+import { InertiaMiddleware } from './middleware/express.middleware.js';
 import { registerFastifyInertia } from './middleware/fastify.middleware.js';
+import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
+import { FileBasedShellRenderer } from './shell/file-shell.renderer.js';
+import { DefaultShellRenderer } from './shell/shell.js';
+import type { ShellRenderer } from './shell/shell.js';
+import { SsrLoaderService } from './ssr/ssr-loader.service.js';
+import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
+import type { InertiaFeatureAsyncOptions, InertiaFeatureOptions, InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
 
 @Module({})
 export class InertiaModule implements NestModule, OnApplicationBootstrap {
@@ -81,9 +81,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
   }
 
   static forRootAsync(asyncOptions: InertiaModuleAsyncOptions): DynamicModule {
-    this.validateAsyncOptions(asyncOptions);
+    InertiaModule.validateAsyncOptions(asyncOptions);
 
-    const optionsProviders: Provider[] = this.createAsyncOptionsProviders(asyncOptions);
+    const optionsProviders: Provider[] = InertiaModule.createAsyncOptionsProviders(asyncOptions);
 
     // Register inject tokens as providers so NestJS can resolve them within this module
     const injectProviders: Provider[] = (asyncOptions.inject ?? [])
@@ -157,7 +157,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
     return {
       module: InertiaModule,
       global: true,
-      providers: [optionsProvider, ...this.createFeatureProviders(options.scope)],
+      providers: [optionsProvider, ...InertiaModule.createFeatureProviders(options.scope)],
       exports: [
         featureToken('OPTIONS', options.scope),
         featureToken('MANIFEST', options.scope),
@@ -226,7 +226,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap {
       module: InertiaModule,
       global: true,
       imports: (asyncOptions.imports as DynamicModule['imports'] | undefined) ?? [],
-      providers: [...injectProviders, ...optionsProviders, ...this.createFeatureProviders(scope)],
+      providers: [...injectProviders, ...optionsProviders, ...InertiaModule.createFeatureProviders(scope)],
       exports: [
         optionsToken,
         featureToken('MANIFEST', scope),

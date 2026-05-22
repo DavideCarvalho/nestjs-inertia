@@ -1,4 +1,4 @@
-import type { RequestAdapter, InertiaRequest, InertiaResponse } from './adapter.js';
+import type { InertiaRequest, InertiaResponse, RequestAdapter } from './adapter.js';
 
 type ExpressReq = {
   method: string;
@@ -43,14 +43,33 @@ export const expressAdapter: RequestAdapter = {
   adaptResponse(raw): InertiaResponse {
     const r = raw as ExpressRes;
     const wrapper: InertiaResponse = {
-      get statusCode() { return r.statusCode; },
-      get headersSent() { return r.headersSent; },
-      status(code) { r.status(code); return wrapper; },
-      setHeader(name, value) { r.setHeader(name, value); return wrapper; },
-      getHeader(name) { return r.getHeader(name); },
-      json(body) { r.json(body); },
-      html(body) { r.setHeader('Content-Type', 'text/html; charset=utf-8'); r.send(body); },
-      end() { r.end(); },
+      get statusCode() {
+        return r.statusCode;
+      },
+      get headersSent() {
+        return r.headersSent;
+      },
+      status(code) {
+        r.status(code);
+        return wrapper;
+      },
+      setHeader(name, value) {
+        r.setHeader(name, value);
+        return wrapper;
+      },
+      getHeader(name) {
+        return r.getHeader(name);
+      },
+      json(body) {
+        r.json(body);
+      },
+      html(body) {
+        r.setHeader('Content-Type', 'text/html; charset=utf-8');
+        r.send(body);
+      },
+      end() {
+        r.end();
+      },
       raw,
     };
     return wrapper;

@@ -1,17 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule } from '../../src/index.js';
 
 @Controller()
 class HomeController {
   @Get('/')
   @Inertia('Home')
-  show() { return { hello: 'world' }; }
+  show() {
+    return { hello: 'world' };
+  }
 }
 
 const origCwd = process.cwd();
@@ -24,7 +26,9 @@ describe('Shell directives — E2E with file-based rootView', () => {
     const sub = join(dir, 'inertia');
     mkdirSync(sub);
     const rootPath = join(sub, 'root.html');
-    writeFileSync(rootPath, `<!doctype html>
+    writeFileSync(
+      rootPath,
+      `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -35,7 +39,8 @@ describe('Shell directives — E2E with file-based rootView', () => {
   @inertia
 </body>
 </html>
-`);
+`,
+    );
     process.chdir(dir);
 
     const moduleRef = await Test.createTestingModule({

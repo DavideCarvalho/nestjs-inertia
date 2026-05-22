@@ -1,7 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fastifyAdapter } from '../src/adapter/fastify.js';
 
-function fakeFastifyReq(overrides: { method?: string; url?: string; headers?: Record<string, string>; body?: unknown; query?: Record<string, unknown> } = {}) {
+function fakeFastifyReq(
+  overrides: {
+    method?: string;
+    url?: string;
+    headers?: Record<string, string>;
+    body?: unknown;
+    query?: Record<string, unknown>;
+  } = {},
+) {
   return {
     method: overrides.method ?? 'GET',
     url: overrides.url ?? '/',
@@ -18,17 +26,47 @@ function fakeFastifyReply() {
   let sent = false;
   const calls: string[] = [];
   return {
-    get statusCode() { return status; },
-    set statusCode(v: number) { status = v; },
-    get sent() { return sent; },
-    status(code: number) { status = code; return this; },
-    code(c: number) { status = c; return this; },
-    header(name: string, value: string) { headers[name] = value; return this; },
-    getHeader(name: string) { return headers[name]; },
-    send(body: unknown) { calls.push(`send:${typeof body === 'string' ? body.slice(0, 30) : JSON.stringify(body)}`); sent = true; },
-    type(_t: string) { return this; },
-    redirect(url: string, status?: number) { headers['Location'] = url; this.statusCode = status ?? 302; sent = true; },
-    raw: { end: vi.fn(() => { sent = true; }) },
+    get statusCode() {
+      return status;
+    },
+    set statusCode(v: number) {
+      status = v;
+    },
+    get sent() {
+      return sent;
+    },
+    status(code: number) {
+      status = code;
+      return this;
+    },
+    code(c: number) {
+      status = c;
+      return this;
+    },
+    header(name: string, value: string) {
+      headers[name] = value;
+      return this;
+    },
+    getHeader(name: string) {
+      return headers[name];
+    },
+    send(body: unknown) {
+      calls.push(`send:${typeof body === 'string' ? body.slice(0, 30) : JSON.stringify(body)}`);
+      sent = true;
+    },
+    type(_t: string) {
+      return this;
+    },
+    redirect(url: string, status?: number) {
+      headers.Location = url;
+      this.statusCode = status ?? 302;
+      sent = true;
+    },
+    raw: {
+      end: vi.fn(() => {
+        sent = true;
+      }),
+    },
     _captured: { calls, headers },
   };
 }

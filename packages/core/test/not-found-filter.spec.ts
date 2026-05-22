@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
+import { describe, expect, it, vi } from 'vitest';
 import { InertiaNotFoundFilter } from '../src/filter/not-found.filter.js';
 
 function makeHost(req: unknown, res: unknown) {
@@ -17,11 +17,13 @@ describe('InertiaNotFoundFilter', () => {
     const res = { status, headersSent: false };
     await filter.catch(new NotFoundException('Not found'), makeHost(req, res));
     expect(status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      statusCode: 404,
-      path: '/api/v1/missing',
-      errorCode: 'NOT_FOUND',
-    }));
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 404,
+        path: '/api/v1/missing',
+        errorCode: 'NOT_FOUND',
+      }),
+    );
   });
 
   it('renders Inertia NotFound component for non-API paths', async () => {

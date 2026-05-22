@@ -17,6 +17,8 @@ export function featureToken(
 
 export function assertScopeNotReserved(scope: string): void {
   if (RESERVED_SCOPES.has(scope)) {
-    throw new Error(`[nestjs-inertia] Scope "${scope}" is reserved. Use forRoot() for the default scope.`);
+    throw new Error(
+      `[nestjs-inertia] Scope "${scope}" is reserved. Use forRoot() for the default scope.`,
+    );
   }
 }

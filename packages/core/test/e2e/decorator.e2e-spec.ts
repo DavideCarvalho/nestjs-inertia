@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule } from '../../src/index.js';
 
 @Controller()
@@ -25,7 +25,9 @@ describe('@Inertia decorator — E2E', () => {
     await app.init();
   });
 
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('renders the component named in @Inertia decorator', async () => {
     const res = await request(app.getHttpServer()).get('/dashboard').set('X-Inertia', 'true');

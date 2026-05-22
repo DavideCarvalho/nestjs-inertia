@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Test } from '@nestjs/testing';
 import { Controller, Get, Put, Res, UseGuards } from '@nestjs/common';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Test } from '@nestjs/testing';
 import type { FastifyReply } from 'fastify';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaAuthGuard, InertiaModule } from '../../src/index.js';
 
 @Controller()
@@ -76,13 +76,13 @@ describe('Fastify parity — E2E', () => {
       headers: { 'x-inertia': 'true' },
     });
     expect(res.statusCode).toBe(303);
-    expect(res.headers['location']).toBe('/items');
+    expect(res.headers.location).toBe('/items');
   });
 
   it('auth guard returns 302 on plain visit to protected', async () => {
     const res = await app.inject({ method: 'GET', url: '/protected' });
     expect(res.statusCode).toBe(302);
-    expect(res.headers['location']).toBe('/signin?return_to=%2Fprotected');
+    expect(res.headers.location).toBe('/signin?return_to=%2Fprotected');
   });
 
   it('auth guard returns 409 + X-Inertia-Location on Inertia XHR to protected', async () => {

@@ -1,8 +1,8 @@
 import 'reflect-metadata';
-import { createRoot } from 'react-dom/client';
+import { hydrateClientFromInertia } from '@dudousxd/nestjs-inertia-client/ssr';
 import { createInertiaApp } from '@inertiajs/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { hydrateClientFromInertia } from '@dudousxd/nestjs-inertia-client/ssr';
+import { createRoot } from 'react-dom/client';
 
 createInertiaApp({
   resolve: (name: string) => {

@@ -1,7 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { expressAdapter } from '../src/adapter/express.js';
 
-function fakeExpressReq(overrides: Partial<{ method: string; originalUrl: string; url: string; headers: Record<string, string>; body: unknown; query: Record<string, unknown> }> = {}) {
+function fakeExpressReq(
+  overrides: Partial<{
+    method: string;
+    originalUrl: string;
+    url: string;
+    headers: Record<string, string>;
+    body: unknown;
+    query: Record<string, unknown>;
+  }> = {},
+) {
   return {
     method: overrides.method ?? 'GET',
     originalUrl: overrides.originalUrl ?? '/',
@@ -9,7 +18,9 @@ function fakeExpressReq(overrides: Partial<{ method: string; originalUrl: string
     headers: overrides.headers ?? {},
     body: overrides.body,
     query: overrides.query,
-    header(name: string) { return this.headers[name.toLowerCase()]; },
+    header(name: string) {
+      return this.headers[name.toLowerCase()];
+    },
   };
 }
 
@@ -19,18 +30,49 @@ function fakeExpressRes() {
   let sent = false;
   const calls: string[] = [];
   return {
-    get statusCode() { return status; },
-    set statusCode(v: number) { status = v; },
-    get headersSent() { return sent; },
-    status(code: number) { status = code; return this; },
-    setHeader(name: string, value: string) { headers[name] = value; return this; },
-    getHeader(name: string) { return headers[name]; },
-    header(name: string, value: string) { headers[name] = value; return this; },
-    json(body: unknown) { calls.push(`json:${JSON.stringify(body)}`); sent = true; },
-    type(_t: string) { return this; },
-    send(body: string) { calls.push(`send:${body.slice(0, 30)}`); sent = true; },
-    end() { calls.push('end'); sent = true; },
-    redirect(_status: number, _url: string) { calls.push(`redirect:${_status}:${_url}`); sent = true; },
+    get statusCode() {
+      return status;
+    },
+    set statusCode(v: number) {
+      status = v;
+    },
+    get headersSent() {
+      return sent;
+    },
+    status(code: number) {
+      status = code;
+      return this;
+    },
+    setHeader(name: string, value: string) {
+      headers[name] = value;
+      return this;
+    },
+    getHeader(name: string) {
+      return headers[name];
+    },
+    header(name: string, value: string) {
+      headers[name] = value;
+      return this;
+    },
+    json(body: unknown) {
+      calls.push(`json:${JSON.stringify(body)}`);
+      sent = true;
+    },
+    type(_t: string) {
+      return this;
+    },
+    send(body: string) {
+      calls.push(`send:${body.slice(0, 30)}`);
+      sent = true;
+    },
+    end() {
+      calls.push('end');
+      sent = true;
+    },
+    redirect(_status: number, _url: string) {
+      calls.push(`redirect:${_status}:${_url}`);
+      sent = true;
+    },
     _calls: calls,
     _headers: headers,
   };
@@ -38,7 +80,11 @@ function fakeExpressRes() {
 
 describe('expressAdapter', () => {
   it('adaptRequest reads method, originalUrl, header', () => {
-    const raw = fakeExpressReq({ method: 'POST', originalUrl: '/foo', headers: { 'x-inertia': 'true' } });
+    const raw = fakeExpressReq({
+      method: 'POST',
+      originalUrl: '/foo',
+      headers: { 'x-inertia': 'true' },
+    });
     const req = expressAdapter.adaptRequest(raw);
     expect(req.method).toBe('POST');
     expect(req.originalUrl).toBe('/foo');

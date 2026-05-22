@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { writeFileSync, mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { SsrLoaderService } from '../src/ssr/ssr-loader.service.js';
 
 function makeBundle(body: string): string {
@@ -25,7 +25,9 @@ describe('SsrLoaderService — real bundle loading', () => {
   });
 
   it('loads a real SSR bundle and returns the module', async () => {
-    const file = makeBundle(`export const render = async (page) => ({ head: ['<title>Real</title>'], body: '<div>X</div>' });`);
+    const file = makeBundle(
+      `export const render = async (page) => ({ head: ['<title>Real</title>'], body: '<div>X</div>' });`,
+    );
     const svc = new SsrLoaderService(baseOpts({ bundlePath: file }) as never);
     const mod = await svc.load();
     expect(mod).not.toBeNull();
@@ -49,7 +51,9 @@ describe('SsrLoaderService — real bundle loading', () => {
   });
 
   it('throws when throwOnError is true', async () => {
-    const svc = new SsrLoaderService(baseOpts({ bundlePath: '/nonexistent/ssr.mjs', throwOnError: true }) as never);
+    const svc = new SsrLoaderService(
+      baseOpts({ bundlePath: '/nonexistent/ssr.mjs', throwOnError: true }) as never,
+    );
     await expect(svc.load()).rejects.toThrow();
   });
 

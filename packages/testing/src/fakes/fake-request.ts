@@ -8,20 +8,24 @@ export interface FakeInertiaRequest {
   raw: unknown;
 }
 
-export function createFakeInertiaRequest(opts: {
-  method?: string;
-  url?: string;
-  originalUrl?: string;
-  headers?: Record<string, string>;
-  body?: unknown;
-  query?: Record<string, unknown>;
-} = {}): FakeInertiaRequest {
+export function createFakeInertiaRequest(
+  opts: {
+    method?: string;
+    url?: string;
+    originalUrl?: string;
+    headers?: Record<string, string>;
+    body?: unknown;
+    query?: Record<string, unknown>;
+  } = {},
+): FakeInertiaRequest {
   const headers = opts.headers ?? {};
   const req: FakeInertiaRequest = {
     method: opts.method ?? 'GET',
     originalUrl: opts.originalUrl ?? opts.url ?? '/',
     url: opts.url ?? '/',
-    header(name: string) { return headers[name.toLowerCase()]; },
+    header(name: string) {
+      return headers[name.toLowerCase()];
+    },
     raw: {},
   };
   if (opts.body !== undefined) req.body = opts.body;

@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { emitRoutes } from '../../src/emit/emit-routes.js';
-import type { RouteDescriptor } from '../../src/discovery/routes.js';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { RouteDescriptor } from '../../src/discovery/routes.js';
+import { emitRoutes } from '../../src/emit/emit-routes.js';
 
 describe('emitRoutes', () => {
   let outDir: string;

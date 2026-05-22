@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { Contract } from '../src/contract/contract.js';
 import { CONTRACT_METADATA, getContract } from '../src/contract/metadata.js';

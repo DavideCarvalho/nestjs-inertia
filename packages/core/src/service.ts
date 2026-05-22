@@ -1,10 +1,10 @@
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
-import type { PageObject, Props, SharedInput, ShellRenderCtx } from './types.js';
 import type { Manifest } from './asset/version.provider.js';
 import type { FlashStore } from './flash/flash-store.js';
-import { isMarker, getMarkerKind, getMarkerValue, getMarkerMeta } from './markers.js';
 import { nullifyUndefined } from './helpers/nullify-undefined.js';
 import { unpackDotKeys } from './helpers/set-nested.js';
+import { getMarkerKind, getMarkerMeta, getMarkerValue, isMarker } from './markers.js';
+import type { PageObject, Props, SharedInput, ShellRenderCtx } from './types.js';
 
 export interface SsrModule {
   render(page: PageObject): Promise<{ head: string[]; body: string }>;
@@ -49,7 +49,7 @@ export class InertiaService {
     }
   }
 
-  encryptHistory(value: boolean = true): this {
+  encryptHistory(value = true): this {
     this.encryptHistoryFlag = value;
     return this;
   }
@@ -87,7 +87,7 @@ export class InertiaService {
     }
 
     // Auto-resolve errors from FlashStore if configured and not provided in props
-    if (this.deps.flashStore && props['errors'] === undefined) {
+    if (this.deps.flashStore && props.errors === undefined) {
       try {
         const flashed = await this.deps.flashStore.read(this.req.raw);
         if (flashed && Object.keys(flashed).length > 0) {
@@ -100,12 +100,13 @@ export class InertiaService {
 
     const sharedProps = await this.resolveShared();
     const rawProps: Props = { ...sharedProps, ...props };
-    if (rawProps['errors'] === undefined) rawProps['errors'] = {};
+    if (rawProps.errors === undefined) rawProps.errors = {};
 
     const partialComponent = this.req.header('X-Inertia-Partial-Component');
     const isPartial = partialComponent === component;
     const partialDataHeader = this.req.header('X-Inertia-Partial-Data');
-    const keepList = isPartial && partialDataHeader ? partialDataHeader.split(',').filter(Boolean) : null;
+    const keepList =
+      isPartial && partialDataHeader ? partialDataHeader.split(',').filter(Boolean) : null;
     const keep = keepList && keepList.length > 0 ? keepList : null;
 
     const resetHeader = this.req.header('X-Inertia-Reset');
@@ -132,7 +133,7 @@ export class InertiaService {
           continue;
         }
         if (kind === 'optional') {
-          if (keep && keep.includes(key)) {
+          if (keep?.includes(key)) {
             finalProps[key] = await getMarkerValue(value)();
           }
           continue;
@@ -201,10 +202,7 @@ export class InertiaService {
     if (this.clearHistoryFlag) page.clearHistory = true;
 
     if (this.req.header('X-Inertia')) {
-      this.res
-        .setHeader('X-Inertia', 'true')
-        .setHeader('Vary', 'X-Inertia')
-        .json(page);
+      this.res.setHeader('X-Inertia', 'true').setHeader('Vary', 'X-Inertia').json(page);
       return;
     }
 

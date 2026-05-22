@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RouteDescriptor } from '../discovery/routes.js';
 
@@ -62,25 +62,23 @@ function buildApiFile(routes: RouteDescriptor[]): string {
       if (method === 'GET') {
         // queryOptions
         lines.push(`  '${name}': {`);
-        lines.push(
-          `    queryOptions: (query?: ApiRouter['${name}']['query']) =>`,
-        );
-        lines.push(`      queryOptions({`);
+        lines.push(`    queryOptions: (query?: ApiRouter['${name}']['query']) =>`);
+        lines.push('      queryOptions({');
         lines.push(`        queryKey: ['${name}', query],`);
         lines.push(
           `        queryFn: () => fetcher.get<ApiRouter['${name}']['response']>(route('${name}' as never) || '${path}', { query }),`,
         );
-        lines.push(`      }),`);
-        lines.push(`  },`);
+        lines.push('      }),');
+        lines.push('  },');
       } else {
         // mutationOptions
         lines.push(`  '${name}': {`);
-        lines.push(`    mutationOptions: () => ({`);
+        lines.push('    mutationOptions: () => ({');
         lines.push(
           `      mutationFn: (body: ApiRouter['${name}']['body']) => fetcher.${fetcherMethod}<ApiRouter['${name}']['response']>(route('${name}' as never) || '${path}', { body }),`,
         );
-        lines.push(`    }),`);
-        lines.push(`  },`);
+        lines.push('    }),');
+        lines.push('  },');
       }
     }
     lines.push('};');
@@ -89,11 +87,9 @@ function buildApiFile(routes: RouteDescriptor[]): string {
   lines.push('');
 
   // --- Infer* mapped types ---
-  lines.push(
-    'export type InferResponse<K extends keyof ApiRouter> = ApiRouter[K][\'response\'];',
-  );
-  lines.push('export type InferBody<K extends keyof ApiRouter> = ApiRouter[K][\'body\'];');
-  lines.push('export type InferQuery<K extends keyof ApiRouter> = ApiRouter[K][\'query\'];');
+  lines.push("export type InferResponse<K extends keyof ApiRouter> = ApiRouter[K]['response'];");
+  lines.push("export type InferBody<K extends keyof ApiRouter> = ApiRouter[K]['body'];");
+  lines.push("export type InferQuery<K extends keyof ApiRouter> = ApiRouter[K]['query'];");
   lines.push('');
 
   return lines.join('\n');

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import type { Plugin, UserConfig } from 'vite';
+import { describe, expect, it } from 'vitest';
 import nestInertia from '../src/plugin/plugin.js';
 
 type ConfigurerPlugin = Plugin & {
@@ -43,7 +43,7 @@ describe('nestInertia plugin', () => {
     // Simulate user having set root in their vite config
     const config = configurer!.config({ root: '/my/custom/root' }) as Record<string, unknown>;
     // Plugin should NOT set root when user already defined it
-    expect(config['root']).toBeUndefined();
+    expect(config.root).toBeUndefined();
   });
 
   it('does not overwrite build.rollupOptions.input when user has already set it in vite config', () => {

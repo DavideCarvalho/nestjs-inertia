@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
 import { fakeResponse } from './helpers/fake-response.js';
 
-function makeService(req = fakeRequest(), res = fakeResponse(), opts: Partial<ConstructorParameters<typeof InertiaService>[2]> = {}) {
+function makeService(
+  req = fakeRequest(),
+  res = fakeResponse(),
+  opts: Partial<ConstructorParameters<typeof InertiaService>[2]> = {},
+) {
   return {
     svc: new InertiaService(req, res, {
       assetVersion: 'v1',
@@ -33,7 +37,7 @@ describe('InertiaService.render — basic CSR/SSR-off', () => {
       version: 'v1',
     });
     expect(res._captured.headers['X-Inertia']).toBe('true');
-    expect(res._captured.headers['Vary']).toBe('X-Inertia');
+    expect(res._captured.headers.Vary).toBe('X-Inertia');
   });
 
   it('responds with HTML when no X-Inertia header', async () => {
@@ -61,7 +65,10 @@ describe('InertiaService.render — version mismatch', () => {
   });
 
   it('does NOT 409 for POST even on mismatch', async () => {
-    const req = fakeRequest({ method: 'POST', headers: { 'x-inertia': 'true', 'x-inertia-version': 'old' } });
+    const req = fakeRequest({
+      method: 'POST',
+      headers: { 'x-inertia': 'true', 'x-inertia-version': 'old' },
+    });
     const { svc, res } = makeService(req);
     await svc.render('Home');
     expect(res._captured.status).toBe(200);
@@ -79,11 +86,19 @@ describe('InertiaService.render — version mismatch', () => {
     let propCalled = false;
     const req = fakeRequest({ headers: { 'x-inertia': 'true', 'x-inertia-version': 'old' } });
     const { svc, res } = makeService(req, fakeResponse(), {
-      moduleShare: async () => { sharedCalled = true; return {}; },
+      moduleShare: async () => {
+        sharedCalled = true;
+        return {};
+      },
     });
     // marker that, if invoked, would set propCalled
     const { Inertia } = await import('../src/markers.js');
-    await svc.render('Home', { x: Inertia.always(() => { propCalled = true; return 1; }) });
+    await svc.render('Home', {
+      x: Inertia.always(() => {
+        propCalled = true;
+        return 1;
+      }),
+    });
     expect(res._captured.status).toBe(409);
     expect(sharedCalled).toBe(false);
     expect(propCalled).toBe(false);
@@ -96,7 +111,9 @@ describe('InertiaService.share', () => {
     const { svc, res } = makeService(req);
     svc.share({ auth: { id: '1' } });
     await svc.render('Home', { extra: true });
-    expect(res._captured.body).toMatchObject({ props: { auth: { id: '1' }, extra: true, errors: {} } });
+    expect(res._captured.body).toMatchObject({
+      props: { auth: { id: '1' }, extra: true, errors: {} },
+    });
   });
 
   it('resolves async function shared props', async () => {
@@ -137,12 +154,12 @@ describe('InertiaService.location — external redirect', () => {
 
 describe('InertiaService.location — context-aware behavior', () => {
   it('returns 302 redirect for non-Inertia browser visit', async () => {
-    const req = fakeRequest({});                       // no X-Inertia header
+    const req = fakeRequest({}); // no X-Inertia header
     const res = fakeResponse();
     const { svc } = makeService(req, res);
     svc.location('https://stripe.com/checkout');
     expect(res._captured.status).toBe(302);
-    expect(res._captured.headers['Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers.Location).toBe('https://stripe.com/checkout');
     expect(res._captured.ended).toBe(true);
   });
 

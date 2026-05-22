@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { InertiaService } from '../src/service.js';
+import { describe, expect, it } from 'vitest';
 import { Inertia } from '../src/markers.js';
+import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
 import { fakeResponse } from './helpers/fake-response.js';
 
@@ -20,7 +20,12 @@ describe('render — once() marker', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     let called = false;
-    await svc.render('Page', { token: Inertia.once(() => { called = true; return 'T'; }) });
+    await svc.render('Page', {
+      token: Inertia.once(() => {
+        called = true;
+        return 'T';
+      }),
+    });
     expect(called).toBe(true);
     expect((res._captured.body as { props: Record<string, unknown> }).props.token).toBe('T');
   });
@@ -38,10 +43,15 @@ describe('render — once() marker', () => {
     let called = false;
     await svc.render('Page', {
       other: 1,
-      token: Inertia.once(() => { called = true; return 'T'; }),
+      token: Inertia.once(() => {
+        called = true;
+        return 'T';
+      }),
     });
     expect(called).toBe(false);
-    expect((res._captured.body as { props: Record<string, unknown> }).props).not.toHaveProperty('token');
+    expect((res._captured.body as { props: Record<string, unknown> }).props).not.toHaveProperty(
+      'token',
+    );
   });
 
   it('once() resolves when X-Inertia-Reset-Once lists the key', async () => {
@@ -58,7 +68,10 @@ describe('render — once() marker', () => {
     let called = false;
     await svc.render('Page', {
       other: 1,
-      token: Inertia.once(() => { called = true; return 'T-fresh'; }),
+      token: Inertia.once(() => {
+        called = true;
+        return 'T-fresh';
+      }),
     });
     expect(called).toBe(true);
     expect((res._captured.body as { props: Record<string, unknown> }).props.token).toBe('T-fresh');
@@ -162,7 +175,12 @@ describe('render — X-Inertia-Reset header (suppresses merge metadata)', () => 
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     let called = false;
-    await svc.render('Page', { rows: Inertia.merge(() => { called = true; return [9, 8]; }) });
+    await svc.render('Page', {
+      rows: Inertia.merge(() => {
+        called = true;
+        return [9, 8];
+      }),
+    });
     expect(called).toBe(true);
     expect((res._captured.body as { props: Record<string, unknown> }).props.rows).toEqual([9, 8]);
   });

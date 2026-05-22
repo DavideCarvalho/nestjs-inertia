@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
+import { describe, expect, it } from 'vitest';
 import { invalidate } from '../src/invalidate.js';
 
 describe('invalidate', () => {

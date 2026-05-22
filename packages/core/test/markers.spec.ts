@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { Inertia, isMarker, getMarkerKind, getMarkerValue, getMarkerMeta } from '../src/markers.js';
+import { describe, expect, it } from 'vitest';
+import { Inertia, getMarkerKind, getMarkerMeta, getMarkerValue, isMarker } from '../src/markers.js';
 
 describe('Inertia markers', () => {
   it('always() wraps a value (function or literal)', () => {
@@ -62,7 +62,10 @@ describe('Inertia markers', () => {
 
   it('once() resolves the wrapped function lazily', async () => {
     let called = false;
-    const m = Inertia.once(() => { called = true; return 42; });
+    const m = Inertia.once(() => {
+      called = true;
+      return 42;
+    });
     expect(called).toBe(false);
     const fn = getMarkerValue(m);
     expect(await fn()).toBe(42);

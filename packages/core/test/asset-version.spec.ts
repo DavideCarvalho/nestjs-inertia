@@ -1,7 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { loadManifest, computeAssetVersion } from '../src/asset/version.provider.js';
-import { makeTmpManifest, makeNestedTmpManifest } from './helpers/tmp-manifest.js';
 import { writeFileSync } from 'node:fs';
+import { afterEach, describe, expect, it } from 'vitest';
+import { computeAssetVersion, loadManifest } from '../src/asset/version.provider.js';
+import { makeNestedTmpManifest, makeTmpManifest } from './helpers/tmp-manifest.js';
 
 const origCwd = process.cwd();
 

@@ -18,7 +18,7 @@ export class MethodSpoofMiddleware implements NestMiddleware {
     if (ALLOWED.has(spoofed)) {
       (req as unknown as { method: string }).method = spoofed;
       if (req.body && typeof req.body === 'object') {
-        delete req.body._method;
+        req.body._method = undefined;
       }
     }
     next();

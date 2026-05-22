@@ -1,13 +1,13 @@
-import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
-import { Reflector, ModuleRef, HttpAdapterHost } from '@nestjs/core';
-import { Observable } from 'rxjs';
-import { INERTIA_USE_SCOPE } from '../decorator/use-inertia.decorator.js';
-import { featureToken } from '../tokens.js';
+import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor } from '@nestjs/common';
+import { HttpAdapterHost, ModuleRef, Reflector } from '@nestjs/core';
+import type { Observable } from 'rxjs';
 import { expressAdapter } from '../adapter/express.js';
 import { fastifyAdapter } from '../adapter/fastify.js';
+import type { Manifest } from '../asset/version.provider.js';
+import { INERTIA_USE_SCOPE } from '../decorator/use-inertia.decorator.js';
 import { InertiaService, type InertiaServiceDeps } from '../service.js';
 import type { ShellRenderer } from '../shell/shell.js';
-import type { Manifest } from '../asset/version.provider.js';
+import { featureToken } from '../tokens.js';
 import type { InertiaModuleOptions } from '../types.js';
 
 @Injectable()

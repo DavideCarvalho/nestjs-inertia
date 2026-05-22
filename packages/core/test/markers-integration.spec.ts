@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { InertiaService } from '../src/service.js';
+import { describe, expect, it } from 'vitest';
 import { Inertia } from '../src/markers.js';
+import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
 import { fakeResponse } from './helpers/fake-response.js';
 
@@ -28,7 +28,12 @@ describe('render — Inertia v2 markers (full reload)', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, deps());
     let called = false;
-    await svc.render('Page', { x: Inertia.optional(() => { called = true; return 1; }) });
+    await svc.render('Page', {
+      x: Inertia.optional(() => {
+        called = true;
+        return 1;
+      }),
+    });
     expect(called).toBe(false);
     expect((res._captured.body as any).props).not.toHaveProperty('x');
   });
@@ -39,7 +44,10 @@ describe('render — Inertia v2 markers (full reload)', () => {
     const svc = new InertiaService(req, res, deps());
     let called = false;
     await svc.render('Page', {
-      a: Inertia.defer(() => { called = true; return 'A'; }),
+      a: Inertia.defer(() => {
+        called = true;
+        return 'A';
+      }),
       b: Inertia.defer(() => 'B', 'secondary'),
     });
     expect(called).toBe(false);

@@ -4,8 +4,8 @@
  * Boots the user's NestJS AppModule, scans route metadata, and sends { routes } via process.send().
  */
 import 'reflect-metadata';
+import { METHOD_METADATA, PATH_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants.js';
 import { NestFactory } from '@nestjs/core';
-import { PATH_METADATA, METHOD_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants.js';
 
 export interface ContractSource {
   query: string | null;
@@ -177,7 +177,7 @@ async function run(): Promise<void> {
   if (process.send) {
     process.send({ routes });
   } else {
-    process.stdout.write(JSON.stringify({ routes }) + '\n');
+    process.stdout.write(`${JSON.stringify({ routes })}\n`);
   }
 
   await app.close();
@@ -189,7 +189,7 @@ run().catch((err: unknown) => {
   if (process.send) {
     process.send({ error: msg });
   } else {
-    process.stderr.write(msg + '\n');
+    process.stderr.write(`${msg}\n`);
   }
   process.exit(1);
 });

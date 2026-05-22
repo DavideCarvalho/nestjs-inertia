@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  INERTIA_MODULE_OPTIONS,
-  INERTIA_FEATURE_OPTIONS,
-  INERTIA_MANIFEST,
   INERTIA_ASSET_VERSION,
   INERTIA_DEFAULT_SCOPE,
+  INERTIA_FEATURE_OPTIONS,
+  INERTIA_MANIFEST,
+  INERTIA_MODULE_OPTIONS,
 } from '../src/tokens.js';
 
 describe('tokens', () => {

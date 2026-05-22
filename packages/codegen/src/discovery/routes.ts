@@ -1,7 +1,7 @@
 import { fork } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface ContractSource {
   query: string | null;

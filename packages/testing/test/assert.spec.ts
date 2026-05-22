@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { assertInertia } from '../src/assert.js';
 
 describe('assertInertia', () => {
@@ -7,7 +7,8 @@ describe('assertInertia', () => {
   });
 
   it('toRenderComponent throws on mismatch', () => {
-    expect(() => assertInertia({ component: 'X', props: {}, url: '/', version: 'v' }).toRenderComponent('Y'))
-      .toThrow();
+    expect(() =>
+      assertInertia({ component: 'X', props: {}, url: '/', version: 'v' }).toRenderComponent('Y'),
+    ).toThrow();
   });
 });

@@ -1,8 +1,8 @@
-import chokidar from 'chokidar';
 import { join } from 'node:path';
+import chokidar from 'chokidar';
+import type { ResolvedConfig } from '../config/types.js';
 import { generate } from '../generate.js';
 import { acquireLock } from './lock-file.js';
-import type { ResolvedConfig } from '../config/types.js';
 
 const DEBOUNCE_MS = 150;
 

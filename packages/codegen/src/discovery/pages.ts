@@ -43,12 +43,20 @@ function extractPropsSource(source: string, exportName: string): string | null {
   if (!m) return null;
   const start = m.index! + m[0].length;
   // Brace counting to capture type body
-  let i = start, depth = 0, started = false;
+  let i = start;
+  let depth = 0;
+  let started = false;
   while (i < source.length) {
     const c = source[i];
-    if (c === '{') { depth++; started = true; }
-    else if (c === '}') { depth--; if (started && depth === 0) { return source.slice(start, i + 1); } }
-    else if (c === ';' && !started) return source.slice(start, i);
+    if (c === '{') {
+      depth++;
+      started = true;
+    } else if (c === '}') {
+      depth--;
+      if (started && depth === 0) {
+        return source.slice(start, i + 1);
+      }
+    } else if (c === ';' && !started) return source.slice(start, i);
     i++;
   }
   return source.slice(start);

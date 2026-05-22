@@ -1,8 +1,17 @@
 import { expect } from 'vitest';
 import { InertiaAssertion } from './expect.js';
 
-function runAssertion(received: unknown, name: string, args: unknown[]): { pass: boolean; message: () => string } {
-  const res = received as { status?: number; body?: unknown; headers?: Record<string, string>; text?: string };
+function runAssertion(
+  received: unknown,
+  name: string,
+  args: unknown[],
+): { pass: boolean; message: () => string } {
+  const res = received as {
+    status?: number;
+    body?: unknown;
+    headers?: Record<string, string>;
+    text?: string;
+  };
   const assertion = new InertiaAssertion({
     status: res.status ?? 200,
     body: res.body,

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildUrl } from '../src/fetcher/url-builder.js';
 
 describe('buildUrl', () => {
@@ -6,7 +6,9 @@ describe('buildUrl', () => {
     expect(buildUrl('/users/:id', { params: { id: 42 } })).toBe('/users/42');
   });
   it('appends query string', () => {
-    expect(buildUrl('/users', { query: { active: true, name: 'foo' } })).toBe('/users?active=true&name=foo');
+    expect(buildUrl('/users', { query: { active: true, name: 'foo' } })).toBe(
+      '/users?active=true&name=foo',
+    );
   });
   it('combines params + query', () => {
     expect(

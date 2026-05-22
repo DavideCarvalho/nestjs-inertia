@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { setupInertiaVite } from '../src/setup.js';
 
 function fakeApp() {
@@ -19,7 +19,9 @@ describe('setupInertiaVite', () => {
       outDir: 'dist/inertia',
     });
     // Two static-serve middlewares (assets + root)
-    expect((app as unknown as { middlewares: unknown[] }).middlewares.length).toBeGreaterThanOrEqual(1);
+    expect(
+      (app as unknown as { middlewares: unknown[] }).middlewares.length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('in development, creates Vite dev server in middleware mode', async () => {

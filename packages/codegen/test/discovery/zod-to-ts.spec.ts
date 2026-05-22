@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { zodToTs } from '../../src/discovery/zod-to-ts.js';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { zodToTs } from '../../src/discovery/zod-to-ts.js';
 
 describe('zodToTs', () => {
   it('handles ZodString', () => {

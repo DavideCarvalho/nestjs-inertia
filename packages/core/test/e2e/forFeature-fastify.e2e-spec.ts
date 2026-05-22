@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { Test } from '@nestjs/testing';
 import { Controller, Get, INestApplication } from '@nestjs/common';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Test } from '@nestjs/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule, UseInertia } from '../../src/index.js';
 
 @Controller('admin')
@@ -9,14 +9,18 @@ import { Inertia, InertiaModule, UseInertia } from '../../src/index.js';
 class AdminController {
   @Get('/')
   @Inertia('AdminHome')
-  show() { return { area: 'admin' }; }
+  show() {
+    return { area: 'admin' };
+  }
 }
 
 @Controller()
 class MainController {
   @Get('/')
   @Inertia('Main')
-  show() { return { area: 'main' }; }
+  show() {
+    return { area: 'main' };
+  }
 }
 
 describe('forFeature + Fastify — E2E', () => {
@@ -34,7 +38,9 @@ describe('forFeature + Fastify — E2E', () => {
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('main scope on Fastify renders Main with main-v1', async () => {
     const res = await app.inject({ method: 'GET', url: '/', headers: { 'x-inertia': 'true' } });
@@ -44,7 +50,11 @@ describe('forFeature + Fastify — E2E', () => {
   });
 
   it('admin scope on Fastify renders AdminHome with admin-v1', async () => {
-    const res = await app.inject({ method: 'GET', url: '/admin', headers: { 'x-inertia': 'true' } });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin',
+      headers: { 'x-inertia': 'true' },
+    });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.component).toBe('AdminHome');

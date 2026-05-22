@@ -13,7 +13,10 @@ type NestApp = {
   use: (pathOrMiddleware: unknown, middleware?: unknown) => void;
 };
 
-export async function setupInertiaVite(app: NestApp, options: SetupInertiaViteOptions): Promise<void> {
+export async function setupInertiaVite(
+  app: NestApp,
+  options: SetupInertiaViteOptions,
+): Promise<void> {
   if (options.mode !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

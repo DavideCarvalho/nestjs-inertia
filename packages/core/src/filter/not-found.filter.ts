@@ -1,4 +1,10 @@
-import { ArgumentsHost, Catch, ExceptionFilter, Logger, NotFoundException } from '@nestjs/common';
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import type { InertiaService } from '../service.js';
 
 export interface InertiaNotFoundFilterOptions {
@@ -12,8 +18,12 @@ export class InertiaNotFoundFilter implements ExceptionFilter {
   constructor(private readonly options: InertiaNotFoundFilterOptions) {}
 
   async catch(exception: NotFoundException, host: ArgumentsHost): Promise<void> {
-    const req = host.switchToHttp().getRequest<{ originalUrl?: string; url?: string; inertia?: InertiaService }>();
-    const res = host.switchToHttp().getResponse<{ status(code: number): { json(b: unknown): void }; headersSent?: boolean }>();
+    const req = host
+      .switchToHttp()
+      .getRequest<{ originalUrl?: string; url?: string; inertia?: InertiaService }>();
+    const res = host
+      .switchToHttp()
+      .getResponse<{ status(code: number): { json(b: unknown): void }; headersSent?: boolean }>();
     const path = req.originalUrl ?? req.url ?? '/';
 
     if (path.startsWith(this.options.apiPrefix)) {
@@ -26,7 +36,10 @@ export class InertiaNotFoundFilter implements ExceptionFilter {
       (res as unknown as { status: (n: number) => unknown }).status(404);
       await req.inertia.render(this.options.component, { requestedPath: path });
     } catch (renderErr) {
-      this.logger.error(`Failed to render NotFound for ${path}`, renderErr instanceof Error ? renderErr.stack : String(renderErr));
+      this.logger.error(
+        `Failed to render NotFound for ${path}`,
+        renderErr instanceof Error ? renderErr.stack : String(renderErr),
+      );
       this.respondJson(res, path, exception);
     }
   }

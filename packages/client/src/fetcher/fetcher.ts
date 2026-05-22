@@ -1,5 +1,5 @@
-import { buildUrl } from './url-builder.js';
 import { ApiHttpError } from './errors.js';
+import { buildUrl } from './url-builder.js';
 
 export interface FetcherOptions {
   baseUrl?: string;
@@ -51,8 +51,8 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
       }
     }
 
-    if (!headers['accept']) {
-      headers['accept'] = 'application/json';
+    if (!headers.accept) {
+      headers.accept = 'application/json';
     }
 
     const res = await fetchImpl(url, { method, headers, ...(body !== undefined ? { body } : {}) });
@@ -71,10 +71,10 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   }
 
   return {
-    get:    <T>(p: string, ro?: RequestOpts) => request<T>('GET',    p, ro),
-    post:   <T>(p: string, ro?: RequestOpts) => request<T>('POST',   p, ro),
-    put:    <T>(p: string, ro?: RequestOpts) => request<T>('PUT',    p, ro),
-    patch:  <T>(p: string, ro?: RequestOpts) => request<T>('PATCH',  p, ro),
+    get: <T>(p: string, ro?: RequestOpts) => request<T>('GET', p, ro),
+    post: <T>(p: string, ro?: RequestOpts) => request<T>('POST', p, ro),
+    put: <T>(p: string, ro?: RequestOpts) => request<T>('PUT', p, ro),
+    patch: <T>(p: string, ro?: RequestOpts) => request<T>('PATCH', p, ro),
     delete: <T>(p: string, ro?: RequestOpts) => request<T>('DELETE', p, ro),
   };
 }

@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 
 export interface InertiaAuthGuardOptions {
   signInUrl: string;
@@ -16,7 +16,10 @@ function matchesAllow(pattern: string, path: string): boolean {
 
 /** Works for both Express (req.header(n)) and raw Fastify (req.headers[n]) */
 function getHeader(req: unknown, name: string): string | undefined {
-  const r = req as { header?: (n: string) => string | undefined; headers?: Record<string, string | string[] | undefined> };
+  const r = req as {
+    header?: (n: string) => string | undefined;
+    headers?: Record<string, string | string[] | undefined>;
+  };
   if (typeof r.header === 'function') return r.header(name);
   const v = r.headers?.[name.toLowerCase()];
   return Array.isArray(v) ? v[0] : v;
@@ -31,22 +34,40 @@ function isFastifyReply(res: unknown): boolean {
 /** Set status code — Express uses res.status(n), Fastify uses reply.code(n) */
 function setStatus(res: unknown, code: number): void {
   const r = res as { status?: (n: number) => unknown; code?: (n: number) => unknown };
-  if (typeof r.status === 'function') { r.status(code); return; }
-  if (typeof r.code === 'function') { r.code(code); }
+  if (typeof r.status === 'function') {
+    r.status(code);
+    return;
+  }
+  if (typeof r.code === 'function') {
+    r.code(code);
+  }
 }
 
 /** Set response header — Express uses res.setHeader(), Fastify uses reply.header() */
 function setResHeader(res: unknown, name: string, value: string): void {
-  const r = res as { setHeader?: (n: string, v: string) => unknown; header?: (n: string, v: string) => unknown };
-  if (typeof r.setHeader === 'function') { r.setHeader(name, value); return; }
-  if (typeof r.header === 'function') { r.header(name, value); }
+  const r = res as {
+    setHeader?: (n: string, v: string) => unknown;
+    header?: (n: string, v: string) => unknown;
+  };
+  if (typeof r.setHeader === 'function') {
+    r.setHeader(name, value);
+    return;
+  }
+  if (typeof r.header === 'function') {
+    r.header(name, value);
+  }
 }
 
 /** End the response — Express uses res.end(), Fastify uses reply.send('') */
 function endResponse(res: unknown): void {
   const r = res as { end?: () => void; send?: (body: string) => void };
-  if (typeof r.end === 'function') { r.end(); return; }
-  if (typeof r.send === 'function') { r.send(''); }
+  if (typeof r.end === 'function') {
+    r.end();
+    return;
+  }
+  if (typeof r.send === 'function') {
+    r.send('');
+  }
 }
 
 @Injectable()

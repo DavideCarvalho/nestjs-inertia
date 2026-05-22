@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Controller, Get, type INestApplication, Injectable, Module, Req } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication, Injectable, Module, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { InertiaModule } from '../../src/index.js';
 
 @Injectable()

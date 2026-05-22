@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
-import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 import { MissingTemplateEngineDepException } from '../errors/exceptions.js';
+import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 
 const require = createRequire(import.meta.url);
 

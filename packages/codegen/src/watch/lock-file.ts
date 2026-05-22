@@ -1,4 +1,4 @@
-import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const LOCK_FILE = '.watcher.lock';
@@ -23,7 +23,9 @@ function isProcessAlive(pid: number): boolean {
  * Returns `{ release }` on success.
  * Returns `null` if another live process already holds the lock.
  */
-export async function acquireLock(outDir: string): Promise<{ release: () => Promise<void> } | null> {
+export async function acquireLock(
+  outDir: string,
+): Promise<{ release: () => Promise<void> } | null> {
   await mkdir(outDir, { recursive: true });
   const lockPath = join(outDir, LOCK_FILE);
 
@@ -41,7 +43,7 @@ export async function acquireLock(outDir: string): Promise<{ release: () => Prom
   }
 
   const lockData: LockData = { pid: process.pid, startedAt: new Date().toISOString() };
-  await writeFile(lockPath, JSON.stringify(lockData, null, 2) + '\n', 'utf8');
+  await writeFile(lockPath, `${JSON.stringify(lockData, null, 2)}\n`, 'utf8');
 
   return {
     release: async () => {

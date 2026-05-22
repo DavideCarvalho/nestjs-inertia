@@ -1,6 +1,6 @@
-import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
+import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable, EMPTY, from, of } from 'rxjs';
+import { EMPTY, type Observable, from, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { INERTIA_RENDER_COMPONENT } from '../decorator/inertia.decorator.js';
 import { InertiaServiceNotAvailableException } from '../errors/exceptions.js';

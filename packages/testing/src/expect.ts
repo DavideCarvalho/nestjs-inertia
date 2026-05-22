@@ -72,7 +72,8 @@ export class InertiaAssertion {
 
   toHaveVersion(matcher: string | RegExp): this {
     const page = this.page();
-    const match = typeof matcher === 'string' ? page.version === matcher : matcher.test(page.version);
+    const match =
+      typeof matcher === 'string' ? page.version === matcher : matcher.test(page.version);
     if (!match) {
       fail(`Expected version to match ${matcher}, got "${page.version}"`, page);
     }
@@ -86,7 +87,10 @@ export class InertiaAssertion {
       fail(`Expected prop "${path}" to be defined`, page);
     }
     if (value !== undefined && JSON.stringify(actual) !== JSON.stringify(value)) {
-      fail(`Expected prop "${path}" = ${JSON.stringify(value)}, got ${JSON.stringify(actual)}`, page);
+      fail(
+        `Expected prop "${path}" = ${JSON.stringify(value)}, got ${JSON.stringify(actual)}`,
+        page,
+      );
     }
     return this;
   }
@@ -112,7 +116,10 @@ export class InertiaAssertion {
   toHaveExactProps(props: Record<string, unknown>): this {
     const page = this.page();
     if (JSON.stringify(page.props) !== JSON.stringify(props)) {
-      fail(`Expected exact props ${JSON.stringify(props)}, got ${JSON.stringify(page.props)}`, page);
+      fail(
+        `Expected exact props ${JSON.stringify(props)}, got ${JSON.stringify(page.props)}`,
+        page,
+      );
     }
     return this;
   }
@@ -126,18 +133,27 @@ export class InertiaAssertion {
     const deferred = page.deferredProps ?? {};
     const matchingGroup = group ? deferred[group] : Object.values(deferred).flat();
     if (!matchingGroup || !matchingGroup.includes(name)) {
-      fail(`Expected deferred prop "${name}"${group ? ` in group "${group}"` : ''}, got ${JSON.stringify(deferred)}`, page);
+      fail(
+        `Expected deferred prop "${name}"${group ? ` in group "${group}"` : ''}, got ${JSON.stringify(deferred)}`,
+        page,
+      );
     }
     return this;
   }
 
-  toHaveMergeProp(name: string, opts?: { matchOn?: string; strategy?: 'append' | 'prepend' }): this {
+  toHaveMergeProp(
+    name: string,
+    opts?: { matchOn?: string; strategy?: 'append' | 'prepend' },
+  ): this {
     const page = this.page();
     const merge = page.mergeProps ?? [];
     const deepMerge = page.deepMergeProps ?? [];
     const all = [...merge, ...deepMerge];
     if (!all.includes(name)) {
-      fail(`Expected merge prop "${name}", got mergeProps=${JSON.stringify(merge)}, deepMergeProps=${JSON.stringify(deepMerge)}`, page);
+      fail(
+        `Expected merge prop "${name}", got mergeProps=${JSON.stringify(merge)}, deepMergeProps=${JSON.stringify(deepMerge)}`,
+        page,
+      );
     }
     if (opts?.matchOn !== undefined) {
       const actual = page.matchPropsOn?.[name];
@@ -174,7 +190,7 @@ export class InertiaAssertion {
     if (status !== undefined && this.res.status !== status) {
       throw new Error(`Expected status ${status}, got ${this.res.status}`);
     }
-    const loc = this.res.headers['location'];
+    const loc = this.res.headers.location;
     if (loc !== url) {
       throw new Error(`Expected Location "${url}", got "${loc}"`);
     }
@@ -201,7 +217,10 @@ export class InertiaAssertion {
     const page = this.page();
     const errors = (page.props.errors ?? {}) as Record<string, unknown>;
     if (typeof errors[bag] !== 'object' || errors[bag] === null) {
-      fail(`Expected errors bag "${bag}" to be an object, got ${JSON.stringify(errors[bag])}`, page);
+      fail(
+        `Expected errors bag "${bag}" to be an object, got ${JSON.stringify(errors[bag])}`,
+        page,
+      );
     }
     return this;
   }
@@ -218,7 +237,9 @@ export class InertiaAssertion {
   withSsrHead(pattern: RegExp): this {
     const text = this.res.text ?? (typeof this.res.body === 'string' ? this.res.body : '');
     if (!pattern.test(text)) {
-      throw new Error(`Expected SSR head to match ${pattern}, got body fragment: ${text.slice(0, 200)}...`);
+      throw new Error(
+        `Expected SSR head to match ${pattern}, got body fragment: ${text.slice(0, 200)}...`,
+      );
     }
     return this;
   }

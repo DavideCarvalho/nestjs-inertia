@@ -10,9 +10,9 @@
  * become the executable spec for Plan A.2 (forRootAsync, redirect interceptor,
  * error bags, except header, once prop, dot-notation, etc.).
  */
-import { describe, it, expect } from 'vitest';
-import { InertiaService } from '../src/service.js';
+import { describe, expect, it } from 'vitest';
 import { Inertia } from '../src/markers.js';
+import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
 import { fakeResponse } from './helpers/fake-response.js';
 
@@ -20,7 +20,8 @@ const baseDeps = () => ({
   assetVersion: 'v1',
   manifest: null,
   ssrLoader: { load: async () => null },
-  rootViewRender: async (ctx: { page: unknown }) => `<!doctype html><html><body><div id="app" data-page='${JSON.stringify(ctx.page)}'></div></body></html>`,
+  rootViewRender: async (ctx: { page: unknown }) =>
+    `<!doctype html><html><body><div id="app" data-page='${JSON.stringify(ctx.page)}'></div></body></html>`,
   moduleShare: undefined,
   featureShare: undefined,
   historyEncryptionDefault: false,
@@ -46,7 +47,7 @@ describe('conformance / tier 1 — protocol', () => {
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Home', { hello: 'world' });
     expect(res._captured.headers['X-Inertia']).toBe('true');
-    expect(res._captured.headers['Vary']).toBe('X-Inertia');
+    expect(res._captured.headers.Vary).toBe('X-Inertia');
     expect(res._captured.body).toMatchObject({
       component: 'Home',
       props: { hello: 'world', errors: {} },
@@ -65,7 +66,10 @@ describe('conformance / tier 1 — protocol', () => {
   });
 
   it('version mismatch only fires for GET (POST is allowed through)', async () => {
-    const req = fakeRequest({ method: 'POST', headers: { 'x-inertia': 'true', 'x-inertia-version': 'old' } });
+    const req = fakeRequest({
+      method: 'POST',
+      headers: { 'x-inertia': 'true', 'x-inertia-version': 'old' },
+    });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Home');
@@ -103,7 +107,7 @@ describe('conformance / tier 1 — protocol', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Home');
-    expect(res._captured.headers['Vary']).toBe('X-Inertia');
+    expect(res._captured.headers.Vary).toBe('X-Inertia');
   });
 });
 
@@ -126,7 +130,7 @@ describe('conformance / tier 2 — redirects', () => {
     const svc = new InertiaService(req, res, baseDeps());
     svc.location('https://stripe.com/checkout');
     expect(res._captured.status).toBe(302);
-    expect(res._captured.headers['Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers.Location).toBe('https://stripe.com/checkout');
   });
 
   // Phase 12 (A.2): RedirectInterceptor 302→303 for PUT/PATCH/DELETE
@@ -156,9 +160,16 @@ describe('conformance / tier 3 — props v2', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     let called = false;
-    await svc.render('Page', { heavy: Inertia.optional(() => { called = true; return 1; }) });
+    await svc.render('Page', {
+      heavy: Inertia.optional(() => {
+        called = true;
+        return 1;
+      }),
+    });
     expect(called).toBe(false);
-    expect((res._captured.body as { props: Record<string, unknown> }).props).not.toHaveProperty('heavy');
+    expect((res._captured.body as { props: Record<string, unknown> }).props).not.toHaveProperty(
+      'heavy',
+    );
   });
 
   it('optional resolves on partial reload when listed', async () => {
@@ -180,9 +191,17 @@ describe('conformance / tier 3 — props v2', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     let called = false;
-    await svc.render('Page', { activity: Inertia.defer(() => { called = true; return 'A'; }) });
+    await svc.render('Page', {
+      activity: Inertia.defer(() => {
+        called = true;
+        return 'A';
+      }),
+    });
     expect(called).toBe(false);
-    const body = res._captured.body as { props: Record<string, unknown>; deferredProps?: Record<string, string[]> };
+    const body = res._captured.body as {
+      props: Record<string, unknown>;
+      deferredProps?: Record<string, string[]>;
+    };
     expect(body.props).not.toHaveProperty('activity');
     expect(body.deferredProps).toEqual({ default: ['activity'] });
   });
@@ -196,8 +215,9 @@ describe('conformance / tier 3 — props v2', () => {
       b: Inertia.defer(() => 'B', 'first'),
       c: Inertia.defer(() => 'C', 'second'),
     });
-    expect((res._captured.body as { deferredProps: Record<string, string[]> }).deferredProps)
-      .toEqual({ first: ['a', 'b'], second: ['c'] });
+    expect(
+      (res._captured.body as { deferredProps: Record<string, string[]> }).deferredProps,
+    ).toEqual({ first: ['a', 'b'], second: ['c'] });
   });
 
   it('defer resolves to props on partial reload when listed', async () => {
@@ -211,7 +231,12 @@ describe('conformance / tier 3 — props v2', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     let called = false;
-    await svc.render('Page', { activity: Inertia.defer(() => { called = true; return 'feed'; }) });
+    await svc.render('Page', {
+      activity: Inertia.defer(() => {
+        called = true;
+        return 'feed';
+      }),
+    });
     expect(called).toBe(true);
     const body = res._captured.body as { props: Record<string, unknown>; deferredProps?: unknown };
     expect(body.props.activity).toBe('feed');
@@ -232,7 +257,9 @@ describe('conformance / tier 3 — props v2', () => {
       other: 1,
       essentials: Inertia.always(() => 'always-here'),
     });
-    expect((res._captured.body as { props: Record<string, unknown> }).props.essentials).toBe('always-here');
+    expect((res._captured.body as { props: Record<string, unknown> }).props.essentials).toBe(
+      'always-here',
+    );
   });
 
   it('merge() produces mergeProps metadata', async () => {
@@ -258,7 +285,9 @@ describe('conformance / tier 3 — props v2', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Page', { rows: Inertia.merge(() => [{ id: 1 }], { matchOn: 'id' }) });
-    expect((res._captured.body as { matchPropsOn: Record<string, string> }).matchPropsOn).toEqual({ rows: 'id' });
+    expect((res._captured.body as { matchPropsOn: Record<string, string> }).matchPropsOn).toEqual({
+      rows: 'id',
+    });
   });
 
   // Not yet implemented — Plan A.2 features
@@ -365,7 +394,9 @@ describe('conformance / tier 4 — partials', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Page', { 'user.name': 'Alice' });
-    expect((res._captured.body as { props: { user: { name: string } } }).props.user.name).toBe('Alice');
+    expect((res._captured.body as { props: { user: { name: string } } }).props.user.name).toBe(
+      'Alice',
+    );
   });
   it('[A.2 done] plain (non-marker) async function props are invoked and awaited', async () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
@@ -396,7 +427,9 @@ describe('conformance / tier 5 — share + errors', () => {
       moduleShare: async () => ({ auth: { id: '42' } }),
     });
     await svc.render('Page');
-    expect((res._captured.body as { props: Record<string, unknown> }).props.auth).toEqual({ id: '42' });
+    expect((res._captured.body as { props: Record<string, unknown> }).props.auth).toEqual({
+      id: '42',
+    });
   });
 
   it('per-request share() accumulates with module-level share', async () => {
@@ -425,7 +458,9 @@ describe('conformance / tier 5 — share + errors', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
     await svc.render('Form');
-    expect((res._captured.body as { props: { errors: unknown } }).props.errors).toEqual({ email: 'required' });
+    expect((res._captured.body as { props: { errors: unknown } }).props.errors).toEqual({
+      email: 'required',
+    });
   });
   it('[A.2 done covered by error-bag.spec.ts] X-Inertia-Error-Bag scopes errors under bag name', () => {
     expect(true).toBe(true);

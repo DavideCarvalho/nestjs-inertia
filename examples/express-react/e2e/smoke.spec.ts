@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { NestFactory } from '@nestjs/core';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
 import { AppModule } from '../src/app.module.js';
@@ -15,11 +15,15 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${port}`;
 });
 
-afterAll(async () => { await app.close(); });
+afterAll(async () => {
+  await app.close();
+});
 
 describe('example smoke', () => {
   it('dashboard returns Inertia JSON when X-Inertia header set', async () => {
-    const res = await fetch(`${baseUrl}/dashboard`, { headers: { 'X-Inertia': 'true', 'X-Inertia-Version': '1' } });
+    const res = await fetch(`${baseUrl}/dashboard`, {
+      headers: { 'X-Inertia': 'true', 'X-Inertia-Version': '1' },
+    });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.component).toBe('Dashboard');

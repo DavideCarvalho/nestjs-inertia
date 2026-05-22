@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createFetcher } from '../src/fetcher/fetcher.js';
+import { describe, expect, it, vi } from 'vitest';
 import { ApiHttpError } from '../src/fetcher/errors.js';
+import { createFetcher } from '../src/fetcher/fetcher.js';
 
 /** Build a minimal fetch mock that returns a given Response. */
 function mockFetch(res: Response): typeof fetch {
@@ -19,10 +19,7 @@ describe('createFetcher', () => {
     const fetcher = createFetcher({ fetch: f });
     const result = await fetcher.get('/users');
     expect(result).toEqual(payload);
-    expect(vi.mocked(f)).toHaveBeenCalledWith(
-      '/users',
-      expect.objectContaining({ method: 'GET' }),
-    );
+    expect(vi.mocked(f)).toHaveBeenCalledWith('/users', expect.objectContaining({ method: 'GET' }));
   });
 
   it('POST request with body serializes JSON + sets Content-Type', async () => {
@@ -71,13 +68,11 @@ describe('createFetcher', () => {
     });
     await fetcher.get('/me');
     const [, init] = vi.mocked(f).mock.calls[0]!;
-    expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer tok');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
   });
 
   it('onError callback fires on error', async () => {
-    const f = mockFetch(
-      new Response(null, { status: 500, statusText: 'Internal Server Error' }),
-    );
+    const f = mockFetch(new Response(null, { status: 500, statusText: 'Internal Server Error' }));
     const onError = vi.fn();
     const fetcher = createFetcher({ fetch: f, onError });
     await expect(fetcher.get('/boom')).rejects.toBeInstanceOf(ApiHttpError);

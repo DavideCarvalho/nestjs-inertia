@@ -1,10 +1,12 @@
 import { createRequire } from 'node:module';
-import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 import { MissingTemplateEngineDepException } from '../errors/exceptions.js';
+import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 
 const require = createRequire(import.meta.url);
 
-type LiquidCtor = new (opts?: unknown) => { parseAndRender: (src: string, locals: unknown) => Promise<string> };
+type LiquidCtor = new (
+  opts?: unknown,
+) => { parseAndRender: (src: string, locals: unknown) => Promise<string> };
 
 function loadLiquid(): LiquidCtor {
   try {

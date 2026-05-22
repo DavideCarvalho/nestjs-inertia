@@ -1,4 +1,4 @@
-import type { RequestAdapter, InertiaRequest, InertiaResponse } from './adapter.js';
+import type { InertiaRequest, InertiaResponse, RequestAdapter } from './adapter.js';
 
 type FastifyReq = {
   method: string;
@@ -40,14 +40,33 @@ export const fastifyAdapter: RequestAdapter = {
   adaptResponse(raw): InertiaResponse {
     const r = raw as FastifyReply;
     const wrapper: InertiaResponse = {
-      get statusCode() { return r.statusCode; },
-      get headersSent() { return r.sent; },
-      status(code) { r.code(code); return wrapper; },
-      setHeader(name, value) { r.header(name, value); return wrapper; },
-      getHeader(name) { return r.getHeader(name); },
-      json(body) { r.send(body); },
-      html(body) { r.header('Content-Type', 'text/html; charset=utf-8'); r.send(body); },
-      end() { r.send(''); },
+      get statusCode() {
+        return r.statusCode;
+      },
+      get headersSent() {
+        return r.sent;
+      },
+      status(code) {
+        r.code(code);
+        return wrapper;
+      },
+      setHeader(name, value) {
+        r.header(name, value);
+        return wrapper;
+      },
+      getHeader(name) {
+        return r.getHeader(name);
+      },
+      json(body) {
+        r.send(body);
+      },
+      html(body) {
+        r.header('Content-Type', 'text/html; charset=utf-8');
+        r.send(body);
+      },
+      end() {
+        r.send('');
+      },
       raw,
     };
     return wrapper;

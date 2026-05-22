@@ -1,9 +1,9 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileBasedShellRenderer } from '../src/shell/file-shell.renderer.js';
+import { afterEach, describe, expect, it } from 'vitest';
 import { UnsupportedRootViewExtensionException } from '../src/index.js';
+import { FileBasedShellRenderer } from '../src/shell/file-shell.renderer.js';
 
 const origCwd = process.cwd();
 afterEach(() => process.chdir(origCwd));
@@ -34,8 +34,9 @@ describe('FileBasedShellRenderer', () => {
   });
 
   it('throws UnsupportedRootViewExtensionException for unsupported extension', () => {
-    expect(() => new FileBasedShellRenderer('inertia/root.txt'))
-      .toThrow(UnsupportedRootViewExtensionException);
+    expect(() => new FileBasedShellRenderer('inertia/root.txt')).toThrow(
+      UnsupportedRootViewExtensionException,
+    );
   });
 
   it('caches the file contents after first read', async () => {
@@ -43,7 +44,10 @@ describe('FileBasedShellRenderer', () => {
     const renderer = new FileBasedShellRenderer(path);
     const ctx = {
       page: { component: 'H', props: {}, url: '/', version: 'v1' },
-      ssr: null, manifest: null, assetVersion: 'v1', ctx: { req: {}, res: {} },
+      ssr: null,
+      manifest: null,
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
     };
     const html1 = await renderer.render(ctx);
     const html2 = await renderer.render(ctx);
@@ -57,7 +61,10 @@ describe('FileBasedShellRenderer', () => {
     const renderer = new FileBasedShellRenderer(file);
     const html = await renderer.render({
       page: { component: 'H', props: {}, url: '/', version: 'v1' },
-      ssr: null, manifest: null, assetVersion: 'v1', ctx: { req: {}, res: {} },
+      ssr: null,
+      manifest: null,
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
     });
     expect(html).toContain('<div id="app"');
   });

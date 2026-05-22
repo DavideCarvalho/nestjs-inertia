@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { liquidAdapter } from '../src/shell/liquid.adapter.js';
 
 describe('liquidAdapter', () => {
   it('compiles a template that references locals', async () => {
-    const template = `<title>{{ title }}</title><body>{{ inertia }}</body>`;
+    const template = '<title>{{ title }}</title><body>{{ inertia }}</body>';
     const renderer = liquidAdapter.compile(template, '/tmp/test.liquid');
     const out = await renderer({ title: 'Hello', inertia: '<div>X</div>' });
     expect(out).toContain('<title>Hello</title>');

@@ -7,9 +7,9 @@ import { QueryClient } from '@tanstack/query-core';
  * Expected shape:
  *   page.props._initialQueries = Array<[queryKey: unknown[], data: unknown]>
  */
-export function hydrateClientFromInertia(
-  page: { props?: { _initialQueries?: Array<[unknown[], unknown]> } },
-): QueryClient {
+export function hydrateClientFromInertia(page: {
+  props?: { _initialQueries?: Array<[unknown[], unknown]> };
+}): QueryClient {
   const qc = new QueryClient();
   const queries = page.props?._initialQueries ?? [];
   for (const [key, data] of queries) {

@@ -1,17 +1,19 @@
-import { describe, it, expect, afterAll } from 'vitest';
-import { writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule } from '../../src/index.js';
 
 @Controller()
 class HomeController {
   @Get('/')
   @Inertia('Home')
-  show() { return {}; }
+  show() {
+    return {};
+  }
 }
 
 const origCwd = process.cwd();
@@ -50,7 +52,7 @@ describe('Template engines — E2E', () => {
   });
 
   it('Pug works end-to-end', async () => {
-    const app = await setupApp('pug', `html\n  body!= inertia`);
+    const app = await setupApp('pug', 'html\n  body!= inertia');
     const res = await request(app.getHttpServer()).get('/');
     expect(res.text).toContain('<div id="app"');
     await app.close();

@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Test } from '@nestjs/testing';
 import { Injectable } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { describe, expect, it } from 'vitest';
 import { InertiaModule } from '../src/index.js';
-import { featureToken } from '../src/tokens.js';
 import type { InertiaModuleOptions, InertiaOptionsFactory } from '../src/index.js';
+import { featureToken } from '../src/tokens.js';
 
 describe('InertiaModule.forFeature — shell renderer', () => {
   it('forFeature accepts template engine rootView (e.g. .hbs)', async () => {
@@ -43,8 +43,7 @@ describe('InertiaModule.forFeature', () => {
   });
 
   it('throws when scope is reserved name "default"', () => {
-    expect(() => InertiaModule.forFeature({ scope: 'default', version: 'v' }))
-      .toThrow(/reserved/i);
+    expect(() => InertiaModule.forFeature({ scope: 'default', version: 'v' })).toThrow(/reserved/i);
   });
 
   it('multiple scopes coexist with independent options', async () => {
@@ -63,7 +62,9 @@ describe('InertiaModule.forFeature', () => {
 describe('InertiaModule.forFeatureAsync', () => {
   it('useFactory + inject', async () => {
     @Injectable()
-    class AdminCfg { readonly v = 'async-admin'; }
+    class AdminCfg {
+      readonly v = 'async-admin';
+    }
     const moduleRef = await Test.createTestingModule({
       providers: [AdminCfg],
       imports: [
@@ -80,10 +81,12 @@ describe('InertiaModule.forFeatureAsync', () => {
   });
 
   it('rejects "default" as scope', () => {
-    expect(() => InertiaModule.forFeatureAsync({
-      scope: 'default',
-      useFactory: () => ({}),
-    })).toThrow(/reserved/i);
+    expect(() =>
+      InertiaModule.forFeatureAsync({
+        scope: 'default',
+        useFactory: () => ({}),
+      }),
+    ).toThrow(/reserved/i);
   });
 
   it('throws when no strategy is provided', () => {
@@ -91,11 +94,18 @@ describe('InertiaModule.forFeatureAsync', () => {
   });
 
   it('throws when multiple strategies are provided', () => {
-    @Injectable() class C implements InertiaOptionsFactory { createInertiaOptions() { return {}; } }
-    expect(() => InertiaModule.forFeatureAsync({
-      scope: 'admin',
-      useFactory: () => ({}),
-      useClass: C,
-    })).toThrow(/exactly one of/i);
+    @Injectable()
+    class C implements InertiaOptionsFactory {
+      createInertiaOptions() {
+        return {};
+      }
+    }
+    expect(() =>
+      InertiaModule.forFeatureAsync({
+        scope: 'admin',
+        useFactory: () => ({}),
+        useClass: C,
+      }),
+    ).toThrow(/exactly one of/i);
   });
 });

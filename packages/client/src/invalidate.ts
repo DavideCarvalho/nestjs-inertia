@@ -6,11 +6,7 @@ import type { QueryClient } from '@tanstack/query-core';
  * - `invalidate(qc, 'users.list')`            → invalidates `['users.list']`
  * - `invalidate(qc, 'users.list', { id: 1 })` → invalidates `['users.list', { id: 1 }]`
  */
-export function invalidate(
-  qc: QueryClient,
-  name: string,
-  queryArgs?: unknown,
-): Promise<void> {
+export function invalidate(qc: QueryClient, name: string, queryArgs?: unknown): Promise<void> {
   const queryKey = queryArgs === undefined ? [name] : [name, queryArgs];
   return qc.invalidateQueries({ queryKey });
 }

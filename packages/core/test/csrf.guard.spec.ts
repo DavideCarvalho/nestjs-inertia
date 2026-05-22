@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { CsrfGuard } from '../src/csrf/csrf.guard.js';
+import { describe, expect, it } from 'vitest';
 import { generateCsrfToken } from '../src/csrf/csrf-token.js';
+import { CsrfGuard } from '../src/csrf/csrf.guard.js';
 import { InvalidCsrfTokenException } from '../src/index.js';
 
 function makeCtx(req: unknown) {

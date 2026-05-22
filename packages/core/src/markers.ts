@@ -11,7 +11,11 @@ export interface Marker<T = unknown> {
   meta: Record<string, unknown>;
 }
 
-function make<T>(kind: MarkerKind, value: () => T | Promise<T>, meta: Record<string, unknown> = {}): Marker<T> {
+function make<T>(
+  kind: MarkerKind,
+  value: () => T | Promise<T>,
+  meta: Record<string, unknown> = {},
+): Marker<T> {
   return { [MARKER]: true, kind, value, meta };
 }
 
@@ -31,7 +35,7 @@ function lazy<T>(fn: () => T | Promise<T>): Marker<T> {
   // v1 compatibility alias
   return make('optional', fn);
 }
-function defer<T>(fn: () => T | Promise<T>, group: string = 'default'): Marker<T> {
+function defer<T>(fn: () => T | Promise<T>, group = 'default'): Marker<T> {
   return make('defer', fn, { group });
 }
 function once<T>(fn: () => T | Promise<T>): Marker<T> {
@@ -55,12 +59,23 @@ type InertiaFn = typeof inertiaDecorator & {
   once: typeof once;
   merge: typeof merge;
 };
-const Inertia = Object.assign(inertiaDecorator, { always, optional, lazy, defer, once, merge }) as InertiaFn;
+const Inertia = Object.assign(inertiaDecorator, {
+  always,
+  optional,
+  lazy,
+  defer,
+  once,
+  merge,
+}) as InertiaFn;
 
 export { Inertia };
 
 export function isMarker(value: unknown): value is Marker {
-  return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[MARKER] === true;
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[MARKER] === true
+  );
 }
 
 export function getMarkerKind(marker: Marker): MarkerKind {

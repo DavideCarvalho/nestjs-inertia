@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Controller, Get, type INestApplication, Req, UseGuards } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import request from 'supertest';
-import { InertiaAuthGuard, Inertia, InertiaModule } from '../../src/index.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Inertia, InertiaAuthGuard, InertiaModule } from '../../src/index.js';
 
 @Controller()
 class HomeController {
@@ -41,7 +41,7 @@ describe('Auth + Flash + Error-Bag — E2E', () => {
   it('GET /protected without user → 302 to /signin?return_to=/protected', async () => {
     const res = await request(app.getHttpServer()).get('/protected').redirects(0);
     expect(res.status).toBe(302);
-    expect(res.headers['location']).toBe('/signin?return_to=%2Fprotected');
+    expect(res.headers.location).toBe('/signin?return_to=%2Fprotected');
   });
 
   it('GET /protected with X-Inertia → 409 + X-Inertia-Location', async () => {

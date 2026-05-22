@@ -1,17 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import 'reflect-metadata';
 import { Reflector } from '@nestjs/core';
-import { Inertia } from '../src/markers.js';
 import { INERTIA_RENDER_COMPONENT } from '../src/decorator/inertia.decorator.js';
+import { Inertia } from '../src/markers.js';
 
 describe('@Inertia decorator + Inertia namespace coexistence', () => {
   it('Inertia(component) returns a MethodDecorator that sets metadata', () => {
     class FakeController {
       @Inertia('Home')
-      show() { return { hello: 'world' }; }
+      show() {
+        return { hello: 'world' };
+      }
     }
     const reflector = new Reflector();
-    const componentName = reflector.get<string>(INERTIA_RENDER_COMPONENT, FakeController.prototype.show);
+    const componentName = reflector.get<string>(
+      INERTIA_RENDER_COMPONENT,
+      FakeController.prototype.show,
+    );
     expect(componentName).toBe('Home');
   });
 

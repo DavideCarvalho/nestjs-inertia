@@ -1,19 +1,31 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  type INestApplication,
+  Post,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, HttpCode, INestApplication, Post, UseGuards, UseInterceptors } from '@nestjs/common';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CsrfCookieInterceptor, CsrfGuard, InertiaModule } from '../../src/index.js';
 
 @Controller()
 @UseInterceptors(new CsrfCookieInterceptor({ secret: 'test-secret' }))
 class CsrfController {
   @Get('/')
-  show() { return { ok: true }; }
+  show() {
+    return { ok: true };
+  }
 
   @Post('/profile')
   @HttpCode(200)
   @UseGuards(new CsrfGuard({ secret: 'test-secret' }))
-  update() { return { saved: true }; }
+  update() {
+    return { saved: true };
+  }
 }
 
 describe('CSRF — E2E', () => {
@@ -29,7 +41,9 @@ describe('CSRF — E2E', () => {
     app.use(cookieParser());
     await app.init();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('GET / writes XSRF-TOKEN cookie', async () => {
     const res = await request(app.getHttpServer()).get('/');
@@ -42,9 +56,7 @@ describe('CSRF — E2E', () => {
   it('POST without header → 403 (InvalidCsrfTokenException)', async () => {
     const getRes = await request(app.getHttpServer()).get('/');
     const cookie = getRes.headers['set-cookie'][0].split(';')[0];
-    const res = await request(app.getHttpServer())
-      .post('/profile')
-      .set('Cookie', cookie);
+    const res = await request(app.getHttpServer()).post('/profile').set('Cookie', cookie);
     expect(res.status).toBe(403);
   });
 

@@ -1,7 +1,7 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ResolvedConfig } from '../../src/config/types.js';
 import { watch } from '../../src/watch/watcher.js';
 

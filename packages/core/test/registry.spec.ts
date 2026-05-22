@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InertiaRegistry } from '../src/index.js';
 
 declare module '../src/index.js' {

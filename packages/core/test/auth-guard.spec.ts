@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { InertiaAuthGuard } from '../src/guard/auth.guard.js';
 
 function makeCtx(req: unknown, res: unknown) {
@@ -7,7 +7,14 @@ function makeCtx(req: unknown, res: unknown) {
   } as never;
 }
 
-function makeReq(overrides: { user?: unknown; url?: string; originalUrl?: string; headers?: Record<string, string> } = {}) {
+function makeReq(
+  overrides: {
+    user?: unknown;
+    url?: string;
+    originalUrl?: string;
+    headers?: Record<string, string>;
+  } = {},
+) {
   const headers = overrides.headers ?? {};
   return {
     user: overrides.user,
@@ -41,8 +48,14 @@ describe('InertiaAuthGuard', () => {
   });
 
   it('passes when path matches glob pattern in allowList', () => {
-    const guard = new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/signin/*', '/health'] });
-    const ctx = makeCtx(makeReq({ url: '/signin/callback', originalUrl: '/signin/callback' }), makeRes());
+    const guard = new InertiaAuthGuard({
+      signInUrl: '/signin',
+      allowList: ['/signin/*', '/health'],
+    });
+    const ctx = makeCtx(
+      makeReq({ url: '/signin/callback', originalUrl: '/signin/callback' }),
+      makeRes(),
+    );
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
@@ -57,10 +70,16 @@ describe('InertiaAuthGuard', () => {
   it('responds 409 + X-Inertia-Location for Inertia XHR', () => {
     const guard = new InertiaAuthGuard({ signInUrl: '/signin', allowList: [] });
     const res = makeRes();
-    const ctx = makeCtx(makeReq({ url: '/protected', originalUrl: '/protected', headers: { 'x-inertia': 'true' } }), res);
+    const ctx = makeCtx(
+      makeReq({ url: '/protected', originalUrl: '/protected', headers: { 'x-inertia': 'true' } }),
+      res,
+    );
     expect(guard.canActivate(ctx)).toBe(false);
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.setHeader).toHaveBeenCalledWith('X-Inertia-Location', '/signin?return_to=%2Fprotected');
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'X-Inertia-Location',
+      '/signin?return_to=%2Fprotected',
+    );
     expect(res.end).toHaveBeenCalled();
   });
 

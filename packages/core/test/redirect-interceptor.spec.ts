@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import 'reflect-metadata';
 import { lastValueFrom, of } from 'rxjs';
 import { RedirectInterceptor } from '../src/interceptor/redirect.interceptor.js';
@@ -28,7 +28,10 @@ describe('RedirectInterceptor — 302 → 303 upgrade for PUT/PATCH/DELETE on In
     const req = makeReq(method, { 'x-inertia': 'true' });
     const res = makeRes(302);
     const interceptor = new RedirectInterceptor({ autoUpgrade303: true });
-    await lastValueFrom(interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }), { defaultValue: undefined });
+    await lastValueFrom(
+      interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }),
+      { defaultValue: undefined },
+    );
     expect(res.statusCode).toBe(303);
   });
 
@@ -36,7 +39,10 @@ describe('RedirectInterceptor — 302 → 303 upgrade for PUT/PATCH/DELETE on In
     const req = makeReq('GET', { 'x-inertia': 'true' });
     const res = makeRes(302);
     const interceptor = new RedirectInterceptor({ autoUpgrade303: true });
-    await lastValueFrom(interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }), { defaultValue: undefined });
+    await lastValueFrom(
+      interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }),
+      { defaultValue: undefined },
+    );
     expect(res.statusCode).toBe(302);
   });
 
@@ -44,7 +50,10 @@ describe('RedirectInterceptor — 302 → 303 upgrade for PUT/PATCH/DELETE on In
     const req = makeReq('PUT', {});
     const res = makeRes(302);
     const interceptor = new RedirectInterceptor({ autoUpgrade303: true });
-    await lastValueFrom(interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }), { defaultValue: undefined });
+    await lastValueFrom(
+      interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }),
+      { defaultValue: undefined },
+    );
     expect(res.statusCode).toBe(302);
   });
 
@@ -53,7 +62,10 @@ describe('RedirectInterceptor — 302 → 303 upgrade for PUT/PATCH/DELETE on In
       const req = makeReq('PUT', { 'x-inertia': 'true' });
       const res = makeRes(code);
       const interceptor = new RedirectInterceptor({ autoUpgrade303: true });
-      await lastValueFrom(interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }), { defaultValue: undefined });
+      await lastValueFrom(
+        interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }),
+        { defaultValue: undefined },
+      );
       expect(res.statusCode).toBe(code);
     }
   });
@@ -62,7 +74,10 @@ describe('RedirectInterceptor — 302 → 303 upgrade for PUT/PATCH/DELETE on In
     const req = makeReq('PUT', { 'x-inertia': 'true' });
     const res = makeRes(302);
     const interceptor = new RedirectInterceptor({ autoUpgrade303: false });
-    await lastValueFrom(interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }), { defaultValue: undefined });
+    await lastValueFrom(
+      interceptor.intercept(makeContext(req, res), { handle: () => of(undefined) }),
+      { defaultValue: undefined },
+    );
     expect(res.statusCode).toBe(302);
   });
 });

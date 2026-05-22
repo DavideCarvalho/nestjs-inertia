@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { emitApi } from '../../src/emit/emit-api.js';
-import type { RouteDescriptor } from '../../src/discovery/routes.js';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { RouteDescriptor } from '../../src/discovery/routes.js';
+import { emitApi } from '../../src/emit/emit-api.js';
 
 describe('emitApi', () => {
   let outDir: string;
@@ -93,7 +93,7 @@ describe('emitApi', () => {
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain('queryOptions');
     expect(content).toContain("queryKey: ['users.list'");
-    expect(content).toContain("fetcher.get<");
+    expect(content).toContain('fetcher.get<');
   });
 
   it('POST contract produces mutationOptions', async () => {
@@ -101,14 +101,16 @@ describe('emitApi', () => {
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain('mutationOptions');
     expect(content).toContain('mutationFn');
-    expect(content).toContain("fetcher.post<");
+    expect(content).toContain('fetcher.post<');
   });
 
   it('ApiRouter GET entry has body: never', async () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     // GET routes must declare body as never — find the users.list entry line
-    const listLine = content.split('\n').find((l) => l.includes("'users.list'") && l.includes('method:'));
+    const listLine = content
+      .split('\n')
+      .find((l) => l.includes("'users.list'") && l.includes('method:'));
     expect(listLine).toBeDefined();
     expect(listLine).toMatch(/body:\s*never/);
   });
@@ -129,7 +131,9 @@ describe('emitApi', () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     // find the users.create entry line in ApiRouter
-    const createLine = content.split('\n').find((l) => l.includes("'users.create'") && l.includes('method:'));
+    const createLine = content
+      .split('\n')
+      .find((l) => l.includes("'users.create'") && l.includes('method:'));
     expect(createLine).toBeDefined();
     expect(createLine).toMatch(/query:\s*never/);
   });

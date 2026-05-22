@@ -1,12 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import 'reflect-metadata';
 import { Reflector } from '@nestjs/core';
 import { lastValueFrom, of } from 'rxjs';
-import { InertiaRenderInterceptor } from '../src/interceptor/render.interceptor.js';
 import { INERTIA_RENDER_COMPONENT } from '../src/decorator/inertia.decorator.js';
 import { InertiaServiceNotAvailableException } from '../src/index.js';
+import { InertiaRenderInterceptor } from '../src/interceptor/render.interceptor.js';
 
-function makeContext(handler: () => unknown, req: unknown, res: unknown, componentMetadata: string | undefined) {
+function makeContext(
+  handler: () => unknown,
+  req: unknown,
+  res: unknown,
+  componentMetadata: string | undefined,
+) {
   const reflector = new Reflector();
   if (componentMetadata !== undefined) {
     Reflect.defineMetadata(INERTIA_RENDER_COMPONENT, componentMetadata, handler);
@@ -28,7 +33,9 @@ describe('InertiaRenderInterceptor', () => {
     const renderSpy = vi.fn().mockResolvedValue(undefined);
     const req = { inertia: { render: renderSpy } };
     const res = { headersSent: false };
-    function handler() { return { hello: 'world' }; }
+    function handler() {
+      return { hello: 'world' };
+    }
     const { reflector, context } = makeContext(handler, req, res, 'Home');
     const interceptor = new InertiaRenderInterceptor(reflector);
     const result = interceptor.intercept(context, { handle: () => of({ hello: 'world' }) });
@@ -39,7 +46,9 @@ describe('InertiaRenderInterceptor', () => {
   it('passes through when no @Inertia metadata', async () => {
     const req = {};
     const res = { headersSent: false };
-    function handler() { return 'raw-value'; }
+    function handler() {
+      return 'raw-value';
+    }
     const { reflector, context } = makeContext(handler, req, res, undefined);
     const interceptor = new InertiaRenderInterceptor(reflector);
     const result = interceptor.intercept(context, { handle: () => of('raw-value') });
@@ -50,7 +59,9 @@ describe('InertiaRenderInterceptor', () => {
     const renderSpy = vi.fn().mockResolvedValue(undefined);
     const req = { inertia: { render: renderSpy } };
     const res = { headersSent: true };
-    function handler() { return undefined; }
+    function handler() {
+      return undefined;
+    }
     const { reflector, context } = makeContext(handler, req, res, 'Home');
     const interceptor = new InertiaRenderInterceptor(reflector);
     const result = interceptor.intercept(context, { handle: () => of(undefined) });
@@ -61,7 +72,9 @@ describe('InertiaRenderInterceptor', () => {
   it('throws InertiaServiceNotAvailableException when req.inertia is undefined', async () => {
     const req = {};
     const res = { headersSent: false };
-    function handler() { return {}; }
+    function handler() {
+      return {};
+    }
     const { reflector, context } = makeContext(handler, req, res, 'Home');
     const interceptor = new InertiaRenderInterceptor(reflector);
     const result = interceptor.intercept(context, { handle: () => of({}) });
@@ -72,7 +85,9 @@ describe('InertiaRenderInterceptor', () => {
     const renderSpy = vi.fn().mockResolvedValue(undefined);
     const req = { inertia: { render: renderSpy } };
     const res = { headersSent: false };
-    function handler() { return undefined; }
+    function handler() {
+      return undefined;
+    }
     const { reflector, context } = makeContext(handler, req, res, 'Home');
     const interceptor = new InertiaRenderInterceptor(reflector);
     const result = interceptor.intercept(context, { handle: () => of(undefined) });

@@ -1,17 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule } from '../../src/index.js';
 
 @Controller()
 class HomeController {
   @Get('/')
   @Inertia('Home')
-  show() { return { hello: 'ssr' }; }
+  show() {
+    return { hello: 'ssr' };
+  }
 }
 
 const origCwd = process.cwd();
@@ -23,18 +25,23 @@ describe('SSR — E2E', () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-ssr-e2e-'));
     bundlePath = join(dir, 'ssr.mjs');
-    writeFileSync(bundlePath, `
+    writeFileSync(
+      bundlePath,
+      `
 export const render = async (page) => ({
   head: ['<title>' + page.component + ' SSR</title>'],
   body: '<div id="app">SSR body for ' + page.component + '</div>',
 });
-`);
+`,
+    );
 
     // Create an HTML shell with directives so SSR head/body are injected
     const subDir = join(dir, 'inertia');
     mkdirSync(subDir);
     const rootPath = join(subDir, 'root.html');
-    writeFileSync(rootPath, `<!doctype html>
+    writeFileSync(
+      rootPath,
+      `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -44,7 +51,8 @@ export const render = async (page) => ({
   @inertia
 </body>
 </html>
-`);
+`,
+    );
     process.chdir(dir);
 
     const moduleRef = await Test.createTestingModule({

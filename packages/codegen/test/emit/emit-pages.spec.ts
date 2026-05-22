@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { emitPages } from '../../src/emit/emit-pages.js';
-import { readFile, rm, mkdtemp } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DiscoveredPage } from '../../src/discovery/pages.js';
+import { emitPages } from '../../src/emit/emit-pages.js';
 
 describe('emitPages', () => {
   let outDir: string;

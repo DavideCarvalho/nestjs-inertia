@@ -1,13 +1,13 @@
 import { Inject, Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
-import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import { expressAdapter } from '../adapter/express.js';
-import { InertiaService } from '../service.js';
-import { suppressPostSendWrites } from '../helpers/suppress-post-send-writes.js';
-import type { InertiaModuleOptions } from '../types.js';
 import type { Manifest } from '../asset/version.provider.js';
+import { suppressPostSendWrites } from '../helpers/suppress-post-send-writes.js';
+import { InertiaService } from '../service.js';
 import type { SsrLoader } from '../service.js';
 import type { ShellRenderer } from '../shell/shell.js';
+import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from '../tokens.js';
+import type { InertiaModuleOptions } from '../types.js';
 
 @Injectable()
 export class InertiaMiddleware implements NestMiddleware {

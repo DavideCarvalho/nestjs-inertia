@@ -1,10 +1,6 @@
 import type { Props } from '../types.js';
 
-export function setNested(
-  target: Record<string, unknown>,
-  path: string[],
-  value: unknown,
-): void {
+export function setNested(target: Record<string, unknown>, path: string[], value: unknown): void {
   if (path.length === 0) return;
   let cur: Record<string, unknown> = target;
   for (let i = 0; i < path.length - 1; i++) {
@@ -32,7 +28,10 @@ export function unpackDotKeys(props: Props): Props {
     }
   }
   for (const parent of dotKeysParents) {
-    if (props[parent] !== undefined && (typeof props[parent] !== 'object' || props[parent] === null || Array.isArray(props[parent]))) {
+    if (
+      props[parent] !== undefined &&
+      (typeof props[parent] !== 'object' || props[parent] === null || Array.isArray(props[parent]))
+    ) {
       throw new Error(
         `[nestjs-inertia] dot-notation conflict at key "${parent}": exists as scalar AND as parent of a dot key`,
       );

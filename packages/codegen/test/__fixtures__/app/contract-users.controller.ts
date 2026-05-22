@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { Controller } from '@nestjs/common';
 import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
+import { Controller } from '@nestjs/common';
 import { z } from 'zod';
 
 const ListUsers = Contract.get('/api/users', {

@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { Test } from '@nestjs/testing';
 import { Controller, Get, INestApplication } from '@nestjs/common';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Test } from '@nestjs/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule } from '../../src/index.js';
 
 @Controller()
 class HomeController {
   @Get('/')
   @Inertia('Home')
-  show() { return { hello: 'fastify' }; }
+  show() {
+    return { hello: 'fastify' };
+  }
 }
 
 describe('Fastify — forRoot E2E', () => {
@@ -23,7 +25,9 @@ describe('Fastify — forRoot E2E', () => {
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('returns Inertia JSON when X-Inertia: true', async () => {
     const res = await app.inject({ method: 'GET', url: '/', headers: { 'x-inertia': 'true' } });

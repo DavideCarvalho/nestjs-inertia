@@ -1,4 +1,4 @@
-import { describe, it, expectTypeOf } from 'vitest';
+import { describe, expectTypeOf, it } from 'vitest';
 import type { InertiaRequest, InertiaResponse } from '../src/adapter/adapter.js';
 
 describe('adapter interface', () => {
@@ -15,7 +15,9 @@ describe('adapter interface', () => {
 
   it('InertiaResponse has minimum surface', () => {
     expectTypeOf<InertiaResponse['status']>().toMatchTypeOf<(code: number) => InertiaResponse>();
-    expectTypeOf<InertiaResponse['setHeader']>().toMatchTypeOf<(name: string, value: string) => InertiaResponse>();
+    expectTypeOf<InertiaResponse['setHeader']>().toMatchTypeOf<
+      (name: string, value: string) => InertiaResponse
+    >();
     expectTypeOf<InertiaResponse['json']>().toMatchTypeOf<(body: unknown) => void>();
     expectTypeOf<InertiaResponse['html']>().toMatchTypeOf<(body: string) => void>();
     expectTypeOf<InertiaResponse['end']>().toMatchTypeOf<() => void>();

@@ -8,21 +8,54 @@ export interface FakeInertiaResponse {
   html(body: string): void;
   end(): void;
   raw: unknown;
-  _captured: { status: number; headers: Record<string, string>; body?: unknown; bodyHtml?: string; ended: boolean };
+  _captured: {
+    status: number;
+    headers: Record<string, string>;
+    body?: unknown;
+    bodyHtml?: string;
+    ended: boolean;
+  };
 }
 
 export function createFakeInertiaResponse(): FakeInertiaResponse {
-  const captured: { status: number; headers: Record<string, string>; body?: unknown; bodyHtml?: string; ended: boolean } = { status: 200, headers: {} as Record<string, string>, ended: false };
+  const captured: {
+    status: number;
+    headers: Record<string, string>;
+    body?: unknown;
+    bodyHtml?: string;
+    ended: boolean;
+  } = { status: 200, headers: {} as Record<string, string>, ended: false };
   let sent = false;
   const res: FakeInertiaResponse = {
-    get statusCode() { return captured.status; },
-    get headersSent() { return sent; },
-    status(code: number) { captured.status = code; return res; },
-    setHeader(name: string, value: string) { captured.headers[name] = value; return res; },
-    getHeader(name: string) { return captured.headers[name]; },
-    json(body: unknown) { captured.body = body; sent = true; },
-    html(body: string) { captured.bodyHtml = body; sent = true; },
-    end() { captured.ended = true; sent = true; },
+    get statusCode() {
+      return captured.status;
+    },
+    get headersSent() {
+      return sent;
+    },
+    status(code: number) {
+      captured.status = code;
+      return res;
+    },
+    setHeader(name: string, value: string) {
+      captured.headers[name] = value;
+      return res;
+    },
+    getHeader(name: string) {
+      return captured.headers[name];
+    },
+    json(body: unknown) {
+      captured.body = body;
+      sent = true;
+    },
+    html(body: string) {
+      captured.bodyHtml = body;
+      sent = true;
+    },
+    end() {
+      captured.ended = true;
+      sent = true;
+    },
     raw: {},
     _captured: captured,
   };

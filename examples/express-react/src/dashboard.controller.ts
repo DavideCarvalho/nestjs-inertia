@@ -1,5 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
 import { Inertia } from '@dudousxd/nestjs-inertia';
+import { Controller, Get } from '@nestjs/common';
 
 @Controller()
 export class DashboardController {

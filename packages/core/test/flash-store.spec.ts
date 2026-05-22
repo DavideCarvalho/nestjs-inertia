@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { FlashStore } from '../src/flash/flash-store.js';
 import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
 import { fakeResponse } from './helpers/fake-response.js';
-import type { FlashStore } from '../src/flash/flash-store.js';
 
 const baseDeps = () => ({
   assetVersion: 'v1',
@@ -30,7 +30,7 @@ describe('FlashStore integration', () => {
   it('async read() is awaited', async () => {
     const store: FlashStore = {
       read: async () => {
-        await new Promise(r => setTimeout(r, 1));
+        await new Promise((r) => setTimeout(r, 1));
         return { a: 'b' };
       },
     };
@@ -38,7 +38,9 @@ describe('FlashStore integration', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
     await svc.render('Form');
-    expect((res._captured.body as { props: { errors: Record<string, string> } }).props.errors).toEqual({ a: 'b' });
+    expect(
+      (res._captured.body as { props: { errors: Record<string, string> } }).props.errors,
+    ).toEqual({ a: 'b' });
   });
 
   it('does not override props.errors when explicitly provided', async () => {
@@ -47,17 +49,23 @@ describe('FlashStore integration', () => {
     const res = fakeResponse();
     const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
     await svc.render('Form', { errors: { explicit: 'Y' } });
-    expect((res._captured.body as { props: { errors: Record<string, string> } }).props.errors).toEqual({ explicit: 'Y' });
+    expect(
+      (res._captured.body as { props: { errors: Record<string, string> } }).props.errors,
+    ).toEqual({ explicit: 'Y' });
   });
 
   it('store throwing read() does not break render', async () => {
     const store: FlashStore = {
-      read: () => { throw new Error('boom'); },
+      read: () => {
+        throw new Error('boom');
+      },
     };
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
     await svc.render('Form');
-    expect((res._captured.body as { props: { errors: Record<string, unknown> } }).props.errors).toEqual({});
+    expect(
+      (res._captured.body as { props: { errors: Record<string, unknown> } }).props.errors,
+    ).toEqual({});
   });
 });

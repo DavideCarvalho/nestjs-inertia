@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { DiscoveredPage } from '../../src/discovery/pages.js';
 import { emitCache } from '../../src/emit/emit-cache.js';
 import { emitIndex } from '../../src/emit/emit-index.js';
-import { readFile, rm, mkdtemp, writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import type { DiscoveredPage } from '../../src/discovery/pages.js';
 
 describe('emitCache', () => {
   let outDir: string;
@@ -15,7 +15,10 @@ describe('emitCache', () => {
     pagesDir = join(outDir, 'pages');
     await mkdir(pagesDir, { recursive: true });
     // Create real files so stat() can get mtime
-    await writeFile(join(pagesDir, 'Dashboard.tsx'), 'export default function Dashboard() { return null; }');
+    await writeFile(
+      join(pagesDir, 'Dashboard.tsx'),
+      'export default function Dashboard() { return null; }',
+    );
     await writeFile(join(pagesDir, 'Foo.tsx'), 'export default function Foo() { return null; }');
   });
 

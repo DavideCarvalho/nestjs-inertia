@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Inertia, InertiaModule, UseInertia } from '../../src/index.js';
 
 @Controller('admin')
@@ -9,7 +9,9 @@ import { Inertia, InertiaModule, UseInertia } from '../../src/index.js';
 class AdminController {
   @Get('/')
   @Inertia('AdminHome')
-  show() { return { area: 'admin' }; }
+  show() {
+    return { area: 'admin' };
+  }
 }
 
 @Controller('portal')
@@ -17,14 +19,18 @@ class AdminController {
 class PortalController {
   @Get('/')
   @Inertia('PortalHome')
-  show() { return { area: 'portal' }; }
+  show() {
+    return { area: 'portal' };
+  }
 }
 
 @Controller()
 class MainController {
   @Get('/')
   @Inertia('Main')
-  show() { return { area: 'main' }; }
+  show() {
+    return { area: 'main' };
+  }
 }
 
 describe('forFeature multi-app — E2E', () => {
@@ -41,7 +47,9 @@ describe('forFeature multi-app — E2E', () => {
     app = moduleRef.createNestApplication();
     await app.init();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('main scope uses main-v1', async () => {
     const res = await request(app.getHttpServer()).get('/').set('X-Inertia', 'true');

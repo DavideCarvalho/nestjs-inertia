@@ -1,5 +1,5 @@
-import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor } from '@nestjs/common';
+import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import type { InertiaModuleOptions } from '../types.js';

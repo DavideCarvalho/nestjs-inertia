@@ -1,5 +1,5 @@
-import type { InertiaScope } from './tokens.js';
 import type { FlashStore } from './flash/flash-store.js';
+import type { InertiaScope } from './tokens.js';
 
 export interface PageObject {
   component: string;

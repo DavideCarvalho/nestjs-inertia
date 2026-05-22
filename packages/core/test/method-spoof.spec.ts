@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MethodSpoofMiddleware } from '../src/middleware/method-spoof.middleware.js';
 
 function makeReq(method: string, contentType: string, body: Record<string, unknown>) {

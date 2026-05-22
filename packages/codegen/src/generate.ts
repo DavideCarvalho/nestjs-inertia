@@ -1,11 +1,11 @@
+import type { ResolvedConfig } from './config/types.js';
 import { discoverPages } from './discovery/pages.js';
-import { emitPages } from './emit/emit-pages.js';
+import type { RouteDescriptor } from './discovery/routes.js';
+import { emitApi } from './emit/emit-api.js';
 import { emitCache } from './emit/emit-cache.js';
 import { emitIndex } from './emit/emit-index.js';
-import { emitApi } from './emit/emit-api.js';
+import { emitPages } from './emit/emit-pages.js';
 import { emitRoutes } from './emit/emit-routes.js';
-import type { ResolvedConfig } from './config/types.js';
-import type { RouteDescriptor } from './discovery/routes.js';
 
 /**
  * Run one full codegen pass: discover pages, emit pages.d.ts, components.json, index.d.ts.
@@ -16,7 +16,10 @@ import type { RouteDescriptor } from './discovery/routes.js';
  * When routes are present, emits routes.ts.
  * When routes with contracts are present, also emits api.ts.
  */
-export async function generate(config: ResolvedConfig, routes: RouteDescriptor[] = []): Promise<void> {
+export async function generate(
+  config: ResolvedConfig,
+  routes: RouteDescriptor[] = [],
+): Promise<void> {
   const pages = await discoverPages({
     glob: config.pages.glob,
     cwd: config.codegen.cwd,

@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { Test } from '@nestjs/testing';
 import { Injectable } from '@nestjs/common';
-import { InertiaModule, INERTIA_MODULE_OPTIONS, InvalidInertiaConfigException } from '../src/index.js';
+import { Test } from '@nestjs/testing';
+import { describe, expect, it } from 'vitest';
+import {
+  INERTIA_MODULE_OPTIONS,
+  InertiaModule,
+  InvalidInertiaConfigException,
+} from '../src/index.js';
 import type { InertiaModuleOptions, InertiaOptionsFactory } from '../src/index.js';
 
 describe('InertiaModule.forRootAsync — useFactory', () => {
@@ -22,7 +26,7 @@ describe('InertiaModule.forRootAsync — useFactory', () => {
       imports: [
         InertiaModule.forRootAsync({
           useFactory: async (): Promise<InertiaModuleOptions> => {
-            await new Promise(r => setTimeout(r, 1));
+            await new Promise((r) => setTimeout(r, 1));
             return { version: 'async-factory' };
           },
         }),
@@ -91,9 +95,14 @@ describe('InertiaModule.forRootAsync — validation', () => {
   });
 
   it('throws when both useFactory and useClass are given', () => {
-    @Injectable() class C implements InertiaOptionsFactory { createInertiaOptions() { return {}; } }
-    expect(() =>
-      InertiaModule.forRootAsync({ useFactory: () => ({}), useClass: C }),
-    ).toThrow(InvalidInertiaConfigException);
+    @Injectable()
+    class C implements InertiaOptionsFactory {
+      createInertiaOptions() {
+        return {};
+      }
+    }
+    expect(() => InertiaModule.forRootAsync({ useFactory: () => ({}), useClass: C })).toThrow(
+      InvalidInertiaConfigException,
+    );
   });
 });

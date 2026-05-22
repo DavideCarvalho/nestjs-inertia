@@ -1,14 +1,14 @@
-import { Get, Post, Put, Patch, Delete, SetMetadata, applyDecorators } from '@nestjs/common';
-import { CONTRACT_METADATA } from './metadata.js';
+import { Delete, Get, Patch, Post, Put, SetMetadata, applyDecorators } from '@nestjs/common';
 import type { ContractDef } from './contract.js';
+import { CONTRACT_METADATA } from './metadata.js';
 
 type HttpMethodKey = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 const METHOD_DECORATORS: Record<HttpMethodKey, (path: string) => MethodDecorator> = {
-  GET:    Get,
-  POST:   Post,
-  PUT:    Put,
-  PATCH:  Patch,
+  GET: Get,
+  POST: Post,
+  PUT: Put,
+  PATCH: Patch,
   DELETE: Delete,
 } as const;
 

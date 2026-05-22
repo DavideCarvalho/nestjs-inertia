@@ -1,7 +1,7 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir, access } from 'node:fs/promises';
-import { join } from 'node:path';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * We import `run` directly from src/cli/main.ts and call it with a mocked cwd

@@ -1,8 +1,8 @@
 import { access } from 'node:fs/promises';
-import { join, resolve, isAbsolute } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ConfigError } from '../exceptions.js';
-import type { UserConfig, ResolvedConfig } from './types.js';
+import type { ResolvedConfig, UserConfig } from './types.js';
 
 const CONFIG_FILE = 'nestjs-inertia.config.ts';
 
@@ -17,7 +17,9 @@ async function fileExists(filePath: string): Promise<boolean> {
 
 async function importTs(filePath: string): Promise<unknown> {
   // Use tsx ESM API to load TypeScript config files at runtime
-  let tsImport: ((specifier: string, options: string | { parentURL: string }) => Promise<unknown>) | undefined;
+  let tsImport:
+    | ((specifier: string, options: string | { parentURL: string }) => Promise<unknown>)
+    | undefined;
   try {
     const tsxEsm = await import('tsx/esm/api');
     tsImport = tsxEsm.tsImport;
@@ -28,7 +30,7 @@ async function importTs(filePath: string): Promise<unknown> {
     );
   }
 
-  const parentURL = pathToFileURL(filePath + '__parent__').href;
+  const parentURL = pathToFileURL(`${filePath}__parent__`).href;
   const fileUrl = pathToFileURL(filePath).href;
   return tsImport(fileUrl, { parentURL });
 }
@@ -74,8 +76,7 @@ export async function loadConfig(cwd?: string): Promise<ResolvedConfig> {
 
   if (!(await fileExists(configPath))) {
     throw new ConfigError(
-      `Config file not found: ${configPath}\n` +
-        'Run `nestjs-inertia init` to create a starter config.',
+      `Config file not found: ${configPath}\nRun \`nestjs-inertia init\` to create a starter config.`,
     );
   }
 

@@ -7,7 +7,9 @@ export default function Dashboard({ user, count }: ComponentProps) {
   return (
     <main>
       <h1>Dashboard</h1>
-      <p>Hi, {user.name} ({user.id})</p>
+      <p>
+        Hi, {user.name} ({user.id})
+      </p>
       <p>Count: {count}</p>
     </main>
   );

@@ -1,5 +1,5 @@
-import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import type { Plugin, UserConfig } from 'vite';
 
 const require = createRequire(import.meta.url);
@@ -35,9 +35,7 @@ function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): Plugin {
     const factory = mod.default ?? (mod as () => Plugin);
     return (factory as () => Plugin)();
   } catch {
-    throw new InvalidViteConfigException(
-      `Plugin "${pkg}" not installed. Run: pnpm add ${pkg}`,
-    );
+    throw new InvalidViteConfigException(`Plugin "${pkg}" not installed. Run: pnpm add ${pkg}`);
   }
 }
 

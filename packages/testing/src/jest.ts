@@ -3,8 +3,17 @@
 // because the testing package's own tests use vitest, not jest.
 import { InertiaAssertion } from './expect.js';
 
-function runAssertion(received: unknown, name: string, args: unknown[]): { pass: boolean; message: () => string } {
-  const res = received as { status?: number; body?: unknown; headers?: Record<string, string>; text?: string };
+function runAssertion(
+  received: unknown,
+  name: string,
+  args: unknown[],
+): { pass: boolean; message: () => string } {
+  const res = received as {
+    status?: number;
+    body?: unknown;
+    headers?: Record<string, string>;
+    text?: string;
+  };
   const assertion = new InertiaAssertion({
     status: res.status ?? 200,
     body: res.body,
@@ -44,7 +53,8 @@ const matchers = {
 // Use the global `expect.extend` — works for both Jest and Vitest at runtime.
 // In Jest, declare module 'expect' augmentation; in Vitest, see vitest.ts.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const globalExpect = (globalThis as { expect?: { extend: (m: Record<string, unknown>) => void } }).expect;
+const globalExpect = (globalThis as { expect?: { extend: (m: Record<string, unknown>) => void } })
+  .expect;
 if (globalExpect?.extend) {
   globalExpect.extend(matchers);
 }
@@ -62,5 +72,3 @@ declare global {
     }
   }
 }
-
-export {};

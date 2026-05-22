@@ -8,6 +8,12 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*.ts", "inertia/**/*.tsx", "inertia/**/*.ts", "vite.config.ts", "nestjs-inertia.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "inertia/**/*.tsx",
+    "inertia/**/*.ts",
+    "vite.config.ts",
+    "nestjs-inertia.config.ts"
+  ],
   "exclude": ["dist/**", "node_modules/**"]
 }

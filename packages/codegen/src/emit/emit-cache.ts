@@ -1,4 +1,4 @@
-import { writeFile, mkdir, stat } from 'node:fs/promises';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DiscoveredPage } from '../discovery/pages.js';
 
@@ -25,5 +25,5 @@ export async function emitCache(pages: DiscoveredPage[], outDir: string): Promis
     }),
   );
   const cache: ComponentsCache = { pages: entries };
-  await writeFile(join(outDir, 'components.json'), JSON.stringify(cache, null, 2) + '\n', 'utf8');
+  await writeFile(join(outDir, 'components.json'), `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
 }

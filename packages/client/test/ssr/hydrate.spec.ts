@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
+import { describe, expect, it } from 'vitest';
 import { hydrateClientFromInertia, seedInitialQueries } from '../../src/ssr/hydrate.js';
 
 describe('hydrateClientFromInertia', () => {

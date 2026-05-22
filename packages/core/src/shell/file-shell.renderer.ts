@@ -1,20 +1,28 @@
 import { readFileSync } from 'node:fs';
 import { extname, isAbsolute, resolve } from 'node:path';
-import { escapeHtml } from '../helpers/escape-html.js';
-import { processDirectives } from './directives.js';
-import { resolveTemplateEngine } from './template-engine.registry.js';
-import type { ShellRenderCtx } from '../types.js';
-import type { ShellRenderer } from './shell.js';
 import type { Manifest } from '../asset/version.provider.js';
-import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
+import { escapeHtml } from '../helpers/escape-html.js';
+import type { ShellRenderCtx } from '../types.js';
+import { processDirectives } from './directives.js';
+import type { ShellRenderer } from './shell.js';
+import type { TemplateEngineAdapter } from './template-engine.adapter.js';
+import { resolveTemplateEngine } from './template-engine.registry.js';
 
 const PLAIN_HTML = new Set(['.html', '.htm']);
-const TEMPLATE_EXTENSIONS = new Set(['.hbs', '.handlebars', '.ejs', '.pug', '.liquid', '.liquidjs']);
+const TEMPLATE_EXTENSIONS = new Set([
+  '.hbs',
+  '.handlebars',
+  '.ejs',
+  '.pug',
+  '.liquid',
+  '.liquidjs',
+]);
 
 export class FileBasedShellRenderer implements ShellRenderer {
   private cachedTemplate: string | null = null;
-  private engineRenderer: ((locals: Record<string, unknown>) => string | Promise<string>) | null = null;
+  private engineRenderer: ((locals: Record<string, unknown>) => string | Promise<string>) | null =
+    null;
   private adapterPromise: Promise<TemplateEngineAdapter> | null = null;
   private readonly absPath: string;
   private readonly ext: string;
@@ -40,7 +48,13 @@ export class FileBasedShellRenderer implements ShellRenderer {
     const manifest = ctx.manifest as Manifest | null;
 
     if (PLAIN_HTML.has(this.ext)) {
-      return processDirectives(this.cachedTemplate, { pageJson, ssrHead, ssrBody, manifest, isDev });
+      return processDirectives(this.cachedTemplate, {
+        pageJson,
+        ssrHead,
+        ssrBody,
+        manifest,
+        isDev,
+      });
     }
 
     // Template engine path

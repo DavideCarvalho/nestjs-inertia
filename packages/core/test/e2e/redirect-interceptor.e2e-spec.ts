@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Controller, type INestApplication, Put, Res } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Controller, INestApplication, Put, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { InertiaModule } from '../../src/index.js';
 
 @Controller()
@@ -31,7 +31,7 @@ describe('RedirectInterceptor — E2E', () => {
       .set('X-Inertia', 'true')
       .redirects(0);
     expect(res.status).toBe(303);
-    expect(res.headers['location']).toBe('/items');
+    expect(res.headers.location).toBe('/items');
   });
 
   it('PUT redirect 302 stays 302 when X-Inertia header absent', async () => {

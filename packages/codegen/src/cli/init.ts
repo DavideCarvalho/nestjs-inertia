@@ -57,13 +57,16 @@ async function patchGitignore(gitignorePath: string): Promise<void> {
 
   // Idempotent: only add the line if it's not already there
   if (existing.split('\n').some((line) => line.trim() === GITIGNORE_ENTRY)) {
-    console.log(`[nestjs-inertia] ${GITIGNORE_FILE} already contains ${GITIGNORE_ENTRY} — skipping.`);
+    console.log(
+      `[nestjs-inertia] ${GITIGNORE_FILE} already contains ${GITIGNORE_ENTRY} — skipping.`,
+    );
     return;
   }
 
-  const newContent = existing.endsWith('\n') || existing === ''
-    ? `${existing}${GITIGNORE_ENTRY}\n`
-    : `${existing}\n${GITIGNORE_ENTRY}\n`;
+  const newContent =
+    existing.endsWith('\n') || existing === ''
+      ? `${existing}${GITIGNORE_ENTRY}\n`
+      : `${existing}\n${GITIGNORE_ENTRY}\n`;
 
   await writeFile(gitignorePath, newContent, 'utf8');
   console.log(`[nestjs-inertia] Patched ${GITIGNORE_FILE} with ${GITIGNORE_ENTRY}.`);

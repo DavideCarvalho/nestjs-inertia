@@ -1,1 +1,3 @@
-export default function Bare() { return null; }
+export default function Bare() {
+  return null;
+}

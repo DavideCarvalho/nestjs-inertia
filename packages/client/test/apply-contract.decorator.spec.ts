@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { describe, it, expect } from 'vitest';
 import { Controller } from '@nestjs/common';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { ApplyContract } from '../src/contract/apply-contract.decorator.js';
 import { Contract } from '../src/contract/contract.js';
@@ -38,19 +38,29 @@ const DeleteUser = Contract.delete('/users/:id', {
 @Controller()
 class TestController {
   @ApplyContract(ListUsers)
-  list() { return []; }
+  list() {
+    return [];
+  }
 
   @ApplyContract(CreateUser)
-  create() { return {}; }
+  create() {
+    return {};
+  }
 
   @ApplyContract(UpdateUser)
-  update() { return {}; }
+  update() {
+    return {};
+  }
 
   @ApplyContract(PatchUser)
-  patch() { return {}; }
+  patch() {
+    return {};
+  }
 
   @ApplyContract(DeleteUser)
-  delete() { return {}; }
+  delete() {
+    return {};
+  }
 }
 
 describe('@ApplyContract', () => {
