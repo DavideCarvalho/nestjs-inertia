@@ -9,3 +9,7 @@ pnpm-debug.log*
 .env
 .env.local
 .nestjs-inertia/
+
+# Astro build artifacts
+website/.astro/
+website/dist/
