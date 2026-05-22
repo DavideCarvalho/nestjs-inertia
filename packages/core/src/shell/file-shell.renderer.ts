@@ -4,6 +4,7 @@ import type { Manifest } from '../asset/version.provider.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
 import type { ShellRenderCtx } from '../types.js';
 import { processDirectives } from './directives.js';
+import { serializePageData } from './serialize-page.js';
 import type { ShellRenderer } from './shell.js';
 import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 import { resolveTemplateEngine } from './template-engine.registry.js';
@@ -40,7 +41,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
       this.cachedTemplate = readFileSync(this.absPath, 'utf8');
     }
 
-    const pageJson = JSON.stringify(ctx.page);
+    const pageJson = serializePageData(ctx.page);
     const ssrHead = ctx.ssr?.head.join('\n') ?? '';
     const ssrBody = ctx.ssr?.body ?? null;
     const isDev = process.env.NODE_ENV !== 'production';

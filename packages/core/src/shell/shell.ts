@@ -1,4 +1,5 @@
 import type { ShellRenderCtx } from '../types.js';
+import { serializePageData } from './serialize-page.js';
 
 export interface ShellRenderer {
   render(ctx: ShellRenderCtx): Promise<string>;
@@ -6,7 +7,7 @@ export interface ShellRenderer {
 
 export class DefaultShellRenderer implements ShellRenderer {
   async render(ctx: ShellRenderCtx): Promise<string> {
-    const pageJson = JSON.stringify(ctx.page);
+    const pageJson = serializePageData(ctx.page);
     return `<!doctype html>
 <html lang="en">
   <head>
