@@ -31,9 +31,21 @@ function always<T>(fn: () => T | Promise<T>): Marker<T> {
 function optional<T>(fn: () => T | Promise<T>): Marker<T> {
   return make('optional', fn);
 }
+
+let _lazyWarned = false;
+/**
+ * @deprecated Use `Inertia.optional()` instead. `Inertia.lazy()` is a deprecated alias
+ * kept for v1/v2 backward compatibility and will be removed in a future major version.
+ */
 function lazy<T>(fn: () => T | Promise<T>): Marker<T> {
-  // v1 compatibility alias
-  return make('optional', fn);
+  if (!_lazyWarned) {
+    _lazyWarned = true;
+    console.warn(
+      '[nestjs-inertia] Inertia.lazy() is deprecated and will be removed in a future version. ' +
+        'Use Inertia.optional() instead (Inertia v3).',
+    );
+  }
+  return optional(fn);
 }
 function defer<T>(fn: () => T | Promise<T>, group = 'default'): Marker<T> {
   return make('defer', fn, { group });
@@ -88,4 +100,9 @@ export function getMarkerValue<T>(marker: Marker<T>): () => T | Promise<T> {
 
 export function getMarkerMeta(marker: Marker): Record<string, unknown> {
   return marker.meta;
+}
+
+/** @internal — resets the once-per-process lazy deprecation flag (for tests only) */
+export function _resetLazyDeprecationWarning(): void {
+  _lazyWarned = false;
 }

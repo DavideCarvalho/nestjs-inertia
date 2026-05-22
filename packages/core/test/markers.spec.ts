@@ -1,7 +1,18 @@
-import { describe, expect, it } from 'vitest';
-import { Inertia, getMarkerKind, getMarkerMeta, getMarkerValue, isMarker } from '../src/markers.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  Inertia,
+  _resetLazyDeprecationWarning,
+  getMarkerKind,
+  getMarkerMeta,
+  getMarkerValue,
+  isMarker,
+} from '../src/markers.js';
 
 describe('Inertia markers', () => {
+  beforeEach(() => {
+    _resetLazyDeprecationWarning();
+  });
+
   it('always() wraps a value (function or literal)', () => {
     const m = Inertia.always(() => 42);
     expect(isMarker(m)).toBe(true);
@@ -49,9 +60,20 @@ describe('Inertia markers', () => {
     expect(isMarker('x')).toBe(false);
   });
 
-  it('Inertia.lazy is an alias for optional (v1 compat)', () => {
-    const m = Inertia.lazy(() => 'x');
-    expect(getMarkerKind(m)).toBe('optional');
+  it('Inertia.lazy is a deprecated alias for optional (v3: warns once, returns optional marker)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const m1 = Inertia.lazy(() => 'x');
+      const m2 = Inertia.lazy(() => 'y');
+      expect(getMarkerKind(m1)).toBe('optional');
+      expect(getMarkerKind(m2)).toBe('optional');
+      // Warning emitted exactly once (not on every call)
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Inertia.lazy() is deprecated'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Inertia.optional()'));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('once() marker', () => {
