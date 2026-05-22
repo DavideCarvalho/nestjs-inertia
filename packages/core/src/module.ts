@@ -8,6 +8,8 @@ import { SsrLoaderService } from './ssr/ssr-loader.service.js';
 import type { InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory } from './types.js';
 import { InvalidInertiaConfigException } from './errors/exceptions.js';
 import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
+import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
+import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
 
 @Module({})
 export class InertiaModule implements NestModule {
@@ -37,9 +39,14 @@ export class InertiaModule implements NestModule {
         shellProvider,
         ssrProvider,
         InertiaMiddleware,
+        MethodSpoofMiddleware,
         {
           provide: APP_INTERCEPTOR,
           useClass: InertiaRenderInterceptor,
+        },
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: RedirectInterceptor,
         },
       ],
       exports: [
@@ -85,9 +92,14 @@ export class InertiaModule implements NestModule {
         shellProvider,
         ssrProvider,
         InertiaMiddleware,
+        MethodSpoofMiddleware,
         {
           provide: APP_INTERCEPTOR,
           useClass: InertiaRenderInterceptor,
+        },
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: RedirectInterceptor,
         },
       ],
       exports: [
@@ -147,6 +159,7 @@ export class InertiaModule implements NestModule {
   }
 
   configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(MethodSpoofMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
     consumer.apply(InertiaMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
   }
 }

@@ -91,13 +91,17 @@ export class InertiaService {
     const partialComponent = this.req.header('X-Inertia-Partial-Component');
     const isPartial = partialComponent === component;
     const partialDataHeader = this.req.header('X-Inertia-Partial-Data');
-    const keep = isPartial ? (partialDataHeader ?? '').split(',').filter(Boolean) : null;
+    const keepList = isPartial && partialDataHeader ? partialDataHeader.split(',').filter(Boolean) : null;
+    const keep = keepList && keepList.length > 0 ? keepList : null;
 
     const resetHeader = this.req.header('X-Inertia-Reset');
     const resetKeys = (resetHeader ?? '').split(',').filter(Boolean);
 
     const resetOnceHeader = this.req.header('X-Inertia-Reset-Once');
     const resetOnceKeys = (resetOnceHeader ?? '').split(',').filter(Boolean);
+
+    const exceptHeader = this.req.header('X-Inertia-Partial-Except');
+    const exceptKeys = isPartial ? (exceptHeader ?? '').split(',').filter(Boolean) : [];
 
     const finalProps: Props = {};
     const deferredProps: Record<string, string[]> = {};
@@ -106,6 +110,7 @@ export class InertiaService {
     const matchPropsOn: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(rawProps)) {
+      if (exceptKeys.includes(key) && key !== 'errors') continue;
       if (isMarker(value)) {
         const kind = getMarkerKind(value);
         if (kind === 'always') {
