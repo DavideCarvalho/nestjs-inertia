@@ -34,9 +34,10 @@ export class MissingCookieDepException extends Error {
   }
 }
 
-export class InvalidCsrfTokenException extends Error {
+import { ForbiddenException } from '@nestjs/common';
+
+export class InvalidCsrfTokenException extends ForbiddenException {
   constructor() {
     super('[nestjs-inertia] CSRF token is missing or invalid.');
-    this.name = 'InvalidCsrfTokenException';
   }
 }
