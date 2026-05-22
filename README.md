@@ -8,11 +8,9 @@ See `docs/design.md` for the full design spec.
 
 ## Packages
 
-- `@dudousxd/nestjs-inertia` — core protocol + module
-- `@dudousxd/nestjs-inertia-testing` — assertion helpers (planned)
-- `@dudousxd/nestjs-inertia-codegen` — typed pages codegen (planned)
-- `@dudousxd/nestjs-inertia-vite` — Vite integration helpers (planned)
-- `@dudousxd/nestjs-inertia-client` — Tuyau-style typed REST client + TanStack Query (planned)
+- [`@dudousxd/nestjs-inertia`](packages/core/README.md) — core protocol + module
+- [`@dudousxd/nestjs-inertia-vite`](packages/vite/README.md) — Vite dev/build helpers + plugin
+- [`@dudousxd/nestjs-inertia-testing`](packages/testing/README.md) — `expectInertia` matchers + fakes + TestingModule
 
 ## License
 
