@@ -125,8 +125,31 @@ describe('InertiaService.share', () => {
 });
 
 describe('InertiaService.location — external redirect', () => {
-  it('returns 409 + X-Inertia-Location for external URL', () => {
-    const { svc, res } = makeService();
+  it('returns 409 + X-Inertia-Location for Inertia XHR external URL', () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const { svc, res } = makeService(req);
+    svc.location('https://stripe.com/checkout');
+    expect(res._captured.status).toBe(409);
+    expect(res._captured.headers['X-Inertia-Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.ended).toBe(true);
+  });
+});
+
+describe('InertiaService.location — context-aware behavior', () => {
+  it('returns 302 redirect for non-Inertia browser visit', async () => {
+    const req = fakeRequest({});                       // no X-Inertia header
+    const res = fakeResponse();
+    const { svc } = makeService(req, res);
+    svc.location('https://stripe.com/checkout');
+    expect(res._captured.status).toBe(302);
+    expect(res._captured.headers['Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.ended).toBe(true);
+  });
+
+  it('returns 409 + X-Inertia-Location for Inertia XHR (X-Inertia: true)', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const { svc } = makeService(req, res);
     svc.location('https://stripe.com/checkout');
     expect(res._captured.status).toBe(409);
     expect(res._captured.headers['X-Inertia-Location']).toBe('https://stripe.com/checkout');

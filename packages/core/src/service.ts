@@ -38,7 +38,11 @@ export class InertiaService {
   }
 
   location(url: string): void {
-    this.res.status(409).setHeader('X-Inertia-Location', url).end();
+    if (this.req.header('X-Inertia')) {
+      this.res.status(409).setHeader('X-Inertia-Location', url).end();
+    } else {
+      this.res.status(302).setHeader('Location', url).end();
+    }
   }
 
   encryptHistory(value: boolean = true): this {
