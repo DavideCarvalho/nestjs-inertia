@@ -101,9 +101,10 @@ export async function watch(
 
   const resolvedDiscoverRoutes = discoverRoutesImpl ?? defaultDiscoverRoutes;
 
-  // Static discovery is active when explicitly opted-in via useStaticDiscovery flag,
-  // and no custom impl (test seam) has been injected.
-  const useStatic = config.contracts.useStaticDiscovery === true && discoverRoutesImpl === undefined;
+  // Static discovery is active by default (useStaticDiscovery defaults to true in resolved config).
+  // It is bypassed when the user sets useStaticDiscovery: false, or when a custom discoverRoutesImpl
+  // test seam is injected (the seam implies the caller controls discovery).
+  const useStatic = config.contracts.useStaticDiscovery !== false && discoverRoutesImpl === undefined;
 
   function scheduleContractsRegenerate(): void {
     if (contractsDebounceTimer !== undefined) {

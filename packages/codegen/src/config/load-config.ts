@@ -64,6 +64,7 @@ function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
     contracts: {
       glob: userConfig.contracts?.glob ?? 'src/**/*.controller.ts',
       debounceMs: userConfig.contracts?.debounceMs ?? 500,
+      useStaticDiscovery: userConfig.contracts?.useStaticDiscovery ?? true,
     },
     scopes: userConfig.scopes ?? {},
     codegen: {

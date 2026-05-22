@@ -82,6 +82,9 @@ export default defineConfig({
     glob: 'src/**/*.controller.ts',
     // Debounce delay in ms before re-running route discovery (default: 500)
     debounceMs: 500,
+    // Use fast static AST discovery (ts-morph) instead of bootstrapping NestJS (default: true).
+    // Set to false to always use the full Nest bootstrap path (slower but handles edge cases).
+    useStaticDiscovery: true,
   },
   codegen: {
     // Output directory for generated artifacts (default: '.nestjs-inertia')
@@ -121,7 +124,9 @@ Options:
 > 1. **Pages watcher** (`pages.glob`, 150 ms debounce) — regenerates `pages.d.ts` on any page file change.
 > 2. **Contracts watcher** (`contracts.glob`, default `src/**/*.controller.ts`, 500 ms debounce) — re-runs route discovery and regenerates `routes.ts` and `api.ts` whenever a controller file changes.
 >
-> Configure the contracts glob and debounce via the `contracts` key in `nestjs-inertia.config.ts`.
+> **Static discovery (default):** the contracts watcher uses fast static AST analysis via ts-morph (~100–500 ms) instead of bootstrapping a full NestJS app (~2–10 s). To opt out, set `contracts: { useStaticDiscovery: false }` in your config.
+>
+> Configure the contracts glob, debounce, and discovery strategy via the `contracts` key in `nestjs-inertia.config.ts`.
 
 ## Programmatic API
 

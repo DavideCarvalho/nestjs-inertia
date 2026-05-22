@@ -33,7 +33,7 @@ function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string, us
     contracts: {
       glob: contractsGlob ?? 'src/**/*.controller.ts',
       debounceMs: 500,
-      useStaticDiscovery: useStaticDiscovery ?? false,
+      useStaticDiscovery: useStaticDiscovery ?? true,
     },
     scopes: {},
     codegen: { outDir, cwd: pagesDir },
@@ -181,6 +181,52 @@ describe('watch', () => {
     // routes.ts should have been regenerated with stub route
     const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
     expect(routesContent).toContain('StubController.index');
+  });
+
+  it('uses heavy discovery (discoverRoutesImpl seam) when useStaticDiscovery is false', async () => {
+    tmpBase = await mkdtemp(join(tmpdir(), 'watcher-heavy-spec-'));
+    const projectDir = join(tmpBase, 'project');
+    const srcDir = join(projectDir, 'src');
+    const outDir = join(tmpBase, '.nestjs-inertia');
+    await mkdir(srcDir, { recursive: true });
+
+    await writeFile(
+      join(projectDir, 'Home.tsx'),
+      'export type ComponentProps = { title: string };\nexport default function Home() { return null; }\n',
+      'utf8',
+    );
+
+    const controllerPath = join(srcDir, 'app.controller.ts');
+    await writeFile(controllerPath, '// controller\n', 'utf8');
+
+    const stubRoutes: RouteDescriptor[] = [
+      { method: 'GET', path: '/heavy', name: 'HeavyController.index', params: [] },
+    ];
+    let heavyCallCount = 0;
+    const stubDiscoverRoutes = async () => {
+      heavyCallCount++;
+      return stubRoutes;
+    };
+
+    // Explicitly opt out of static discovery
+    const config = makeConfig(projectDir, outDir, 'src/**/*.controller.ts', false);
+    let onChangeCalled = 0;
+    const watcher = await watch(config, () => { onChangeCalled++; }, stubDiscoverRoutes);
+    watchers.push(watcher);
+
+    await new Promise((r) => setTimeout(r, 300));
+
+    const countBefore = heavyCallCount;
+
+    await writeFile(controllerPath, '// controller\n// modified\n', 'utf8');
+
+    await waitForCondition(() => onChangeCalled > 0, 3000);
+
+    // Heavy path (injected stub) must have been called at least once
+    expect(heavyCallCount).toBeGreaterThan(countBefore);
+
+    const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
+    expect(routesContent).toContain('HeavyController.index');
   });
 
   it('uses static discovery (discoverContractsFast) when useStaticDiscovery is true', async () => {

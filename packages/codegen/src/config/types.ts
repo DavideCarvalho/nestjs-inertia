@@ -44,10 +44,11 @@ export interface ResolvedContractsConfig {
   /** Debounce delay in ms before re-running route discovery. */
   debounceMs: number;
   /**
-   * When true (default for watch mode), use static AST-based discovery via ts-morph
-   * instead of bootstrapping a full NestJS app. Significantly faster (~100-500 ms vs 2-10 s).
+   * When true (default), use static AST-based discovery via ts-morph instead of bootstrapping
+   * a full NestJS app. Significantly faster (~100-500 ms vs 2-10 s). Set to `false` to always
+   * use the heavy probe path.
    */
-  useStaticDiscovery?: boolean;
+  useStaticDiscovery: boolean;
 }
 
 export interface ResolvedCodegenConfig {
