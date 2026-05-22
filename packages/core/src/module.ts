@@ -1,4 +1,4 @@
-import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider } from '@nestjs/common';
+import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider, RequestMethod } from '@nestjs/common';
 import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS } from './tokens.js';
 import { assetVersionProvider, manifestProvider } from './asset/version.provider.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
@@ -47,6 +47,6 @@ export class InertiaModule implements NestModule {
   }
 
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(InertiaMiddleware).forRoutes({ path: '*', method: 0 });
+    consumer.apply(InertiaMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }

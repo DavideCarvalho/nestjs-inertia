@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { Controller, Get, INestApplication, Req } from '@nestjs/common';
+import { Controller, Get, Post, HttpCode, INestApplication, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import request from 'supertest';
 import { InertiaModule } from '../../src/index.js';
@@ -10,6 +10,12 @@ class HomeController {
   @Get('/')
   async show(@Req() req: Request): Promise<void> {
     await req.inertia.render('Home', { hello: 'world' });
+  }
+
+  @Post('/form')
+  @HttpCode(200)
+  async submit(@Req() req: Request): Promise<void> {
+    await req.inertia.render('FormResult', { ok: true });
   }
 }
 
@@ -45,6 +51,14 @@ describe('InertiaModule.forRoot — E2E', () => {
     expect(res.headers['content-type']).toMatch(/html/);
     expect(res.text).toContain('<div id="app"');
     expect(res.text).toContain('data-page=');
+  });
+
+  it('runs middleware on POST requests (req.inertia must be defined)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/form')
+      .set('X-Inertia', 'true');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ component: 'FormResult', props: { ok: true, errors: {} } });
   });
 
   it('returns 409 + X-Inertia-Location on version mismatch (GET)', async () => {
