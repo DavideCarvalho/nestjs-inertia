@@ -1,17 +1,21 @@
 # @dudousxd/nestjs-inertia
 
-> Inertia.js v2 adapter for NestJS — core protocol and module.
+> Inertia.js v2 adapter for NestJS — feature-complete core (Express + Fastify, multi-app, template engines, CSRF).
 
 [![npm](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia.svg)](https://npmjs.com/package/@dudousxd/nestjs-inertia)
 [![license](https://img.shields.io/npm/l/@dudousxd/nestjs-inertia.svg)](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/LICENSE)
 
-> **Status: 0.2.0-alpha.** Express adapter complete with full Inertia v2 protocol parity. Fastify, multi-app (forFeature), template engines, and CSRF arrive in 0.3.0 (Plan A.3).
+> **Status: 0.3.0-alpha.** Core library is feature-complete: Express + Fastify adapters, multi-app via `forFeature`, 4 template engines, CSRF protection, full Inertia v2 protocol parity. Companion packages (Vite, testing helpers, codegen, Tuyau-style client) and a docs site are coming next.
 
 ## Install
 
 ```bash
 pnpm add @dudousxd/nestjs-inertia
-pnpm add express @types/express          # Express adapter peer deps
+
+# Pick your HTTP platform
+pnpm add express @types/express          # Express adapter (default)
+# OR
+pnpm add fastify @nestjs/platform-fastify @fastify/cookie  # Fastify adapter
 ```
 
 ## Quick start
@@ -94,6 +98,85 @@ InertiaModule.forRootAsync({
 
 Three paths: `useFactory + inject` (most common), `useClass`, `useExisting`.
 
+## Multi-app with `forFeature`
+
+Host two or more Inertia apps in the same NestJS process — each with its own Vite entry, shell, version, share, SSR bundle. Useful for admin panels, multi-tenant white-label, or migrations between frontend stacks.
+
+```ts
+@Module({
+  imports: [
+    InertiaModule.forRoot({                  // main app
+      vite: { entry: 'app/client.tsx' },
+      rootView: 'inertia/root.html',
+      share: req => ({ auth: req.user }),
+    }),
+    InertiaModule.forFeature({               // admin app
+      scope: 'admin',
+      vite: { entry: 'admin/client.tsx' },
+      rootView: 'inertia/admin-root.html',
+      share: req => ({ admin: req.adminContext }),
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+Select scope per controller / method with `@UseInertia('scope')`:
+
+```ts
+@Controller('admin')
+@UseInertia('admin')
+export class AdminDashboardController {
+  @Get('/')
+  @Inertia('AdminDashboard')
+  show() { return { stats: ... }; }
+}
+```
+
+`forFeatureAsync` works the same as `forRootAsync` (useFactory/useClass/useExisting). Reserved scope: `'default'` is owned by `forRoot()`.
+
+## Template engines
+
+`rootView` accepts `.html` (own parser) plus `.hbs` / `.ejs` / `.pug` / `.liquid` if the engine package is installed:
+
+```bash
+pnpm add handlebars                    # or: ejs, pug, liquidjs
+```
+
+```ts
+InertiaModule.forRoot({
+  rootView: 'inertia/root.hbs',         // auto-detects Handlebars
+});
+```
+
+Each engine sees locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`. Use the engine's own escape rules (e.g., `{{{inertia}}}` triple-stache in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug). The `@inertia`/`@vite`/`@asset` directives are also processed on the engine's output, so you can mix and match.
+
+## CSRF
+
+```ts
+import { CsrfCookieInterceptor, CsrfGuard } from '@dudousxd/nestjs-inertia';
+
+// Global cookie writer
+app.useGlobalInterceptors(new CsrfCookieInterceptor({ secret: process.env.CSRF_SECRET }));
+
+// Per-route validation
+@UseGuards(new CsrfGuard({ secret: process.env.CSRF_SECRET }))
+@Post('/profile')
+async update() { ... }
+```
+
+Cookie name `XSRF-TOKEN`, header name `X-XSRF-TOKEN` — both match the Inertia client convention. Signed via HMAC-SHA256. Requires `cookie-parser` (Express) or `@fastify/cookie` (Fastify) as peer dep.
+
+## Fastify
+
+```ts
+import { FastifyAdapter } from '@nestjs/platform-fastify';
+
+const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+```
+
+Full feature parity with Express: middleware, decorator, all interceptors, guards, filters, shell directives, SSR, FlashStore. `request.inertia` is wired via `decorateRequest` + `onRequest` hook automatically when the FastifyAdapter is detected.
+
 ## Prop markers
 
 ```ts
@@ -118,17 +201,18 @@ return {
 ## Auto-included infrastructure
 
 `forRoot()` installs:
-- `InertiaMiddleware` on all routes (`req.inertia` available everywhere)
+- `InertiaMiddleware` (Express) or `FastifyInertiaPlugin` (Fastify) — `req.inertia` available everywhere
 - `MethodSpoofMiddleware` (POST + multipart + `_method=PUT/PATCH/DELETE`)
 - `RedirectInterceptor` (302 → 303 upgrade on PUT/PATCH/DELETE Inertia requests)
 - `InertiaRenderInterceptor` (handles `@Inertia('Page')` decorator)
+- `InertiaScopeSwitcherInterceptor` (handles `@UseInertia('scope')`)
 
 Disable via knobs:
 
 ```ts
 InertiaModule.forRoot({
-  methodSpoofing: false,   // disable _method override
-  autoUpgrade303: false,   // disable 302→303 (NOT recommended; breaks forms)
+  methodSpoofing: false,
+  autoUpgrade303: false,
 });
 ```
 
@@ -144,7 +228,7 @@ import {
 // Auth guard — applies per controller / handler
 @UseGuards(new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/signin/*'] }))
 
-// Not-found filter — register globally in main.ts
+// Not-found filter — register globally
 app.useGlobalFilters(new InertiaNotFoundFilter({ apiPrefix: '/api', component: 'NotFound' }));
 
 // Error bag interceptor — opt-in per route
@@ -176,7 +260,7 @@ InertiaModule.forRoot({
   ssr: {
     enabled: process.env.NODE_ENV === 'production',
     bundlePath: 'dist/inertia/ssr/ssr.mjs',
-    throwOnError: false,    // log warn + CSR fallback on missing bundle
+    throwOnError: false,
   },
 });
 ```
@@ -185,21 +269,15 @@ Bundle must export `default { render(page) }` or named `render(page)` returning 
 
 ## Protocol parity
 
-Full Inertia v2 protocol: X-Inertia headers, version mismatch (409 + X-Inertia-Location, GET only), partial reloads, deferred props, merge/deepMerge with matchOn, once, history encryption / clear, error bags, X-Inertia-Reset, X-Inertia-Partial-Except, dot-notation unpacking, undefined→null wire conversion.
-
-## Not yet (planned for 0.3.0 / Plan A.3)
-
-- `InertiaModule.forFeature({ scope })` for multi-app (`@UseInertia('admin')`)
-- Template engines (Handlebars/EJS/Pug/Liquid) for `rootView`
-- CSRF (`CsrfCookieInterceptor` + `CsrfGuard`)
-- Fastify adapter
+Full Inertia v2 protocol: X-Inertia headers, version mismatch (409 + X-Inertia-Location, GET only), partial reloads, deferred props, merge/deepMerge with matchOn, once, history encryption / clear, error bags, X-Inertia-Reset, X-Inertia-Partial-Except, X-Inertia-Reset-Once, dot-notation unpacking, undefined→null wire conversion.
 
 ## Companion packages (planned)
 
-- `@dudousxd/nestjs-inertia-vite` — Vite dev/build helpers
-- `@dudousxd/nestjs-inertia-testing` — `expectInertia(res)` matchers
-- `@dudousxd/nestjs-inertia-codegen` — typed pages
-- `@dudousxd/nestjs-inertia-client` — Tuyau-style typed REST + TanStack Query
+- `@dudousxd/nestjs-inertia-vite` — Vite dev/build helpers (Plan B)
+- `@dudousxd/nestjs-inertia-testing` — `expectInertia(res)` matchers (Plan B)
+- `@dudousxd/nestjs-inertia-codegen` — typed pages (Plan C)
+- `@dudousxd/nestjs-inertia-client` — Tuyau-style typed REST + TanStack Query (Plan D)
+- Examples + docs site + CI workflows (Plan E)
 
 See [`docs/design.md`](../../docs/design.md) for full design.
 

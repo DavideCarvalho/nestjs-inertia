@@ -2,6 +2,26 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## [0.3.0-alpha.0] - 2026-05-22
+
+### Added
+- `InertiaModule.forFeature({ scope })` and `forFeatureAsync` — multi-app support
+- `@UseInertia('scope')` decorator (class + method level) for selecting scope
+- `InertiaScopeSwitcherInterceptor` — auto-installed; replaces `req.inertia` with scoped service
+- 4 template engine adapters: Handlebars, EJS, Pug, LiquidJS (peer deps, all optional)
+- `MissingTemplateEngineDepException` with installation hint
+- CSRF: `CsrfCookieInterceptor` (writes XSRF-TOKEN cookie) + `CsrfGuard` (validates X-XSRF-TOKEN header)
+- `generateCsrfToken` / `verifyCsrfToken` HMAC-SHA256 helpers
+- `MissingCookieDepException` + `InvalidCsrfTokenException` (extends `ForbiddenException` → 403)
+- Fastify adapter — full parity with Express: `fastifyAdapter`, `registerFastifyInertia` (decorateRequest + onRequest), `registerFastifyMethodSpoof` (preHandler)
+- Platform detection in `InertiaModule.onApplicationBootstrap` via `HttpAdapterHost.httpAdapter.getType()`
+- `InertiaAuthGuard` is now platform-aware (Express `redirect(status, url)` vs Fastify `redirect(url, status)`)
+- `RedirectInterceptor` patches `reply.code()` on Fastify for `@Res()` handlers that send manually
+
+### Pending for future plans
+- Companion packages: `@dudousxd/nestjs-inertia-vite` (Plan B), `-testing` (Plan B), `-codegen` (Plan C), `-client` (Plan D — Tuyau-style)
+- Examples + docs site + CI workflows (Plan E)
+
 ## [0.2.0-alpha.0] - 2026-05-22
 
 ### Added
