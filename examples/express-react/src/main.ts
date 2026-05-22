@@ -10,7 +10,7 @@ async function bootstrap(): Promise<void> {
     mode: process.env['NODE_ENV'],
     root: process.cwd(),
     publicDir: 'public',
-    outDir: 'dist',
+    outDir: 'dist/inertia',
   });
 
   await app.listen(3000);

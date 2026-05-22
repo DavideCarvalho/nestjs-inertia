@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import type { Plugin, UserConfig } from 'vite';
 
 const require = createRequire(import.meta.url);
 
@@ -12,6 +13,7 @@ export interface NestInertiaPluginOptions {
   ssrEntry?: string;
   alias?: Record<string, string>;
   root?: string;
+  entry?: string;
 }
 
 export class InvalidViteConfigException extends Error {
@@ -21,12 +23,7 @@ export class InvalidViteConfigException extends Error {
   }
 }
 
-interface VitePlugin {
-  name: string;
-  config?: () => unknown;
-}
-
-function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): unknown {
+function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): Plugin {
   const pkg =
     framework === 'react'
       ? '@vitejs/plugin-react'
@@ -34,9 +31,9 @@ function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): unknown {
         ? '@vitejs/plugin-vue'
         : '@sveltejs/vite-plugin-svelte';
   try {
-    const mod = require(pkg) as { default?: () => unknown };
-    const factory = mod.default ?? (mod as () => unknown);
-    return (factory as () => unknown)();
+    const mod = require(pkg) as { default?: () => Plugin };
+    const factory = mod.default ?? (mod as () => Plugin);
+    return (factory as () => Plugin)();
   } catch {
     throw new InvalidViteConfigException(
       `Plugin "${pkg}" not installed. Run: pnpm add ${pkg}`,
@@ -44,7 +41,7 @@ function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): unknown {
   }
 }
 
-export default function nestInertia(options: NestInertiaPluginOptions = {}): VitePlugin[] {
+export default function nestInertia(options: NestInertiaPluginOptions = {}): Plugin[] {
   const frameworkFlags = [options.react, options.vue, options.svelte].filter(Boolean);
   if (frameworkFlags.length !== 1) {
     throw new InvalidViteConfigException(
@@ -52,27 +49,51 @@ export default function nestInertia(options: NestInertiaPluginOptions = {}): Vit
     );
   }
 
-  const root = options.root ?? 'inertia';
-  const clientEntry = options.clientEntry ?? `${root}/app/client.tsx`;
-  const alias = { '@': resolve(process.cwd(), root), ...(options.alias ?? {}) };
+  const defaultRoot = 'inertia';
+  const alias = {
+    '@': resolve(process.cwd(), options.root ?? defaultRoot),
+    ...(options.alias ?? {}),
+  };
 
-  const configurer: VitePlugin = {
+  const configurer: Plugin = {
     name: 'nestjs-inertia',
-    config: () => ({
-      root: resolve(process.cwd(), root),
-      build: {
+    config: (userConfig: UserConfig): Omit<UserConfig, 'plugins'> => {
+      const resolvedRoot = options.root ?? defaultRoot;
+      const defaultEntry = options.entry ?? options.clientEntry ?? `${resolvedRoot}/app/client.tsx`;
+
+      const buildConfig: NonNullable<UserConfig['build']> = {
         manifest: true,
-        outDir: 'dist/inertia/client',
-        rollupOptions: {
-          input: resolve(process.cwd(), clientEntry),
+        rollupOptions: {},
+      };
+
+      // Only set outDir if the user hasn't already defined it
+      if (!userConfig.build?.outDir) {
+        buildConfig.outDir = 'dist/inertia/client';
+      }
+
+      // Only set rollupOptions.input if the user hasn't already defined it
+      if (!userConfig.build?.rollupOptions?.input) {
+        buildConfig.rollupOptions = {
+          input: resolve(process.cwd(), defaultEntry),
+        };
+      }
+
+      const result: Omit<UserConfig, 'plugins'> = {
+        build: buildConfig,
+        resolve: { alias },
+        server: {
+          middlewareMode: true,
+          hmr: { port: 24679 },
         },
-      },
-      resolve: { alias },
-      server: {
-        middlewareMode: true,
-        hmr: { port: 24679 },
-      },
-    }),
+      };
+
+      // Only set root if the user hasn't already defined it in their vite config
+      if (!userConfig.root) {
+        result.root = resolve(process.cwd(), resolvedRoot);
+      }
+
+      return result;
+    },
   };
 
   const frameworkPlugin = options.react
@@ -81,5 +102,5 @@ export default function nestInertia(options: NestInertiaPluginOptions = {}): Vit
       ? loadFrameworkPlugin('vue')
       : loadFrameworkPlugin('svelte');
 
-  return [configurer, frameworkPlugin as VitePlugin];
+  return [configurer, frameworkPlugin];
 }
