@@ -10,9 +10,13 @@ This guide walks you from zero to a running NestJS + Inertia + React app.
 ```bash
 pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
 pnpm add -D @dudousxd/nestjs-inertia-codegen vite @vitejs/plugin-react
+# Inertia v3 client adapter — choose one:
+pnpm add @inertiajs/react@^3.0.0 react@^19.0.0 react-dom@^19.0.0   # React
+pnpm add @inertiajs/vue3@^3.0.0 vue@^3.5.0                          # Vue 3
+pnpm add @inertiajs/svelte@^3.0.0 svelte@^5.0.0                     # Svelte 5
 ```
 
-> **Alpha notice:** All packages are currently at `0.7.0-alpha.0`. The public API is stable within the alpha series but may change before `1.0`.
+> **Alpha notice:** All packages are currently at `0.9.0-alpha.0` targeting **Inertia.js v3**. The public API is stable within the alpha series but may change before `1.0`. For Inertia v2, install `@dudousxd/nestjs-inertia@0.8.x`.
 
 ## 2. Bootstrap NestJS
 
@@ -94,13 +98,16 @@ export default defineConfig({
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My App</title>
+    @inertiaHead
+    @vite('app.tsx')
   </head>
   <body>
-    <div id="app" data-page="{{page}}"></div>
-    <script type="module" src="/inertia/app.tsx"></script>
+    @inertia
   </body>
 </html>
 ```
+
+> **Inertia v3 shell:** The `@inertia` directive emits `<div id="app"></div>` plus a `<script id="inertia-page" type="application/json">` tag instead of the old `<div id="app" data-page="...">` used in v2.
 
 ## 6. Wire the React entry point
 
