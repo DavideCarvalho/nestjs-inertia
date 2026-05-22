@@ -59,6 +59,7 @@ export async function discoverRoutes(opts: DiscoverRoutesOptions): Promise<Route
       env: {
         ...process.env,
         TSX_TSCONFIG_PATH: tsconfigPath,
+        NESTJS_INERTIA_CODEGEN_PROBE: '1',
       },
     });
 

@@ -405,7 +405,11 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       // 1. Skip in production
       if (process.env.NODE_ENV === 'production') return;
 
-      // 2. Skip if explicitly disabled
+      // 2. Skip when running inside the codegen probe child process (avoids spawn loop:
+      //    probe boots Nest → onApplicationBootstrap → starts watcher → child never exits)
+      if (process.env.NESTJS_INERTIA_CODEGEN_PROBE === '1') return;
+
+      // 3. Skip if explicitly disabled
       if (this.options.codegen?.enabled === false) return;
 
       // 3. Lazy-import the codegen package (peer-optional — do not fail if missing).
