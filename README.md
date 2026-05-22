@@ -35,12 +35,14 @@ pnpm --filter @example/express-react dev
 
 ## Docs
 
+Full documentation site: **https://davidecarvalho.github.io/nestjs-inertia/**
+
 | Document | Description |
 |---|---|
-| [docs/quickstart.md](docs/quickstart.md) | 5-minute walkthrough — install, bootstrap, first page |
-| [docs/architecture.md](docs/architecture.md) | Package responsibilities and request lifecycle diagram |
-| [docs/codegen.md](docs/codegen.md) | Codegen CLI reference — config, output files, `@ApplyContract` |
-| [docs/contributing-guide.md](docs/contributing-guide.md) | Internal architecture notes for contributors |
+| [Getting Started](https://davidecarvalho.github.io/nestjs-inertia/getting-started/) | 5-minute walkthrough |
+| [Guides](https://davidecarvalho.github.io/nestjs-inertia/guides/installation/) | Installation, multi-app, testing, codegen, typed client |
+| [Packages](https://davidecarvalho.github.io/nestjs-inertia/packages/core/) | Per-package API reference |
+| [Architecture](https://davidecarvalho.github.io/nestjs-inertia/reference/architecture/) | Package responsibilities and request lifecycle |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, TDD discipline, commit style, Changesets flow |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 |
 
