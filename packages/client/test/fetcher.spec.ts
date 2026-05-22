@@ -117,4 +117,37 @@ describe('createFetcher', () => {
     await fetcher.get('/b');
     expect(headersFn).toHaveBeenCalledTimes(2);
   });
+
+  it('POST with FormData body does NOT set Content-Type (runtime sets boundary)', async () => {
+    const f = mockFetch(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const fetcher = createFetcher({ fetch: f });
+    const form = new FormData();
+    form.append('file', new Blob(['hello'], { type: 'text/plain' }), 'hello.txt');
+    await fetcher.post('/upload', { body: form });
+    const [, init] = vi.mocked(f).mock.calls[0]!;
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect((init?.headers as Record<string, string>)['content-type']).toBeUndefined();
+  });
+
+  it('dynamic headers() call count matches number of requests', async () => {
+    const headersFn = vi.fn().mockReturnValue({ 'x-custom': 'val' });
+    const f = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+    const fetcher = createFetcher({ fetch: f, headers: headersFn });
+    await fetcher.get('/x');
+    await fetcher.post('/y', { body: { a: 1 } });
+    await fetcher.delete('/z');
+    expect(headersFn).toHaveBeenCalledTimes(3);
+  });
 });
