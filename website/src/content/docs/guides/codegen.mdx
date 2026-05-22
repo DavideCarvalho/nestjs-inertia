@@ -118,13 +118,47 @@ export class UsersController {
 
 After running `pnpm codegen`, the `users.list` contract appears in `api.ts`.
 
-## Watch mode
+## Auto-watch via `InertiaModule` (recommended)
+
+Starting from `v0.7.0-alpha.0`, `InertiaModule` automatically starts the codegen watcher when your app bootstraps in dev mode — **no extra terminal or script needed**.
+
+Rules (all must be true for the watcher to start):
+- `NODE_ENV !== 'production'`
+- `@dudousxd/nestjs-inertia-codegen` is installed
+- `nestjs-inertia.config.ts` is present at the project root
+
+If another process already holds the watcher lock (e.g. you ran `--watch` in a separate terminal), the auto-started watcher becomes a no-op — no conflicts.
+
+### Disable auto-watch
+
+```ts
+InertiaModule.forRoot({
+  codegen: { enabled: false },
+});
+```
+
+Use this when you prefer to manage the CLI watcher manually, in CI environments, or any time you want explicit control.
+
+### Optional `nest-cli.json` snippet
+
+Only needed if your server bundle imports generated files (e.g. route helpers from `.nestjs-inertia/routes.ts`). This tells the NestJS compiler to copy and watch the output directory:
+
+```json
+{
+  "compilerOptions": {
+    "assets": [".nestjs-inertia/**/*"],
+    "watchAssets": true
+  }
+}
+```
+
+## Manual watch mode (CLI)
 
 ```bash
 pnpm nestjs-inertia codegen --watch
 ```
 
-Reruns whenever a controller or page file changes.
+Reruns whenever a controller or page file changes. When using this alongside `nest start --watch`, the auto-bootstrap watcher detects the held lock and becomes a no-op automatically.
 
 ## Generated file management
 

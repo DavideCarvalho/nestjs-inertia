@@ -267,6 +267,35 @@ InertiaModule.forRoot({
 
 Bundle must export `default { render(page) }` or named `render(page)` returning `{ head: string[], body: string }`.
 
+## Codegen auto-watch (dev mode)
+
+When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` config file is present, `InertiaModule` automatically starts the codegen file watcher inside `onApplicationBootstrap` — so `nest start --watch` is the only command you need in dev mode.
+
+**Default behaviour (`enabled: 'auto'`):**
+1. `NODE_ENV === 'production'` → always skipped.
+2. Codegen package not installed → silent skip (no error).
+3. No `nestjs-inertia.config.ts` found → silent skip.
+4. Lock file already held by another watcher (e.g. the CLI `--watch` flag in a separate terminal) → the codegen package returns a no-op watcher; no conflict.
+
+**Disable auto-watch** (run the CLI watcher manually, or in CI):
+
+```ts
+InertiaModule.forRoot({
+  codegen: { enabled: false },
+});
+```
+
+**Optional `nest-cli.json` snippet** — only useful if your server bundle imports generated files:
+
+```json
+{
+  "compilerOptions": {
+    "assets": [".nestjs-inertia/**/*"],
+    "watchAssets": true
+  }
+}
+```
+
 ## Protocol parity
 
 Full Inertia v2 protocol: X-Inertia headers, version mismatch (409 + X-Inertia-Location, GET only), partial reloads, deferred props, merge/deepMerge with matchOn, once, history encryption / clear, error bags, X-Inertia-Reset, X-Inertia-Partial-Except, X-Inertia-Reset-Once, dot-notation unpacking, undefined→null wire conversion.
