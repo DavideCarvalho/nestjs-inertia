@@ -11,6 +11,9 @@ export {
   InvalidInertiaConfigException,
   InertiaServiceNotAvailableException,
   UnsupportedRootViewExtensionException,
+  MissingTemplateEngineDepException,
+  MissingCookieDepException,
+  InvalidCsrfTokenException,
 } from './errors/exceptions.js';
 export { Inertia } from './markers.js';
 export { UseInertia, INERTIA_USE_SCOPE } from './decorator/use-inertia.decorator.js';

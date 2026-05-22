@@ -18,3 +18,25 @@ export class UnsupportedRootViewExtensionException extends Error {
     this.name = 'UnsupportedRootViewExtensionException';
   }
 }
+
+export class MissingTemplateEngineDepException extends Error {
+  constructor(engine: string, packageName: string) {
+    super(`[nestjs-inertia] Template engine "${engine}" requires "${packageName}" as a peer dependency. Install with: pnpm add ${packageName}`);
+    this.name = 'MissingTemplateEngineDepException';
+  }
+}
+
+export class MissingCookieDepException extends Error {
+  constructor(platform: 'express' | 'fastify') {
+    const dep = platform === 'express' ? 'cookie-parser' : '@fastify/cookie';
+    super(`[nestjs-inertia] CSRF requires "${dep}" as a peer dependency for ${platform}. Install with: pnpm add ${dep}`);
+    this.name = 'MissingCookieDepException';
+  }
+}
+
+export class InvalidCsrfTokenException extends Error {
+  constructor() {
+    super('[nestjs-inertia] CSRF token is missing or invalid.');
+    this.name = 'InvalidCsrfTokenException';
+  }
+}

@@ -33,8 +33,8 @@ describe('FileBasedShellRenderer', () => {
     expect(html).toContain('data-page=');
   });
 
-  it('throws UnsupportedRootViewExtensionException for non-html extension', () => {
-    expect(() => new FileBasedShellRenderer('inertia/root.hbs'))
+  it('throws UnsupportedRootViewExtensionException for unsupported extension', () => {
+    expect(() => new FileBasedShellRenderer('inertia/root.txt'))
       .toThrow(UnsupportedRootViewExtensionException);
   });
 

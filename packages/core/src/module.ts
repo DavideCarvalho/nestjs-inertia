@@ -34,10 +34,6 @@ export class InertiaModule implements NestModule {
           return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
         }
         if (typeof rv === 'string') {
-          const ext = extname(rv).toLowerCase();
-          if (ext !== '.html' && ext !== '.htm') {
-            throw new UnsupportedRootViewExtensionException(ext);
-          }
           return new FileBasedShellRenderer(rv);
         }
         return new DefaultShellRenderer();
@@ -104,10 +100,6 @@ export class InertiaModule implements NestModule {
           return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
         }
         if (typeof rv === 'string') {
-          const ext = extname(rv).toLowerCase();
-          if (ext !== '.html' && ext !== '.htm') {
-            throw new UnsupportedRootViewExtensionException(ext);
-          }
           return new FileBasedShellRenderer(rv);
         }
         return new DefaultShellRenderer();
