@@ -2,6 +2,14 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## 0.9.0-alpha.0 — 2026-05-22
+
+### Changed
+- Broadened peer deps: `@inertiajs/react ^2||^3`, `@inertiajs/vue3 ^2||^3`, `react ^18||^19`
+- Svelte `Link` component migrated to Svelte 5 Runes API (`$props` / `$derived` / children snippet)
+- `Link.svelte` is now copied to `dist/svelte/` as part of the build
+- Version bump to `0.9.0-alpha.0` (Inertia v3 monorepo coordination)
+
 ## 0.8.0-alpha.0 — 2026-05-22
 
 ### Added

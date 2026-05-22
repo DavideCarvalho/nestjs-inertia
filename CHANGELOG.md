@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0-alpha.0] - 2026-05-22
+
+### BREAKING CHANGE — Inertia v3 protocol
+
+All packages now target the **Inertia.js v3** wire protocol. Users on Inertia v2 clients should stay on `v0.8.x`.
+
+**Migration note — shell HTML format changed:**
+
+```html
+<!-- v2 (old) -->
+<div id="app" data-page="{{page}}"></div>
+
+<!-- v3 (new) — emitted by @inertia directive -->
+<div id="app"></div>
+<script id="inertia-page" type="application/json">{{page}}</script>
+```
+
+The `@inertia` template directive in your HTML shell is automatically updated — no action required if you use it. If you hard-coded the `data-page` div, switch to `<script id="inertia-page" type="application/json">`.
+
+**Other v3 changes:**
+- `Inertia.lazy()` is **deprecated** — use `Inertia.optional()` instead (alias retained for backwards compatibility until v1.0)
+- `clearHistory` / `encryptHistory` page properties are **only emitted when truthy** (Inertia v3 protocol requirement)
+- Nested partial-reload props now support **dot-notation paths** (`"user.profile"`)
+
+### Changed
+- `@inertiajs/react` bumped to `^3.0.0`, React to `^19.0.0` in `examples/express-react`
+- `@inertiajs/vue3` bumped to `^3.0.0` in `examples/fastify-vue`
+- `@inertiajs/svelte` already at `^3.2.0` in `examples/express-svelte`
+- `@dudousxd/nestjs-inertia-client` peer deps broadened to `@inertiajs/react ^2||^3`, `react ^18||^19`
+- `@dudousxd/nestjs-inertia-vite`: new `skipFrameworkPlugin` option for ESM-only framework plugins
+- Svelte `Link` component migrated to Svelte 5 Runes API (`$props` / `$derived` / children snippet)
+- All packages bumped to `0.9.0-alpha.0`
+
 ## [0.8.0-alpha.0] - 2026-05-22
 
 ### Added (Phase 5 — Typed Link)

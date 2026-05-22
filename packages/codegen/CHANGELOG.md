@@ -1,5 +1,10 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 0.9.0-alpha.0 — 2026-05-22
+
+### Changed
+- Version bump to `0.9.0-alpha.0` (Inertia v3 monorepo coordination; no source changes)
+
 ## 0.8.0-alpha.0 — 2026-05-22
 
 ### Added

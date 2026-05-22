@@ -2,6 +2,20 @@
 
 For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md).
 
+## 0.9.0-alpha.0 — 2026-05-22
+
+### BREAKING CHANGE — Inertia v3 protocol
+
+Four changes to align with the Inertia.js v3 wire protocol:
+
+1. **Shell HTML format** — `@inertia` directive now emits `<div id="app"></div><script id="inertia-page" type="application/json">…</script>` instead of `<div id="app" data-page="…">`. Clients must be on Inertia v3+.
+2. **`clearHistory` / `encryptHistory` omitted when falsy** — these page-level properties are no longer sent on the wire when their value is `false`/`undefined`, matching the v3 spec.
+3. **`Inertia.lazy()` deprecated** — renamed to `Inertia.optional()`; the `lazy` alias is kept for backwards compatibility and logs a deprecation warning at runtime.
+4. **Nested partial-reload dot-notation** — `only`/`except` arrays now support dot-notation paths (e.g. `"user.profile"`) to target nested props.
+
+### Changed
+- Version bump to `0.9.0-alpha.0`
+
 ## 0.8.0-alpha.0 — 2026-05-22
 
 ### Added

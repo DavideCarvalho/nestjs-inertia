@@ -1,5 +1,13 @@
 # Changelog — @dudousxd/nestjs-inertia-vite
 
+## 0.9.0-alpha.0 — 2026-05-22
+
+### Added
+- **`skipFrameworkPlugin` option** — when `true`, `nestInertia()` returns only the config plugin without auto-loading the framework Vite plugin; useful for ESM-only plugins like `@sveltejs/vite-plugin-svelte` that must be imported directly in the Vite config.
+
+### Changed
+- Version bump to `0.9.0-alpha.0` (Inertia v3 monorepo coordination)
+
 ## 0.8.0-alpha.0 — 2026-05-22
 
 ### Changed
