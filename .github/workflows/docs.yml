@@ -8,6 +8,8 @@ on:
       - "docs/**"
       - "README.md"
       - "packages/**/CHANGELOG.md"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
 
 # Allow only one concurrent deployment; cancel older runs
 concurrency:
