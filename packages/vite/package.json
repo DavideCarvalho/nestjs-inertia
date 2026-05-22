@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-vite",
-  "version": "0.8.0-alpha.0",
+  "version": "0.9.0-alpha.0",
   "description": "Vite integration for @dudousxd/nestjs-inertia — dev middleware, prod static serving, plugin.",
   "license": "MIT",
   "repository": {
