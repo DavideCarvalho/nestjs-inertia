@@ -283,6 +283,18 @@ function extractParams(
 }
 
 // ---------------------------------------------------------------------------
+// HTTP method decorator names recognised by the fast path
+// ---------------------------------------------------------------------------
+
+const HTTP_METHOD_DECORATORS: Record<string, string> = {
+  Get: 'GET',
+  Post: 'POST',
+  Put: 'PUT',
+  Patch: 'PATCH',
+  Delete: 'DELETE',
+};
+
+// ---------------------------------------------------------------------------
 // Per-file extraction
 // ---------------------------------------------------------------------------
 
@@ -301,40 +313,89 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
     const firstArg = controllerArgs[0];
     const prefix = decoratorStringArg(firstArg) ?? '';
 
-    // Walk methods looking for @ApplyContract(IDENT)
+    // Walk all methods
     for (const method of cls.getMethods()) {
       const applyContractDecorator = method.getDecorator('ApplyContract');
-      if (!applyContractDecorator) continue;
 
-      const decoratorArgs = applyContractDecorator.getArguments();
-      const identNode = decoratorArgs[0];
-      if (!identNode) continue;
+      if (applyContractDecorator) {
+        // ── @ApplyContract path ──────────────────────────────────────────
+        const decoratorArgs = applyContractDecorator.getArguments();
+        const firstDecoratorArg = decoratorArgs[0];
+        if (!firstDecoratorArg) continue;
 
-      // The argument must be an identifier (variable name)
-      if (!Node.isIdentifier(identNode)) {
-        console.warn(
-          `[nestjs-inertia-codegen/fast] @ApplyContract arg is not an identifier in ${sourceFile.getFilePath()} — skipping`,
-        );
-        continue;
-      }
+        if (Node.isCallExpression(firstDecoratorArg)) {
+          // B-3 fix: inline Contract.get(...) call — pass directly to buildRouteDescriptor
+          const descriptor = buildRouteDescriptor(
+            `${cls.getName() ?? 'Unknown'}.${method.getName()}`,
+            firstDecoratorArg,
+            prefix,
+          );
+          if (descriptor) {
+            routes.push(descriptor);
+          }
+          continue;
+        }
 
-      const identName = identNode.getText();
+        // The argument must be an identifier (variable name)
+        if (!Node.isIdentifier(firstDecoratorArg)) {
+          console.warn(
+            `[nestjs-inertia-codegen/fast] @ApplyContract arg is not an identifier or call expression in ${sourceFile.getFilePath()} — skipping`,
+          );
+          continue;
+        }
 
-      // Resolve the identifier to a variable declaration IN THIS SOURCE FILE
-      const varDecl = sourceFile.getVariableDeclaration(identName);
-      if (!varDecl) {
-        console.warn(
-          `[nestjs-inertia-codegen/fast] Cannot resolve '${identName}' in ${sourceFile.getFilePath()} (cross-file imports are out-of-scope for v1) — skipping`,
-        );
-        continue;
-      }
+        const identName = firstDecoratorArg.getText();
 
-      const initializer = varDecl.getInitializer();
-      if (!initializer) continue;
+        // Resolve the identifier to a variable declaration IN THIS SOURCE FILE
+        const varDecl = sourceFile.getVariableDeclaration(identName);
+        if (!varDecl) {
+          console.warn(
+            `[nestjs-inertia-codegen/fast] Cannot resolve '${identName}' in ${sourceFile.getFilePath()} (cross-file imports are out-of-scope for v1) — skipping`,
+          );
+          continue;
+        }
 
-      const descriptor = buildRouteDescriptor(identName, initializer, prefix);
-      if (descriptor) {
-        routes.push(descriptor);
+        const initializer = varDecl.getInitializer();
+        if (!initializer) continue;
+
+        const descriptor = buildRouteDescriptor(identName, initializer, prefix);
+        if (descriptor) {
+          routes.push(descriptor);
+        }
+      } else {
+        // ── @Get / @Post / @Put / @Patch / @Delete / @Inertia path (no @ApplyContract) ──
+        // Enumerate methods with HTTP verb decorators (parity with heavy probe)
+        let httpMethod: string | undefined;
+        let handlerPath = '';
+
+        for (const [decoratorName, verb] of Object.entries(HTTP_METHOD_DECORATORS)) {
+          const httpDecorator = method.getDecorator(decoratorName);
+          if (httpDecorator) {
+            httpMethod = verb;
+            const httpArgs = httpDecorator.getArguments();
+            const pathArg = httpArgs[0];
+            handlerPath = decoratorStringArg(pathArg) ?? '';
+            break;
+          }
+        }
+
+        if (!httpMethod) continue; // No HTTP verb decorator — skip
+
+        const combined = joinPaths(prefix, handlerPath);
+        const params = extractParams(combined);
+
+        // Use class.method as route name (same convention as heavy probe)
+        const className = cls.getName() ?? 'Unknown';
+        const methodName = method.getName();
+        const routeName = `${className}.${methodName}`;
+
+        routes.push({
+          method: httpMethod,
+          path: combined,
+          name: routeName,
+          params,
+          // No contract — goes into routes.ts only, not api.ts
+        });
       }
     }
   }

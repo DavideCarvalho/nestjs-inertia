@@ -87,3 +87,38 @@ describe('discoverContractsFast', () => {
     expect(routes[0].path).toBe('/api/users');
   });
 });
+
+describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () => {
+  it('enumerates a plain @Get @Inertia controller with no @ApplyContract', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'inertia-dashboard.controller.ts',
+    });
+
+    expect(routes).toHaveLength(1);
+    const route = routes[0];
+    expect(route.name).toBe('DashboardController.index');
+    expect(route.method).toBe('GET');
+    expect(route.path).toBe('/dashboard');
+    expect(route.contract).toBeUndefined();
+  });
+
+  it('enumerates both @ApplyContract and plain @Get methods in a mixed controller', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'mixed.controller.ts',
+    });
+
+    expect(routes).toHaveLength(2);
+    const contract = routes.find((r) => r.name === 'posts.list' || r.contract !== undefined);
+    const plain = routes.find((r) => r.name === 'MixedController.index');
+
+    expect(contract).toBeDefined();
+    expect(contract?.contract).toBeDefined();
+
+    expect(plain).toBeDefined();
+    expect(plain?.method).toBe('GET');
+    expect(plain?.path).toBe('/dashboard');
+    expect(plain?.contract).toBeUndefined();
+  });
+});
