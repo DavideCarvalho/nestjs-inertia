@@ -1,5 +1,14 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 1.0.7
+
+### Patch Changes
+
+- fix(core): use data-page="app" attribute on script tag for Inertia v3 protocol compatibility
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@1.0.7
+
 ## 1.0.6
 
 ### Patch Changes
