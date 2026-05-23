@@ -55,7 +55,7 @@ This command scaffolds your entire Inertia setup in one shot. It:
 
 - **Detects your frontend framework** from `package.json` (React, Vue 3, or Svelte 5). If none is found it asks interactively.
 - **Detects your template engine** — Handlebars, EJS, Pug, Liquid, or plain HTML.
-- **Creates all scaffold files** (skips any that already exist — fully idempotent):
+- **Creates scaffold files** — skips any that already exist (fully idempotent). If `vite.config.ts` exists but doesn't reference the `nestInertia` plugin, a warning is printed instead of overwriting your config:
 
 | File | What it is |
 |---|---|
@@ -67,27 +67,56 @@ This command scaffolds your entire Inertia setup in one shot. It:
 | `inertia/pages/Home.tsx` (or `.vue`/`.svelte`) | Sample page component |
 | `src/home.controller.ts` | Sample NestJS controller with `@Inertia('Home')` |
 
-- **Auto-patches `src/app.module.ts`** — adds `InertiaModule.forRoot(...)` to the `imports` array and `HomeController` to `controllers`. Idempotent: skips if already present.
-- **Auto-patches `src/main.ts`** — inserts the `setupInertiaVite(app, {...})` call right after `NestFactory.create`. Idempotent: skips if already present.
-- Patches `.gitignore` with `.nestjs-inertia/`, adds `build:client` and `build:ssr` scripts to `package.json`, and installs any missing framework dependencies.
+- **Intelligently patches existing files** — each patch is only applied if the content is not already present:
+  - `src/app.module.ts` — adds `InertiaModule.forRoot(...)` to `imports` and `HomeController` to `controllers`
+  - `src/main.ts` — inserts the `setupInertiaVite(app, {...})` call right after `NestFactory.create`
+  - `.gitignore` — appends `.nestjs-inertia/` if not already present
+  - `package.json` scripts — adds `build:client` and `build:ssr` only if not already defined
 
-**Expected output:**
+**Expected output (fresh project):**
 
 ```
-[nestjs-inertia] Framework: react
-+ nestjs-inertia.config.ts
-+ nestjs-inertia.d.ts
-+ inertia/index.html
-+ vite.config.ts
-+ inertia/app.tsx
-+ inertia/pages/Home.tsx
-+ src/home.controller.ts
-+ .gitignore (patched)
-+ src/app.module.ts (added InertiaModule.forRoot + HomeController)
-+ src/main.ts (added setupInertiaVite)
-+ package.json (added build scripts)
+nestjs-inertia init
+
+  Detected: React + plain HTML
+
+Scaffold files
+  ✓ nestjs-inertia.config.ts (created)
+  ✓ nestjs-inertia.d.ts (created)
+  ✓ inertia/index.html (created)
+  ✓ vite.config.ts (created)
+  ✓ inertia/app.tsx (created)
+  ✓ inertia/pages/Home.tsx (created)
+  ✓ src/home.controller.ts (created)
+
+Patch existing files
+  ✓ src/app.module.ts (added InertiaModule.forRoot)
+  ✓ src/app.module.ts (added HomeController to controllers)
+  ✓ src/main.ts (added setupInertiaVite after NestFactory.create)
+  ✓ .gitignore (added .nestjs-inertia/)
+  ✓ package.json (added build:client script)
+  ✓ package.json (added build:ssr script)
+
+Install dependencies
+  ✓ @inertiajs/react, react, react-dom (installed)
 
 ✓ Setup complete! Run: nest start --watch
+```
+
+**Re-running `init` on an existing project** skips files that already exist and skips patches already applied — it is fully idempotent:
+
+```
+Scaffold files
+  → nestjs-inertia.config.ts (already exists, skipped)
+  → inertia/index.html (already exists, skipped)
+  → vite.config.ts (already exists, skipped)
+  ...
+
+Patch existing files
+  → src/app.module.ts (InertiaModule already registered, skipped)
+  → src/main.ts (setupInertiaVite already present, skipped)
+  → .gitignore (already contains .nestjs-inertia/, skipped)
+  → package.json (build:client already defined, skipped)
 ```
 
 **Done.** Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000).
