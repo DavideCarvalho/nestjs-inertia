@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -189,6 +190,129 @@ export async function patchPackageJsonScripts(
   pkg.scripts = existing;
   await writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
   console.log('+ package.json (added build scripts)');
+}
+
+// ---------------------------------------------------------------------------
+// Module patching helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Find the position just after the last import statement in a file.
+ * Handles files where the first line starts with `import` (no leading newline).
+ */
+function findAfterLastImport(content: string): number {
+  // Try \nimport first (import not on the first line)
+  const lastImportIndex = content.lastIndexOf('\nimport ');
+  if (lastImportIndex !== -1) {
+    const endOfLine = content.indexOf('\n', lastImportIndex + 1);
+    return endOfLine !== -1 ? endOfLine + 1 : content.length;
+  }
+  // Fallback: import at the very start of the file
+  if (content.startsWith('import ')) {
+    const endOfLine = content.indexOf('\n');
+    return endOfLine !== -1 ? endOfLine + 1 : content.length;
+  }
+  return 0;
+}
+
+/**
+ * Patch `src/app.module.ts` to add InertiaModule.forRoot() and HomeController.
+ * Returns 'patched' | 'already' | 'skipped'
+ */
+export function patchAppModule(
+  filePath: string,
+  rootView: string,
+): 'patched' | 'already' | 'skipped' {
+  let content: string;
+  try {
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    return 'skipped';
+  }
+
+  let changed = false;
+
+  // --- InertiaModule ---
+  if (!content.includes('InertiaModule')) {
+    const insertAt = findAfterLastImport(content);
+    if (insertAt > 0) {
+      content = `${content.slice(0, insertAt)}import { InertiaModule } from '@dudousxd/nestjs-inertia';\n${content.slice(insertAt)}`;
+    }
+
+    // Find `imports: [` and insert after the opening bracket
+    const importsMatch = content.match(/imports\s*:\s*\[/);
+    if (importsMatch?.index !== undefined) {
+      const bracketPos = content.indexOf('[', importsMatch.index) + 1;
+      const indent = '    ';
+      content = `${content.slice(0, bracketPos)}\n${indent}InertiaModule.forRoot({\n${indent}  version: '1',\n${indent}  rootView: '${rootView}',\n${indent}}),${content.slice(bracketPos)}`;
+      changed = true;
+    }
+  }
+
+  // --- HomeController ---
+  if (!content.includes('HomeController')) {
+    const insertAt = findAfterLastImport(content);
+    if (insertAt > 0) {
+      content = `${content.slice(0, insertAt)}import { HomeController } from './home.controller';\n${content.slice(insertAt)}`;
+    }
+
+    // Find `controllers: [` and insert after the opening bracket
+    const controllersMatch = content.match(/controllers\s*:\s*\[/);
+    if (controllersMatch?.index !== undefined) {
+      const bracketPos = content.indexOf('[', controllersMatch.index) + 1;
+      const indent = '    ';
+      content = `${content.slice(0, bracketPos)}\n${indent}HomeController,${content.slice(bracketPos)}`;
+      changed = true;
+    }
+  }
+
+  if (!changed) return 'already';
+
+  writeFileSync(filePath, content, 'utf8');
+  return 'patched';
+}
+
+/**
+ * Patch `src/main.ts` to add setupInertiaVite() call.
+ * Returns 'patched' | 'already' | 'skipped'
+ */
+export function patchMainTs(filePath: string): 'patched' | 'already' | 'skipped' {
+  let content: string;
+  try {
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    return 'skipped';
+  }
+
+  if (content.includes('setupInertiaVite')) return 'already';
+
+  // Add import after the last import statement
+  const insertAt = findAfterLastImport(content);
+  if (insertAt > 0) {
+    content = `${content.slice(0, insertAt)}import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite';\n${content.slice(insertAt)}`;
+  }
+
+  // Find NestFactory.create assignment line
+  const createMatch = content.match(
+    /(?:const|let)\s+(\w+)\s*=\s*await\s+NestFactory\.create[^;]+;/,
+  );
+  if (!createMatch || createMatch.index === undefined) return 'skipped';
+
+  const appVarName = createMatch[1];
+  const insertAfterPos = createMatch.index + createMatch[0].length;
+
+  const viteSetup = `
+  // Inertia + Vite integration (dev: HMR middleware, prod: static assets)
+  await setupInertiaVite(${appVarName}, {
+    mode: process.env.NODE_ENV ?? 'development',
+    root: 'inertia',
+    publicDir: 'dist/inertia/client',
+    outDir: 'dist/inertia',
+  });`;
+
+  content = `${content.slice(0, insertAfterPos)}\n${viteSetup}${content.slice(insertAfterPos)}`;
+  writeFileSync(filePath, content, 'utf8');
+  return 'patched';
 }
 
 // ---------------------------------------------------------------------------
@@ -438,13 +562,39 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
     'src/home.controller.ts',
   );
 
-  // 4. Add build scripts to package.json
+  // 4. Patch app.module.ts and main.ts
+  const rootView =
+    engine === 'html'
+      ? 'inertia/index.html'
+      : `inertia/index.${engine === 'handlebars' ? 'hbs' : engine}`;
+
+  const appModulePath = join(cwd, 'src', 'app.module.ts');
+  const appModuleResult = patchAppModule(appModulePath, rootView);
+  if (appModuleResult === 'patched') {
+    console.log('+ src/app.module.ts (added InertiaModule.forRoot + HomeController)');
+  } else if (appModuleResult === 'already') {
+    console.log('✓ src/app.module.ts (InertiaModule already registered)');
+  } else {
+    console.log('⚠ src/app.module.ts not found — add InertiaModule.forRoot() manually');
+  }
+
+  const mainTsPath = join(cwd, 'src', 'main.ts');
+  const mainTsResult = patchMainTs(mainTsPath);
+  if (mainTsResult === 'patched') {
+    console.log('+ src/main.ts (added setupInertiaVite)');
+  } else if (mainTsResult === 'already') {
+    console.log('✓ src/main.ts (setupInertiaVite already present)');
+  } else {
+    console.log('⚠ src/main.ts not found — add setupInertiaVite() manually');
+  }
+
+  // 5. Add build scripts to package.json
   await patchPackageJsonScripts(cwd, {
     'build:client': 'vite build',
     'build:ssr': 'VITE_SSR=1 vite build --ssr',
   });
 
-  // 5. Install missing deps
+  // 6. Install missing deps
   const pkg = await readPackageJson(cwd);
   const installedDeps = allDeps(pkg);
   const pkgManager = await detectPackageManager(cwd);
@@ -483,46 +633,5 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
     installDeps(pkgManager, devDepsToInstall, true);
   }
 
-  // 6. Print manual step instructions
-  const rootView =
-    engine === 'html'
-      ? 'inertia/index.html'
-      : `inertia/index.${engine === 'handlebars' ? 'hbs' : engine}`;
-
-  console.log(`
-✓ Scaffolding complete!
-
-To finish setup, add these to your NestJS app:
-
-1. Register InertiaModule in your AppModule:
-
-   import { InertiaModule } from '@dudousxd/nestjs-inertia';
-
-   @Module({
-     imports: [
-       InertiaModule.forRoot({
-         version: '1',
-         rootView: '${rootView}',
-       }),
-     ],
-   })
-
-2. Wire Vite in your main.ts:
-
-   import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite';
-
-   const app = await NestFactory.create(AppModule);
-   await setupInertiaVite(app, {
-     mode: process.env.NODE_ENV ?? 'development',
-     root: '.',
-     publicDir: 'dist/inertia/client',
-     outDir: 'dist/inertia',
-   });
-
-3. Register the HomeController in your AppModule's controllers array.
-
-4. Run: ${pkgManager} start:dev
-
-Visit http://localhost:3000 to see your first Inertia page!
-`);
+  console.log('\n✓ Setup complete! Run: nest start --watch\n');
 }

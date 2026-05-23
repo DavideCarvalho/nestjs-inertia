@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -371,5 +372,178 @@ describe('writeIfNotExists', () => {
     await writeIfNotExists(filePath, 'content', 'deep/nested/file.txt');
     const content = await readFile(filePath, 'utf8');
     expect(content).toBe('content');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchAppModule
+// ---------------------------------------------------------------------------
+
+const MINIMAL_APP_MODULE = `import { Module } from '@nestjs/common';
+@Module({ imports: [], controllers: [] })
+export class AppModule {}
+`;
+
+const MINIMAL_MAIN_TS = `import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+}
+bootstrap();
+`;
+
+describe('patchAppModule', () => {
+  it('adds InertiaModule import and forRoot call', async () => {
+    const { patchAppModule } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'app.module.ts');
+    writeFileSync(filePath, MINIMAL_APP_MODULE, 'utf8');
+
+    const result = patchAppModule(filePath, 'inertia/index.html');
+    expect(result).toBe('patched');
+
+    const content = await readFile(filePath, 'utf8');
+    expect(content).toContain("import { InertiaModule } from '@dudousxd/nestjs-inertia'");
+    expect(content).toContain('InertiaModule.forRoot(');
+  });
+
+  it('adds HomeController import and registration', async () => {
+    const { patchAppModule } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'app.module.ts');
+    writeFileSync(filePath, MINIMAL_APP_MODULE, 'utf8');
+
+    patchAppModule(filePath, 'inertia/index.html');
+
+    const content = await readFile(filePath, 'utf8');
+    expect(content).toContain("import { HomeController } from './home.controller'");
+    expect(content).toContain('HomeController,');
+  });
+
+  it('returns already when both InertiaModule and HomeController already present', async () => {
+    const { patchAppModule } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'app.module.ts');
+    const alreadyPatched = `import { InertiaModule } from '@dudousxd/nestjs-inertia';
+import { HomeController } from './home.controller';
+${MINIMAL_APP_MODULE}`;
+    writeFileSync(filePath, alreadyPatched, 'utf8');
+
+    const result = patchAppModule(filePath, 'inertia/index.html');
+    expect(result).toBe('already');
+  });
+
+  it('returns skipped when file does not exist', async () => {
+    const { patchAppModule } = await import('../../src/cli/init.js');
+    const result = patchAppModule(join(tmpBase, 'nonexistent.ts'), 'inertia/index.html');
+    expect(result).toBe('skipped');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchMainTs
+// ---------------------------------------------------------------------------
+
+describe('patchMainTs', () => {
+  it('adds setupInertiaVite import and call', async () => {
+    const { patchMainTs } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'main.ts');
+    writeFileSync(filePath, MINIMAL_MAIN_TS, 'utf8');
+
+    const result = patchMainTs(filePath);
+    expect(result).toBe('patched');
+
+    const content = await readFile(filePath, 'utf8');
+    expect(content).toContain("import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite'");
+    expect(content).toContain('setupInertiaVite(');
+  });
+
+  it('returns already when setupInertiaVite already present', async () => {
+    const { patchMainTs } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'main.ts');
+    writeFileSync(
+      filePath,
+      `import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite';\n${MINIMAL_MAIN_TS}`,
+      'utf8',
+    );
+
+    const result = patchMainTs(filePath);
+    expect(result).toBe('already');
+  });
+
+  it('returns skipped when file does not exist', async () => {
+    const { patchMainTs } = await import('../../src/cli/init.js');
+    const result = patchMainTs(join(tmpBase, 'nonexistent.ts'));
+    expect(result).toBe('skipped');
+  });
+
+  it('places vite setup call after NestFactory.create line', async () => {
+    const { patchMainTs } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'main.ts');
+    writeFileSync(filePath, MINIMAL_MAIN_TS, 'utf8');
+
+    patchMainTs(filePath);
+
+    const content = await readFile(filePath, 'utf8');
+    const createPos = content.indexOf('NestFactory.create');
+    // The setupInertiaVite call (not the import) must appear after the create line
+    const callPos = content.indexOf('await setupInertiaVite(');
+    expect(callPos).toBeGreaterThan(createPos);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runInit auto-patching integration
+// ---------------------------------------------------------------------------
+
+describe('runInit — auto-patches app.module.ts and main.ts', () => {
+  async function runWithSrcFiles(framework: 'react' | 'vue' | 'svelte' = 'react') {
+    // Create src/ directory with minimal files
+    mkdirSync(join(tmpBase, 'src'), { recursive: true });
+    writeFileSync(join(tmpBase, 'src', 'app.module.ts'), MINIMAL_APP_MODULE, 'utf8');
+    writeFileSync(join(tmpBase, 'src', 'main.ts'), MINIMAL_MAIN_TS, 'utf8');
+    await runInitInTmpDir(framework);
+  }
+
+  it('patches app.module.ts with InertiaModule.forRoot', async () => {
+    await runWithSrcFiles('react');
+    const content = await readFile(join(tmpBase, 'src', 'app.module.ts'), 'utf8');
+    expect(content).toContain('InertiaModule.forRoot(');
+    expect(content).toContain("import { InertiaModule } from '@dudousxd/nestjs-inertia'");
+  });
+
+  it('patches app.module.ts with HomeController', async () => {
+    await runWithSrcFiles('react');
+    const content = await readFile(join(tmpBase, 'src', 'app.module.ts'), 'utf8');
+    expect(content).toContain('HomeController,');
+    expect(content).toContain("import { HomeController } from './home.controller'");
+  });
+
+  it('patches main.ts with setupInertiaVite', async () => {
+    await runWithSrcFiles('react');
+    const content = await readFile(join(tmpBase, 'src', 'main.ts'), 'utf8');
+    expect(content).toContain('setupInertiaVite(');
+    expect(content).toContain("import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite'");
+  });
+
+  it('is idempotent: second run does not double-patch', async () => {
+    await runWithSrcFiles('react');
+    const afterFirst = await readFile(join(tmpBase, 'src', 'app.module.ts'), 'utf8');
+
+    await runInitInTmpDir('react');
+    const afterSecond = await readFile(join(tmpBase, 'src', 'app.module.ts'), 'utf8');
+
+    expect(afterSecond).toBe(afterFirst);
+    const occurrences = (afterSecond.match(/InertiaModule/g) ?? []).length;
+    // import + forRoot call = 2 occurrences (not doubled)
+    expect(occurrences).toBeLessThanOrEqual(3);
+  });
+
+  it('gracefully skips when app.module.ts is absent', async () => {
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    await runInitInTmpDir('react');
+    spy.mockRestore();
+
+    const warnLog = logs.find((l) => l.includes('app.module.ts not found'));
+    expect(warnLog).toBeDefined();
   });
 });
