@@ -1,11 +1,17 @@
 # express-svelte example
 
-NestJS Inertia example using Express adapter and Svelte 5 frontend.
+End-to-end demo of `@dudousxd/nestjs-inertia` with Express + Svelte 5.
 
 ## Running
 
 ```bash
 pnpm dev
+```
+
+## Building
+
+```bash
+pnpm build
 ```
 
 ## Testing

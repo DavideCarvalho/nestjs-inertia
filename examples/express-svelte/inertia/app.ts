@@ -1,9 +1,11 @@
+// Client-side entry point: boot Inertia.js with Svelte 5
 import 'reflect-metadata';
 import { setRouteResolver } from '@dudousxd/nestjs-inertia-client/svelte';
 import { createInertiaApp } from '@inertiajs/svelte';
 import { mount } from 'svelte';
 import { route } from '../.nestjs-inertia/routes.js';
 
+// Wire the typed route helper so <Link href={route(...)} /> works
 setRouteResolver(route);
 
 createInertiaApp({

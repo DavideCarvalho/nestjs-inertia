@@ -1,3 +1,4 @@
+// Client-side entry point: boot Inertia.js with React
 import 'reflect-metadata';
 import { setRouteResolver } from '@dudousxd/nestjs-inertia-client/react';
 import { hydrateClientFromInertia } from '@dudousxd/nestjs-inertia-client/ssr';
@@ -6,6 +7,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 import { route } from '../.nestjs-inertia/routes.js';
 
+// Wire the typed route helper so <Link href={route(...)} /> works
 setRouteResolver(route);
 
 createInertiaApp({

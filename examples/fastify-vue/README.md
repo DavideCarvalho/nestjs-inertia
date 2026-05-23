@@ -1,6 +1,6 @@
-# @example/fastify-vue
+# fastify-vue example
 
-Example NestJS application using Fastify adapter and Vue 3 frontend with Inertia.js.
+End-to-end demo of `@dudousxd/nestjs-inertia` with Fastify + Vue 3.
 
 ## Running
 
