@@ -1,0 +1,52 @@
+---
+title: Not Found Filter (recipe)
+description: How to write an NestJS ExceptionFilter that renders an Inertia component on 404.
+---
+
+Which component to render on a 404, whether `/api` routes should return JSON instead, and the exact error response shape are all application concerns. The library does **not** ship a built-in filter for this.
+
+## Recipe
+
+```ts
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  NotFoundException,
+} from '@nestjs/common';
+import type { InertiaService } from '@dudousxd/nestjs-inertia';
+
+@Catch(NotFoundException)
+export class NotFoundFilter implements ExceptionFilter {
+  async catch(exception: NotFoundException, host: ArgumentsHost): Promise<void> {
+    const req = host.switchToHttp().getRequest<{
+      originalUrl?: string;
+      url?: string;
+      inertia?: InertiaService;
+    }>();
+    const res = host.switchToHttp().getResponse<{
+      headersSent?: boolean;
+      status(code: number): { json(b: unknown): void };
+    }>();
+
+    const path = req.originalUrl ?? req.url ?? '/';
+
+    // Return JSON for API routes; render Inertia component for pages
+    if (path.startsWith('/api') || !req.inertia) {
+      if (!res.headersSent) {
+        res.status(404).json({ statusCode: 404, path, message: exception.message });
+      }
+      return;
+    }
+
+    (res as unknown as { status(n: number): unknown }).status(404);
+    await req.inertia.render('NotFound', { requestedPath: path });
+  }
+}
+```
+
+Register it in your `AppModule` or `main.ts`:
+
+```ts
+app.useGlobalFilters(new NotFoundFilter());
+```
