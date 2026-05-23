@@ -23,7 +23,7 @@
   },
   "files": ["dist", "bin", "tsconfig.probe.json", "README.md", "CHANGELOG.md"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"

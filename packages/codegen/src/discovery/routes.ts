@@ -36,6 +36,9 @@ const TIMEOUT_MS = 10_000;
 /**
  * Boots the user's NestJS AppModule in a child process and returns the route table.
  * The child process uses `tsx` (ESM loader) to handle TypeScript files.
+ *
+ * @deprecated since v0.10. The static AST path (default) covers all common cases.
+ * Heavy probe will be removed in v1.0.
  */
 export async function discoverRoutes(opts: DiscoverRoutesOptions): Promise<RouteDescriptor[]> {
   const { moduleEntry, tsconfig } = opts;
