@@ -120,18 +120,18 @@ describe('conformance / tier 2 — redirects', () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
-    svc.location('https://stripe.com/checkout');
+    svc.location('/checkout');
     expect(res._captured.status).toBe(409);
-    expect(res._captured.headers['X-Inertia-Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers['X-Inertia-Location']).toBe('/checkout');
   });
 
   it('Inertia.location() returns 302 + Location for plain browser visit', () => {
     const req = fakeRequest({});
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
-    svc.location('https://stripe.com/checkout');
+    svc.location('/checkout');
     expect(res._captured.status).toBe(302);
-    expect(res._captured.headers.Location).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers.Location).toBe('/checkout');
   });
 
   // Phase 12 (A.2): RedirectInterceptor 302→303 for PUT/PATCH/DELETE

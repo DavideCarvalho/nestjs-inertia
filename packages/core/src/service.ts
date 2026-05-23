@@ -1,4 +1,33 @@
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
+
+/**
+ * Validates a redirect URL to prevent open-redirect attacks.
+ * Only relative URLs (starting with `/`) or same-origin absolute URLs are
+ * permitted. Absolute URLs to other hosts throw an error.
+ */
+function validateLocationUrl(url: string): string {
+  // Relative URLs are always safe
+  if (url.startsWith('/')) return url;
+  // Attempt to parse as absolute URL
+  try {
+    const parsed = new URL(url);
+    // Allow only http/https schemes (no javascript: etc.)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`[nestjs-inertia] location() rejected unsafe URL scheme: ${url}`);
+    }
+    // Same-origin check: if called on the server, we don't have the request origin,
+    // so we reject all absolute URLs to external hosts.
+    throw new Error(
+      `[nestjs-inertia] location() rejected absolute URL to external host: ${url}. Use a relative path (e.g. "/dashboard") instead.`,
+    );
+  } catch (err) {
+    if (err instanceof TypeError) {
+      // URL() threw — not a valid absolute URL; treat as relative
+      return url;
+    }
+    throw err;
+  }
+}
 import type { Manifest } from './asset/version.provider.js';
 import type { FlashStore } from './flash/flash-store.js';
 import { nullifyUndefined } from './helpers/nullify-undefined.js';
@@ -189,11 +218,23 @@ export class InertiaService {
     return this;
   }
 
+  /**
+   * Perform an Inertia redirect. For Inertia XHR requests, issues a 409 with
+   * `X-Inertia-Location`; for plain browser visits, issues a 302 redirect.
+   *
+   * Only relative URLs (starting with `/`) or same-origin absolute URLs are
+   * accepted. Absolute URLs pointing to a different host are rejected to prevent
+   * open-redirect vulnerabilities.
+   *
+   * @param url Relative path (e.g. `/dashboard`) or same-origin absolute URL.
+   * @throws Error when `url` is an absolute URL pointing to a different origin.
+   */
   location(url: string): void {
+    const safeUrl = validateLocationUrl(url);
     if (this.req.header('X-Inertia')) {
-      this.res.status(409).setHeader('X-Inertia-Location', url).end();
+      this.res.status(409).setHeader('X-Inertia-Location', safeUrl).end();
     } else {
-      this.res.status(302).setHeader('Location', url).end();
+      this.res.status(302).setHeader('Location', safeUrl).end();
     }
   }
 

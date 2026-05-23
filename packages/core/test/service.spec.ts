@@ -141,13 +141,13 @@ describe('InertiaService.share', () => {
   });
 });
 
-describe('InertiaService.location — external redirect', () => {
-  it('returns 409 + X-Inertia-Location for Inertia XHR external URL', () => {
+describe('InertiaService.location — redirect (relative URLs)', () => {
+  it('returns 409 + X-Inertia-Location for Inertia XHR with relative URL', () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const { svc, res } = makeService(req);
-    svc.location('https://stripe.com/checkout');
+    svc.location('/checkout');
     expect(res._captured.status).toBe(409);
-    expect(res._captured.headers['X-Inertia-Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers['X-Inertia-Location']).toBe('/checkout');
     expect(res._captured.ended).toBe(true);
   });
 });
@@ -157,9 +157,9 @@ describe('InertiaService.location — context-aware behavior', () => {
     const req = fakeRequest({}); // no X-Inertia header
     const res = fakeResponse();
     const { svc } = makeService(req, res);
-    svc.location('https://stripe.com/checkout');
+    svc.location('/checkout');
     expect(res._captured.status).toBe(302);
-    expect(res._captured.headers.Location).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers.Location).toBe('/checkout');
     expect(res._captured.ended).toBe(true);
   });
 
@@ -167,9 +167,34 @@ describe('InertiaService.location — context-aware behavior', () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const { svc } = makeService(req, res);
-    svc.location('https://stripe.com/checkout');
+    svc.location('/checkout');
     expect(res._captured.status).toBe(409);
-    expect(res._captured.headers['X-Inertia-Location']).toBe('https://stripe.com/checkout');
+    expect(res._captured.headers['X-Inertia-Location']).toBe('/checkout');
     expect(res._captured.ended).toBe(true);
+  });
+});
+
+// M-3: X-Inertia-Location URL validation (open-redirect prevention)
+describe('InertiaService.location — M-3: open-redirect prevention', () => {
+  it('accepts relative paths', () => {
+    const { svc, res } = makeService(fakeRequest({ headers: { 'x-inertia': 'true' } }));
+    svc.location('/dashboard');
+    expect(res._captured.headers['X-Inertia-Location']).toBe('/dashboard');
+  });
+
+  it('rejects absolute URL to external host', () => {
+    const { svc } = makeService(fakeRequest({ headers: { 'x-inertia': 'true' } }));
+    expect(() => svc.location('https://evil.com/steal')).toThrow('external host');
+  });
+
+  it('rejects http:// URL to external host', () => {
+    const { svc } = makeService(fakeRequest({ headers: { 'x-inertia': 'true' } }));
+    expect(() => svc.location('http://evil.com/steal')).toThrow('external host');
+  });
+
+  it('rejects javascript: URL (unsafe scheme)', () => {
+    const { svc } = makeService(fakeRequest({ headers: { 'x-inertia': 'true' } }));
+    // javascript: is a valid URL scheme but unsafe — should throw
+    expect(() => svc.location('javascript:alert(1)')).toThrow();
   });
 });
