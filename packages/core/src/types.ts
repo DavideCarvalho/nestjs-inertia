@@ -68,10 +68,6 @@ export interface CodegenOptions {
    *   in a separate terminal or when you want to disable codegen entirely.
    */
   enabled?: boolean | 'auto';
-  /** Path to the codegen config file, relative to `process.cwd()`. Defaults to `nestjs-inertia.config.ts`. */
-  configFile?: string;
-  /** Debounce delay (ms) applied to the contracts watcher. Defaults to 500. */
-  debounceMs?: number;
 }
 
 export interface InertiaModuleOptions {

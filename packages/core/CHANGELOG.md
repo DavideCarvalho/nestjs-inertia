@@ -4,6 +4,13 @@ For the full repository changelog see [`../../CHANGELOG.md`](../../CHANGELOG.md)
 
 ## 0.9.0-alpha.0 — 2026-05-22
 
+### BREAKING CHANGE — Removed unimplemented CodegenOptions fields
+
+`CodegenOptions.configFile` and `CodegenOptions.debounceMs` have been removed.
+Both fields were declared in the public type but were never read by the implementation —
+setting them had no effect. They were never functional, so this removal is strictly
+a type cleanup. If you referenced these fields in your code, simply remove them.
+
 ### BREAKING CHANGE — Inertia v3 protocol
 
 Four changes to align with the Inertia.js v3 wire protocol:
