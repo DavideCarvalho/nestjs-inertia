@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-testing",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Testing helpers for @dudousxd/nestjs-inertia — expectInertia matchers, fakes, TestingModule.",
   "license": "MIT",
   "repository": {
@@ -42,7 +42,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
-    "@dudousxd/nestjs-inertia": ">=1.0.3",
+    "@dudousxd/nestjs-inertia": ">=1.0.4",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
     "@nestjs/testing": ">=10.0.0"

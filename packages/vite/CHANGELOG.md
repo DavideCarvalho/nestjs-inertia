@@ -1,5 +1,14 @@
 # Changelog — @dudousxd/nestjs-inertia-vite
 
+## 1.0.4
+
+### Patch Changes
+
+- fix(codegen): resolve DTOs imported from separate files — cross-file class resolution via ts-morph import following
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@1.0.4
+
 ## 1.0.0
 
 ### Minor Changes
