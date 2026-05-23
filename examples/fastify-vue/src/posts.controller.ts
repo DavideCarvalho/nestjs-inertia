@@ -1,15 +1,16 @@
-import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
-import { Controller } from '@nestjs/common';
+import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
+import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
+
+const ListPosts = defineContract({
+  name: 'posts.list',
+  response: z.array(z.object({ id: z.string(), title: z.string() })),
+});
 
 @Controller()
 export class PostsController {
-  @ApplyContract(
-    Contract.get('/api/posts', {
-      response: z.array(z.object({ id: z.string(), title: z.string() })),
-      name: 'posts.list',
-    }),
-  )
+  @Get('/api/posts')
+  @ApplyContract(ListPosts)
   list(): Array<{ id: string; title: string }> {
     return [
       { id: '1', title: 'Hello World' },
