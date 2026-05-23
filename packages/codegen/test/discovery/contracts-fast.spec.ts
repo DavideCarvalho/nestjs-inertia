@@ -7,7 +7,12 @@
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { deriveRouteName, discoverContractsFast } from '../../src/discovery/contracts-fast.js';
+import {
+  deriveClassSegment,
+  deriveRouteName,
+  discoverContractsFast,
+  resolveRouteName,
+} from '../../src/discovery/contracts-fast.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = resolve(__dirname, '../__fixtures__/app');
@@ -322,5 +327,129 @@ describe('discoverContractsFast — collision detection', () => {
         glob: 'collision.controller.ts',
       }),
     ).rejects.toThrow(/CollisionController/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deriveClassSegment unit tests
+// ---------------------------------------------------------------------------
+
+describe('deriveClassSegment', () => {
+  it('UsersController → users', () => {
+    expect(deriveClassSegment('UsersController')).toBe('users');
+  });
+
+  it('AdminUsersController → adminUsers', () => {
+    expect(deriveClassSegment('AdminUsersController')).toBe('adminUsers');
+  });
+
+  it('class name with no Controller suffix is used as-is (first letter lowercased)', () => {
+    expect(deriveClassSegment('Widgets')).toBe('widgets');
+  });
+
+  it('throws for a class named exactly Controller (empty segment after strip)', () => {
+    expect(() => deriveClassSegment('Controller')).toThrow(/derives empty route segment/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveRouteName unit tests
+// ---------------------------------------------------------------------------
+
+describe('resolveRouteName', () => {
+  it('both absent → derives from class name and method name', () => {
+    expect(resolveRouteName('CrewController', 'list', undefined, undefined)).toBe('crew.list');
+  });
+
+  it('class @As only → class portion overridden, method name used', () => {
+    expect(resolveRouteName('CrewController', 'list', 'crew', undefined)).toBe('crew.list');
+  });
+
+  it('method @As only → class derived, method portion overridden', () => {
+    expect(resolveRouteName('CrewMemberController', 'list', undefined, 'top10')).toBe(
+      'crewMember.top10',
+    );
+  });
+
+  it('class @As + method @As → both portions overridden', () => {
+    expect(resolveRouteName('CrewController', 'list', 'crew', 'directory.fetch')).toBe(
+      'crew.directory.fetch',
+    );
+  });
+
+  it('class @As multi-segment + method @As → composes correctly', () => {
+    expect(resolveRouteName('CrewController', 'list', 'crew.admin', 'top10')).toBe(
+      'crew.admin.top10',
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Class-level @As integration tests
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — class-level @As', () => {
+  it('class @As only: crew.list', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'class-as.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'crew.list');
+    expect(route, 'crew.list route not found').toBeDefined();
+    expect(route?.path).toBe('/api/crew');
+  });
+
+  it('method @As only: crewMember.top10', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'class-as.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'crewMember.top10');
+    expect(route, 'crewMember.top10 route not found').toBeDefined();
+    expect(route?.path).toBe('/api/crew-member');
+  });
+
+  it('class @As + method @As: crew.directory.fetch', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'class-as.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'crew.directory.fetch');
+    expect(route, 'crew.directory.fetch route not found').toBeDefined();
+    expect(route?.path).toBe('/api/crew2');
+  });
+
+  it('class @As multi-segment + method @As: crew.admin.top10', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'class-as.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'crew.admin.top10');
+    expect(route, 'crew.admin.top10 route not found').toBeDefined();
+    expect(route?.path).toBe('/api/crew-admin');
+  });
+
+  it('both absent: crewDefault.list (auto-derivation)', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'class-as.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'crewDefault.list');
+    expect(route, 'crewDefault.list route not found').toBeDefined();
+    expect(route?.path).toBe('/api/crew-default');
+  });
+
+  it('class @As with PascalCase produces name that fails emit-time segment validation', async () => {
+    // resolveRouteName itself does not validate — validation is deferred to emit (emit-api.ts).
+    // This test confirms the composed name contains the PascalCase segment 'Crew'.
+    const name = resolveRouteName('InvalidClassAsController', 'list', 'Crew', undefined);
+    expect(name).toBe('Crew.list');
+    // Segment 'Crew' starts with uppercase, which emit-api validateNameSegment will reject.
+    expect(name).toMatch(/^[A-Z]/);
   });
 });

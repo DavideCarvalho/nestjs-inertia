@@ -265,6 +265,38 @@ export function deriveRouteName(className: string, methodName: string): string {
   return `${segment}.${methodName}`;
 }
 
+/**
+ * Derive just the class segment (no method) from a controller class name.
+ * Strips the `Controller` suffix and lowercases the first letter.
+ */
+export function deriveClassSegment(className: string): string {
+  const noSuffix = className.replace(/Controller$/, '');
+  if (!noSuffix) {
+    throw new Error(
+      `Controller class name "${className}" derives empty route segment after stripping "Controller". Add an @As(...) override at the class level.`,
+    );
+  }
+  return noSuffix.charAt(0).toLowerCase() + noSuffix.slice(1);
+}
+
+/**
+ * Compose the final route name from class-level and method-level @As decorators.
+ * Rule:
+ *   classPortion  = class @As value  ?? deriveClassSegment(className)
+ *   methodPortion = method @As value ?? methodName
+ *   result        = `${classPortion}.${methodPortion}`
+ */
+export function resolveRouteName(
+  className: string,
+  methodName: string,
+  classAs: string | undefined,
+  methodAs: string | undefined,
+): string {
+  const classPortion = classAs ?? deriveClassSegment(className);
+  const methodPortion = methodAs ?? methodName;
+  return `${classPortion}.${methodPortion}`;
+}
+
 /** Join two URL path segments, normalising duplicate slashes. */
 export function joinPaths(prefix: string, suffix: string): string {
   if (!prefix && !suffix) return '/';
@@ -388,22 +420,38 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
         const combined = resolvedPath;
         const params = extractParams(combined);
 
-        // Determine route name: @As override takes priority, else derive from class.method
+        // Determine route name: compose class-level @As + method-level @As
         const methodName = method.getName();
-        const asDecorator = method.getDecorator('As');
-        let routeName: string;
-        if (asDecorator) {
-          const asArgs = asDecorator.getArguments();
-          const asName = decoratorStringArg(asArgs[0]);
-          if (!asName) {
+
+        // Read class-level @As
+        const classAsDecorator = cls.getDecorator('As');
+        let classAs: string | undefined;
+        if (classAsDecorator) {
+          const classAsArgs = classAsDecorator.getArguments();
+          const classAsName = decoratorStringArg(classAsArgs[0]);
+          if (!classAsName) {
+            throw new Error(
+              `@As decorator on class ${className} must have a non-empty string argument.`,
+            );
+          }
+          classAs = classAsName;
+        }
+
+        // Read method-level @As
+        const methodAsDecorator = method.getDecorator('As');
+        let methodAs: string | undefined;
+        if (methodAsDecorator) {
+          const methodAsArgs = methodAsDecorator.getArguments();
+          const methodAsName = decoratorStringArg(methodAsArgs[0]);
+          if (!methodAsName) {
             throw new Error(
               `@As decorator on ${className}.${methodName} must have a non-empty string argument.`,
             );
           }
-          routeName = asName;
-        } else {
-          routeName = deriveRouteName(className, methodName);
+          methodAs = methodAsName;
         }
+
+        const routeName = resolveRouteName(className, methodName, classAs, methodAs);
 
         // Collision detection across contracted routes
         const qualifiedRef = `${className}.${methodName}`;

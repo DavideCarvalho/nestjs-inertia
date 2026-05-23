@@ -11,6 +11,9 @@ const ListOther = defineContract({
   response: z.array(z.object({ id: z.string() })),
 });
 
+// Both methods resolve to 'collision.list':
+//   list()  → class derived 'collision' + method name 'list'     = 'collision.list'
+//   other() → class derived 'collision' + method @As('list')     = 'collision.list'  ← collision
 @Controller()
 export class CollisionController {
   @Get('/api/items')
@@ -21,7 +24,7 @@ export class CollisionController {
 
   @Get('/api/other')
   @ApplyContract(ListOther)
-  @As('collision.list') // collides with auto-derived 'collision.list' above
+  @As('list') // collides with auto-derived 'collision.list' above
   other() {
     return [];
   }

@@ -7,12 +7,15 @@ const ListCrew = defineContract({
   response: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
+// Class-level @As('crew') sets the class portion.
+// Method-level @As('directory.fetch') sets the method portion.
+// Composed result: 'crew.directory.fetch'
 @Controller('/api/crew')
+@As('crew')
 export class CrewController {
   @Get()
   @ApplyContract(ListCrew)
-  // Override auto-derived 'crew.list' with a custom name via @As
-  @As('crew.directory.fetch')
+  @As('directory.fetch')
   list() {
     return [];
   }
