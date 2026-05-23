@@ -51,11 +51,17 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
     return NO_OP_WATCHER;
   }
 
-  // Run an initial generation pass so the output is up-to-date before any changes
+  // Run an initial full pass: pages + routes + contracts (same as a one-shot `codegen` run)
   try {
-    await generate(config);
+    const initialRoutes = await discoverContractsFast({
+      cwd: config.codegen.cwd,
+      glob: config.contracts.glob,
+      ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
+    });
+    await generate(config, initialRoutes);
   } catch {
     // Best-effort; don't crash the watcher on initial generation failure
+    try { await generate(config); } catch { /* fallback: pages only */ }
   }
 
   // ── Pages watcher (fast path — no route discovery) ──────────────────────────
