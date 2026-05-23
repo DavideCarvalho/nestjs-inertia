@@ -37,7 +37,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
-    "@dudousxd/nestjs-inertia": ">=1.0.0",
+    "@dudousxd/nestjs-inertia": ">=1.0.1",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
     "vite": ">=5.0.0",
