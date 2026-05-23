@@ -100,4 +100,44 @@ export default config;
 
     expect(config.contracts.useStaticDiscovery).toBe(false);
   });
+
+  // H-4: moduleEntry path jail
+  describe('H-4: moduleEntry path jail', () => {
+    it('accepts moduleEntry inside cwd', async () => {
+      await writeFile(
+        join(tmpDir, 'nestjs-inertia.config.ts'),
+        `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  app: { moduleEntry: 'src/app.module.ts' },
+};`,
+      );
+
+      const config = await loadConfig(tmpDir);
+      expect(config.app?.moduleEntry).toContain('src/app.module.ts');
+    });
+
+    it('throws ConfigError when moduleEntry traverses above cwd via ..', async () => {
+      await writeFile(
+        join(tmpDir, 'nestjs-inertia.config.ts'),
+        `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  app: { moduleEntry: '../../etc/passwd' },
+};`,
+      );
+
+      await expect(loadConfig(tmpDir)).rejects.toThrow(ConfigError);
+    });
+
+    it('throws ConfigError when moduleEntry is an absolute path outside cwd', async () => {
+      await writeFile(
+        join(tmpDir, 'nestjs-inertia.config.ts'),
+        `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  app: { moduleEntry: '/etc/passwd' },
+};`,
+      );
+
+      await expect(loadConfig(tmpDir)).rejects.toThrow(ConfigError);
+    });
+  });
 });

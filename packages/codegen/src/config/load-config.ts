@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ConfigError } from '../exceptions.js';
 import type { ResolvedConfig, UserConfig } from './types.js';
@@ -40,6 +40,25 @@ function resolveAbsolute(cwd: string, p: string): string {
   return resolve(cwd, p);
 }
 
+/**
+ * Validates that `resolvedPath` is contained inside `cwd`.
+ * Throws `ConfigError` if the path escapes the project root (e.g. via `..`
+ * traversal or an absolute path outside cwd).
+ */
+function assertInsideCwd(cwd: string, resolvedPath: string, fieldName: string): void {
+  const rel = relative(cwd, resolvedPath);
+  // relative() returns a path starting with '..' when the target is outside cwd,
+  // and isAbsolute() catches platform edge-cases (e.g. Windows drive letters).
+  if (rel.startsWith(`..${sep}`) || rel === '..' || isAbsolute(rel)) {
+    throw new ConfigError(
+      `\`${fieldName}\` must be inside the project cwd.\n` +
+        `  Resolved to: ${resolvedPath}\n` +
+        `  Project cwd: ${cwd}\n` +
+        'If this is intentional, move the file inside your project directory.',
+    );
+  }
+}
+
 function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
   const outDir = userConfig.codegen?.outDir
     ? resolveAbsolute(cwd, userConfig.codegen.outDir)
@@ -49,8 +68,11 @@ function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
 
   let app: ResolvedConfig['app'] = null;
   if (userConfig.app) {
+    const resolvedEntry = resolveAbsolute(cwd, userConfig.app.moduleEntry);
+    assertInsideCwd(cwd, resolvedEntry, 'app.moduleEntry');
+
     app = {
-      moduleEntry: resolveAbsolute(cwd, userConfig.app.moduleEntry),
+      moduleEntry: resolvedEntry,
       tsconfig: userConfig.app.tsconfig ? resolveAbsolute(cwd, userConfig.app.tsconfig) : null,
     };
   }
