@@ -2,9 +2,12 @@
 
 Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.
 
-![Status: alpha](https://img.shields.io/badge/status-alpha-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-
-> **Alpha status:** This is an alpha — the API is stabilising and breaking changes may occur before `1.0`. Not recommended for production use yet.
+[![npm version](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia?label=core)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia)
+[![npm downloads](https://img.shields.io/npm/dm/@dudousxd/nestjs-inertia?label=downloads)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia)
+[![CI](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/ci.yml/badge.svg)](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/ci.yml)
+[![Security](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/security.yml/badge.svg)](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Provenance](https://img.shields.io/badge/provenance-verified-blue)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia)
 
 ## Packages
 
