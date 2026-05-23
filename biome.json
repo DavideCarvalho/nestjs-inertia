@@ -28,9 +28,25 @@
       "recommended": true,
       "style": { "noNonNullAssertion": "off" },
       "suspicious": {
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noEmptyInterface": "off"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": [
+        "**/test/**",
+        "packages/codegen/src/discovery/probe.ts",
+        "examples/express-react/inertia/app.tsx",
+        "examples/fastify-vue/inertia/app.ts",
+        "examples/express-svelte/inertia/app.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    }
+  ]
 }

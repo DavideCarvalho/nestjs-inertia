@@ -368,10 +368,6 @@ importers:
         version: 3.25.76
 
   packages/core:
-    dependencies:
-      '@dudousxd/nestjs-inertia-codegen':
-        specifier: workspace:*
-        version: link:../codegen
     devDependencies:
       '@fastify/cookie':
         specifier: ^9.3.1
