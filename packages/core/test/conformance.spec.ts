@@ -21,7 +21,7 @@ const baseDeps = () => ({
   manifest: null,
   ssrLoader: { load: async () => null },
   rootViewRender: async (ctx: { page: unknown }) =>
-    `<!doctype html><html><body><div id="app"></div><script id="inertia-page" type="application/json">${JSON.stringify(ctx.page)}</script></body></html>`,
+    `<!doctype html><html><body><div id="app"></div><script data-page="app" type="application/json">${JSON.stringify(ctx.page)}</script></body></html>`,
   moduleShare: undefined,
   featureShare: undefined,
   historyEncryptionDefault: false,
@@ -31,15 +31,14 @@ const baseDeps = () => ({
 // Tier 1: protocol basics — must pass to claim Inertia compatibility
 // ---------------------------------------------------------------------------
 describe('conformance / tier 1 — protocol', () => {
-  it('non-Inertia visit returns full HTML with embedded page object (v3: script#inertia-page)', async () => {
+  it('non-Inertia visit returns full HTML with embedded page object (v3: script[data-page])', async () => {
     const req = fakeRequest({});
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Home', { hello: 'world' });
     expect(res._captured.bodyHtml).toContain('<div id="app">');
-    expect(res._captured.bodyHtml).toContain('<script id="inertia-page" type="application/json">');
+    expect(res._captured.bodyHtml).toContain('<script data-page="app" type="application/json">');
     expect(res._captured.bodyHtml).toContain('"component":"Home"');
-    expect(res._captured.bodyHtml).not.toContain('data-page=');
   });
 
   it('Inertia XHR returns JSON page object with X-Inertia, Vary headers', async () => {

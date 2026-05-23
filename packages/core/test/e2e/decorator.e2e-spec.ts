@@ -42,7 +42,7 @@ describe('@Inertia decorator — E2E', () => {
     const res = await request(app.getHttpServer()).get('/dashboard');
     expect(res.headers['content-type']).toMatch(/html/);
     // v3: page data is in a JSON script tag (not an HTML attribute), so no HTML escaping
-    expect(res.text).toContain('<script id="inertia-page" type="application/json">');
+    expect(res.text).toContain('<script data-page="app" type="application/json">');
     expect(res.text).toContain('"component":"Dashboard"');
   });
 });

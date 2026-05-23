@@ -16,7 +16,7 @@ export class DefaultShellRenderer implements ShellRenderer {
   </head>
   <body>
     <div id="app"></div>
-    <script id="inertia-page" type="application/json">${pageJson}</script>
+    <script data-page="app" type="application/json">${pageJson}</script>
   </body>
 </html>`;
   }

@@ -40,7 +40,7 @@ describe('Template engines — E2E', () => {
     const app = await setupApp('hbs', '<!doctype html><html><body>{{{inertia}}}</body></html>');
     const res = await request(app.getHttpServer()).get('/');
     expect(res.text).toContain('<div id="app">');
-    expect(res.text).toContain('<script id="inertia-page" type="application/json">');
+    expect(res.text).toContain('<script data-page="app" type="application/json">');
     await app.close();
   });
 

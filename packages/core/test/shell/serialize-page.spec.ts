@@ -44,7 +44,7 @@ describe('serializePageData', () => {
     expect(serialized).not.toMatch(/<\/script>/i);
     // Wrapping in a script tag should produce a valid structure where the content
     // between the script tags has no literal </script>
-    const openTag = '<script id="inertia-page" type="application/json">';
+    const openTag = '<script data-page="app" type="application/json">';
     const closeTag = '</script>';
     const content = `${openTag}${serialized}${closeTag}`;
     // Extract the JSON content between the script tags
