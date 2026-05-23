@@ -1,7 +1,6 @@
 import type { z } from 'zod';
 
 export interface ContractDef<Q = unknown, B = unknown, R = unknown, P = unknown, E = unknown> {
-  name: string;
   query?: z.ZodType<Q>;
   body?: z.ZodType<B>;
   response: z.ZodType<R>;

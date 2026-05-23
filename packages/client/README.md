@@ -21,28 +21,38 @@ import { defineContract } from '@dudousxd/nestjs-inertia-client';
 import { z } from 'zod';
 
 export const listUsersContract = defineContract({
-  name: 'users.list',
   query: z.object({ page: z.number().optional() }),
   response: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
 export const createUserContract = defineContract({
-  name: 'users.create',
   body: z.object({ name: z.string(), email: z.string().email() }),
   response: z.object({ id: z.string(), name: z.string() }),
 });
 ```
 
-Contracts carry **no** `method` or `path` — routing is the responsibility of NestJS decorators.
+Contracts carry **no** `name`, `method`, or `path` — these are all routing concerns handled by NestJS decorators and codegen.
 
-### 2. Name your Contract
+### 2. How the API name is derived
 
-The `name` field controls how the generated `api.ts` exposes the endpoint — it is **not** derived from the controller or method name. Use dot-notation to nest under `api.*.*`:
+The API name is **auto-derived** from `<ControllerClass>.<method>` by stripping the `Controller` suffix and lowercasing the first letter:
 
-- `'users.list'` → `api.users.list.queryOptions(...)`
-- `'health'` → `api.health.queryOptions(...)`
+| Controller class | Method | Derived API name |
+|------------------|--------|-----------------|
+| `UsersController` | `list` | `users.list` → `api.users.list` |
+| `UsersController` | `create` | `users.create` → `api.users.create` |
+| `AdminUsersController` | `list` | `adminUsers.list` → `api.adminUsers.list` |
 
-Best practice: align names with your resource hierarchy (`'users.list'`, `'users.show'`, `'users.create'`) so the generated `api` object mirrors your domain model.
+To override the auto-derived name, use `@As('custom.name')` at the method level:
+
+```ts
+import { As } from '@dudousxd/nestjs-inertia-client';
+
+@Get('/api/users')
+@ApplyContract(listUsersContract)
+@As('user.directory')   // overrides auto-derived 'users.list'
+list() { ... }
+```
 
 ### 3. Bind a Contract to a NestJS Handler with `@ApplyContract`
 
@@ -163,14 +173,17 @@ Creates a typed contract definition. Accepts:
 
 | Field | Required | Description |
 |---|---|---|
-| `name` | yes | Dot-separated name used as the `api.*` key |
 | `response` | yes | Zod schema for the response body |
 | `query` | no | Zod schema for URL query parameters |
 | `body` | no | Zod schema for the request body |
 | `params` | no | Zod schema for path parameters |
 | `error` | no | Zod schema for error responses |
 
-No `method` or `path` — those come from NestJS decorators.
+No `name`, `method`, or `path` — naming and routing come from NestJS decorators and codegen derivation.
+
+### `@As(name)`
+
+Override the auto-derived route name on a controller method. Codegen derives the name as `<controller>.<method>` by default. Use `@As` when the natural derivation isn't what you want.
 
 ### `@ApplyContract(contractDef, opts?)`
 

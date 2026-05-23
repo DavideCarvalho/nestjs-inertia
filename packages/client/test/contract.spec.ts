@@ -7,7 +7,6 @@ import { CONTRACT_METADATA, getContract } from '../src/contract/metadata.js';
 describe('defineContract', () => {
   it('returns the definition object unchanged', () => {
     const def = {
-      name: 'users.list',
       query: z.object({ q: z.string() }),
       response: z.array(z.object({ id: z.string() })),
     };
@@ -15,31 +14,34 @@ describe('defineContract', () => {
     expect(c).toBe(def);
   });
 
-  it('carries name, query, response fields', () => {
+  it('carries query and response fields', () => {
     const c = defineContract({
-      name: 'users.list',
       query: z.object({ q: z.string() }),
       response: z.array(z.object({ id: z.string() })),
     });
-    expect(c.name).toBe('users.list');
     expect(c.response).toBeDefined();
     expect(c.query).toBeDefined();
   });
 
+  it('has no name field', () => {
+    const c = defineContract({
+      response: z.object({ ok: z.boolean() }),
+    });
+    const anyC = c as Record<string, unknown>;
+    expect(anyC.name).toBeUndefined();
+  });
+
   it('carries body field for mutation contracts', () => {
     const c = defineContract({
-      name: 'users.create',
       body: z.object({ name: z.string() }),
       response: z.object({ id: z.string() }),
     });
-    expect(c.name).toBe('users.create');
     expect(c.body).toBeDefined();
     expect(c.response).toBeDefined();
   });
 
   it('has no method or path fields', () => {
     const c = defineContract({
-      name: 'users.list',
       response: z.object({ ok: z.boolean() }),
     });
     const anyC = c as Record<string, unknown>;
@@ -49,7 +51,6 @@ describe('defineContract', () => {
 
   it('carries params and error fields when provided', () => {
     const c = defineContract({
-      name: 'users.show',
       params: z.object({ id: z.string() }),
       response: z.object({ id: z.string() }),
       error: z.object({ message: z.string() }),
@@ -75,7 +76,6 @@ describe('getContract', () => {
 
   it('returns contract metadata set via Reflect.defineMetadata', () => {
     const c = defineContract({
-      name: 'test.get',
       response: z.object({ ok: z.boolean() }),
     });
     function handler() {}

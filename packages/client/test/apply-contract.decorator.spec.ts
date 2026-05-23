@@ -8,31 +8,26 @@ import { defineContract } from '../src/contract/contract.js';
 import { CONTRACT_METADATA } from '../src/contract/metadata.js';
 
 const ListUsers = defineContract({
-  name: 'users.list',
   query: z.object({ q: z.string().optional() }),
   response: z.array(z.object({ id: z.string() })),
 });
 
 const CreateUser = defineContract({
-  name: 'users.create',
   body: z.object({ name: z.string() }),
   response: z.object({ id: z.string() }),
 });
 
 const UpdateUser = defineContract({
-  name: 'users.update',
   body: z.object({ name: z.string() }),
   response: z.object({ id: z.string() }),
 });
 
 const PatchUser = defineContract({
-  name: 'users.patch',
   body: z.object({ name: z.string() }),
   response: z.object({ id: z.string() }),
 });
 
 const DeleteUser = defineContract({
-  name: 'users.delete',
   response: z.object({ ok: z.boolean() }),
 });
 
@@ -158,13 +153,11 @@ describe('@ApplyContract', () => {
 // ContractValidationPipe unit tests
 // ────────────────────────────────────────────────────────────────────────────
 const BodyContract = defineContract({
-  name: 'items.create',
   body: z.object({ name: z.string().min(1) }),
   response: z.object({ id: z.string() }),
 });
 
 const QueryContract = defineContract({
-  name: 'items.list',
   query: z.object({ q: z.string() }),
   response: z.array(z.object({ id: z.string() })),
 });
