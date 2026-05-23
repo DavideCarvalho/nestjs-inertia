@@ -272,16 +272,7 @@ No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
 
 ### Codegen
 
-Enable the file watcher in `app.module.ts` so codegen runs on every controller change during development:
-
-```ts
-InertiaModule.forRoot({
-  rootView: 'views/shell.html',
-  codegen: {
-    enabled: process.env.NODE_ENV !== 'production',
-  },
-}),
-```
+Codegen runs **automatically** — no config needed. When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` is present, the watcher starts on `nest start --watch` and regenerates types on every controller/page change. It's disabled automatically in production.
 
 On startup the watcher emits files into `.nestjs-inertia/` at the project root:
 
