@@ -1,11 +1,11 @@
 # @dudousxd/nestjs-inertia
 
-> Inertia.js v2 adapter for NestJS — feature-complete core (Express + Fastify, multi-app, template engines, CSRF).
+> Inertia.js v3 adapter for NestJS — Express + Fastify, multi-app via `forFeature`, 4 template engines, CSRF protection, full Inertia v3 protocol parity.
 
 [![npm](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia.svg)](https://npmjs.com/package/@dudousxd/nestjs-inertia)
 [![license](https://img.shields.io/npm/l/@dudousxd/nestjs-inertia.svg)](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/LICENSE)
 
-> **Status: 0.3.0-alpha.** Core library is feature-complete: Express + Fastify adapters, multi-app via `forFeature`, 4 template engines, CSRF protection, full Inertia v2 protocol parity. Companion packages (Vite, testing helpers, codegen, Tuyau-style client) and a docs site are coming next.
+> **Status: v0.9.x alpha.** API is stabilising but may change before `1.0`. Not recommended for production use yet.
 
 ## Install
 
