@@ -224,14 +224,24 @@ The codegen reads types directly from standard NestJS decorators — no extra sc
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import { As } from '@dudousxd/nestjs-inertia-client';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 class ListPostsQuery {
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
   page?: number;
 }
 
 class PostDto {
+  @IsString()
   id: string;
+
+  @IsString()
   title: string;
+
+  @IsString()
   publishedAt: string;
 }
 
