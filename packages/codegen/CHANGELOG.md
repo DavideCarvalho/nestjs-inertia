@@ -1,5 +1,13 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## [Unreleased]
+
+### Removed
+- **Heavy probe path deleted** — `discoverRoutes` (fork + tsx + real Nest bootstrap) and the associated `probe.ts` child-process script have been removed. Static AST discovery via ts-morph is now the only route-discovery strategy.
+- `useStaticDiscovery` config field removed from `ContractsConfig` / `ResolvedContractsConfig` — there is no longer an alternative.
+- `tsconfig.probe.json` removed from the package.
+- `NESTJS_INERTIA_CODEGEN_PROBE` environment-variable guard removed from `@dudousxd/nestjs-inertia` core module (the probe child process no longer exists).
+
 ## 0.9.0-alpha.0 — 2026-05-22
 
 ### Changed
