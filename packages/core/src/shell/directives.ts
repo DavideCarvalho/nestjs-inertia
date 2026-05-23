@@ -31,10 +31,14 @@ export function processDirectives(template: string, ctx: DirectiveContext): stri
   // @viteRefresh (no args)
   out = out.replace(/@viteRefresh\b/g, () => (ctx.isDev ? VITE_REFRESH_PREAMBLE : ''));
 
-  // @vite('entry')
+  // @vite('entry') — in dev: HMR client + React Refresh preamble + entry script
   out = out.replace(/@vite\(\s*['"]([^'"]+)['"]\s*\)/g, (_full, entry: string) => {
     if (ctx.isDev) {
-      return `<script type="module" src="/@vite/client"></script>\n<script type="module" src="/${entry}"></script>`;
+      return [
+        `<script type="module" src="/@vite/client"></script>`,
+        VITE_REFRESH_PREAMBLE,
+        `<script type="module" src="/${entry}"></script>`,
+      ].join('\n');
     }
     const entryRecord = ctx.manifest?.[entry];
     if (!entryRecord) {
