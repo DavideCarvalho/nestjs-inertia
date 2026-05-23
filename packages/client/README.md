@@ -4,7 +4,7 @@ Tuyau-style typed HTTP client for `@dudousxd/nestjs-inertia`, built on TanStack 
 
 [![npm version](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia-client)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia-client)
 
-> `v0.9.x alpha` — in active development. API may change before 1.0.
+> Alpha — in active development. API may change before 1.0.
 
 ## Install
 

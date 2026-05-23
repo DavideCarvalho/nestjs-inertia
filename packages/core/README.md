@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia.svg)](https://npmjs.com/package/@dudousxd/nestjs-inertia)
 [![license](https://img.shields.io/npm/l/@dudousxd/nestjs-inertia.svg)](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/LICENSE)
 
-> **Status: v0.9.x alpha.** API is stabilising but may change before `1.0`. Not recommended for production use yet.
+> **Status: alpha.** API is stabilising but may change before `1.0`. Not recommended for production use yet.
 
 ## Install
 
@@ -298,7 +298,7 @@ InertiaModule.forRoot({
 
 ## Protocol parity
 
-Full Inertia v2 protocol: X-Inertia headers, version mismatch (409 + X-Inertia-Location, GET only), partial reloads, deferred props, merge/deepMerge with matchOn, once, history encryption / clear, error bags, X-Inertia-Reset, X-Inertia-Partial-Except, X-Inertia-Reset-Once, dot-notation unpacking, undefined→null wire conversion.
+Full Inertia protocol: X-Inertia headers, version mismatch (409 + X-Inertia-Location, GET only), partial reloads, deferred props, merge/deepMerge with matchOn, once, history encryption / clear, error bags, X-Inertia-Reset, X-Inertia-Partial-Except, X-Inertia-Reset-Once, dot-notation unpacking, undefined→null wire conversion.
 
 ## Companion packages (planned)
 

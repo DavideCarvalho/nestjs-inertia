@@ -2,25 +2,19 @@
 
 Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.
 
-![Status: alpha](https://img.shields.io/badge/status-alpha-orange) ![Version](https://img.shields.io/badge/version-0.9.x--alpha-blue) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Status: alpha](https://img.shields.io/badge/status-alpha-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-> **Alpha status:** All packages are at `0.9.x alpha`. The API is stabilising but breaking changes may occur before `1.0`. Not recommended for production use yet.
+> **Alpha status:** This is an alpha — the API is stabilising and breaking changes may occur before `1.0`. Not recommended for production use yet.
 
 ## Packages
 
-| Package | Version | Description |
-|---|---|---|
-| [`@dudousxd/nestjs-inertia`](packages/core/README.md) | `0.9.x alpha` | Core protocol + module |
-| [`@dudousxd/nestjs-inertia-vite`](packages/vite/README.md) | `0.9.x alpha` | Vite dev/build helpers + plugin |
-| [`@dudousxd/nestjs-inertia-testing`](packages/testing/README.md) | `0.9.x alpha` | `expectInertia` matchers + fakes + TestingModule |
-| [`@dudousxd/nestjs-inertia-codegen`](packages/codegen/README.md) | `0.9.x alpha` | Typed pages + routes + `api.ts` via `nestjs-inertia codegen` |
-| [`@dudousxd/nestjs-inertia-client`](packages/client/README.md) | `0.9.x alpha` | Tuyau-style typed HTTP client (Contract + createFetcher + SSR hydration) |
-
-## Highlights — 0.9.x alpha
-
-- New package: `@dudousxd/nestjs-inertia-client` — Tuyau-style typed HTTP client with `Contract` builders, `@ApplyContract` decorator, `createFetcher`, and SSR hydration helpers
-- Codegen now emits `api.ts` — discovers `@ApplyContract` metadata on controllers and generates a typed client API
-- All packages bumped to `0.9.x alpha`
+| Package | Description |
+|---|---|
+| [`@dudousxd/nestjs-inertia`](packages/core/README.md) | Core protocol + module |
+| [`@dudousxd/nestjs-inertia-vite`](packages/vite/README.md) | Vite dev/build helpers + plugin |
+| [`@dudousxd/nestjs-inertia-testing`](packages/testing/README.md) | `expectInertia` matchers + fakes + TestingModule |
+| [`@dudousxd/nestjs-inertia-codegen`](packages/codegen/README.md) | Typed pages + routes + `api.ts` via `nestjs-inertia codegen` |
+| [`@dudousxd/nestjs-inertia-client`](packages/client/README.md) | Tuyau-style typed HTTP client (Contract + createFetcher + SSR hydration) |
 
 ## Examples
 
