@@ -1,4 +1,4 @@
-export const VERSION = '0.9.0-alpha.0';
+export const VERSION = '1.0.0';
 export { setupInertiaVite } from './setup.js';
 export type { SetupInertiaViteOptions } from './setup.js';
 export { default as nestInertia } from './plugin/plugin.js';
