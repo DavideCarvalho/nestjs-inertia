@@ -17,7 +17,7 @@ export function useInertiaRoutes(): RouteResolver {
   if (!resolver) {
     throw new Error(
       '@dudousxd/nestjs-inertia-client: provideInertiaRoutes() not called.\n\n' +
-        "Call provideInertiaRoutes(route) in your root layout or app setup:\n\n" +
+        'Call provideInertiaRoutes(route) in your root layout or app setup:\n\n' +
         "  import { provideInertiaRoutes } from '@dudousxd/nestjs-inertia-client/svelte';\n" +
         "  import { route } from './.nestjs-inertia/routes.js';\n\n" +
         '  provideInertiaRoutes(route);',

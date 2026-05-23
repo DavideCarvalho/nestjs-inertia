@@ -576,7 +576,7 @@ pnpm run build
 
 The `<Link>` component generates correct URLs from named routes instead of hardcoded strings. Before you can use it you need to wire the route resolver in the frontend entry so `<Link>` knows how to resolve route names to URLs.
 
-Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte):
+Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte) to provide the route resolver via each framework's idiomatic context mechanism:
 
 <Tabs>
   <TabItem label="React">
@@ -584,13 +584,8 @@ Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte):
     // inertia/app.tsx
     import { createRoot } from 'react-dom/client';
     import { createInertiaApp } from '@inertiajs/react';
-    import { setRouteResolver } from '@dudousxd/nestjs-inertia-client';
-
-    // Import the generated route map produced by codegen (Step 8)
-    import routes from '../.nestjs-inertia/routes';
-
-    // Wire the resolver once — <Link> calls this internally to build URLs
-    setRouteResolver((name, params) => routes[name](params));
+    import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
+    import { route } from '../.nestjs-inertia/routes.js';
 
     createInertiaApp({
       resolve: (name) => {
@@ -598,7 +593,11 @@ Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte):
         return pages[`./pages/${name}.tsx`] as any;
       },
       setup({ el, App, props }) {
-        createRoot(el!).render(<App {...props} />);
+        createRoot(el!).render(
+          <InertiaRouteProvider routes={route}>
+            <App {...props} />
+          </InertiaRouteProvider>,
+        );
       },
     });
     ```
@@ -606,22 +605,21 @@ Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte):
   <TabItem label="Vue 3">
     ```ts
     // inertia/app.ts
-    import { createApp, h } from 'vue';
+    import { createApp } from 'vue';
     import { createInertiaApp } from '@inertiajs/vue3';
-    import { setRouteResolver } from '@dudousxd/nestjs-inertia-client';
-    import routes from '../.nestjs-inertia/routes';
-
-    setRouteResolver((name, params) => routes[name](params));
+    import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
+    import { route } from '../.nestjs-inertia/routes.js';
 
     createInertiaApp({
       resolve: (name) => {
         const pages = import.meta.glob('./pages/**/*.vue', { eager: true });
         return pages[`./pages/${name}.vue`] as any;
       },
-      setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
-          .use(plugin)
-          .mount(el);
+      setup({ el, App, props }) {
+        const app = createApp(App, props);
+        // Provide the resolver at app level so all <Link> components can inject it
+        app.provide(INERTIA_ROUTES_KEY, route);
+        app.mount(el);
       },
     });
     ```
@@ -631,10 +629,10 @@ Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte):
     // inertia/app.ts
     import { createInertiaApp } from '@inertiajs/svelte';
     import { mount } from 'svelte';
-    import { setRouteResolver } from '@dudousxd/nestjs-inertia-client';
-    import routes from '../.nestjs-inertia/routes';
+    import { route } from '../.nestjs-inertia/routes.js';
 
-    setRouteResolver((name, params) => routes[name](params));
+    // Pass the resolver as Svelte context so all descendants (including <Link>) can call getContext()
+    const appContext = new Map([['inertia-routes', route]]);
 
     createInertiaApp({
       resolve: (name) => {
@@ -642,7 +640,7 @@ Update `inertia/app.tsx` (or `app.ts` for Vue/Svelte):
         return pages[`./pages/${name}.svelte`] as any;
       },
       setup({ el, App, props }) {
-        mount(App, { target: el, props });
+        mount(App, { target: el, props, context: appContext });
       },
     });
     ```
@@ -898,7 +896,7 @@ my-nestjs-app/
 │   └── posts.controller.ts       ← @As('posts') + @ApplyContract(...)
 ├── inertia/
 │   ├── index.html                ← HTML shell ({{page}} placeholder)
-│   ├── app.tsx                   ← createInertiaApp + setRouteResolver
+│   ├── app.tsx                   ← createInertiaApp + InertiaRouteProvider
 │   └── pages/
 │       ├── Dashboard.tsx         ← Inertia page component
 │       └── Posts/

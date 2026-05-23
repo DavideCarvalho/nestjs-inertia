@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { type ReactNode, createContext, useContext } from 'react';
 
 type RouteResolver = (
   name: string,
@@ -13,7 +13,7 @@ export function useInertiaRoutes(): RouteResolver {
   if (!resolver) {
     throw new Error(
       '@dudousxd/nestjs-inertia-client: <InertiaRouteProvider> not found in the component tree.\n\n' +
-        "Wrap your app with <InertiaRouteProvider routes={route}> in your entry file:\n\n" +
+        'Wrap your app with <InertiaRouteProvider routes={route}> in your entry file:\n\n' +
         "  import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';\n" +
         "  import { route } from './.nestjs-inertia/routes.js';\n\n" +
         '  <InertiaRouteProvider routes={route}>\n' +

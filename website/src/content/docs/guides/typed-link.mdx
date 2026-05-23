@@ -33,14 +33,67 @@ pnpm nestjs-inertia codegen
 
 ## Boot wiring
 
-Call `setRouteResolver` once in your entry file (before the app mounts) to wire the codegen `route()` function into all typed `Link` components:
+Each framework uses its idiomatic context/provider pattern to make the `route()` function available to all `<Link>` components in the tree.
+
+### React
+
+Wrap your root component (or `App`) with `<InertiaRouteProvider>` in your Inertia entry file:
+
+```tsx
+import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
+import { route } from './.nestjs-inertia/routes.js';
+import { createInertiaApp } from '@inertiajs/react';
+import { createRoot } from 'react-dom/client';
+
+createInertiaApp({
+  setup({ el, App, props }) {
+    createRoot(el).render(
+      <InertiaRouteProvider routes={route}>
+        <App {...props} />
+      </InertiaRouteProvider>,
+    );
+  },
+});
+```
+
+### Vue 3
+
+Use `app.provide()` at the app level with `INERTIA_ROUTES_KEY`:
 
 ```ts
-import { setRouteResolver } from '@dudousxd/nestjs-inertia-client';
+import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
 import { route } from './.nestjs-inertia/routes.js';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { createApp } from 'vue';
 
-setRouteResolver(route);
+createInertiaApp({
+  setup({ el, App, props }) {
+    const app = createApp(App, props);
+    app.provide(INERTIA_ROUTES_KEY, route);
+    app.mount(el);
+  },
+});
 ```
+
+### Svelte
+
+Pass the resolver as Svelte context via `mount()`'s `context` option:
+
+```ts
+import { route } from './.nestjs-inertia/routes.js';
+import { createInertiaApp } from '@inertiajs/svelte';
+import { mount } from 'svelte';
+
+const appContext = new Map([['inertia-routes', route]]);
+
+createInertiaApp({
+  setup({ el, App, props }) {
+    mount(App, { target: el, props, context: appContext });
+  },
+});
+```
+
+> **Note:** Svelte's `setContext`/`getContext` must be called during component initialization. The `context` option passed to `mount()` is propagated to all child components, including `<Link>` components rendered by Inertia pages.
 
 ## React example
 

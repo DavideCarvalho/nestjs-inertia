@@ -1,4 +1,4 @@
-import { inject, provide, type InjectionKey } from 'vue';
+import { type InjectionKey, inject, provide } from 'vue';
 
 type RouteResolver = (
   name: string,
@@ -17,7 +17,7 @@ export function useInertiaRoutes(): RouteResolver {
   if (!resolver) {
     throw new Error(
       '@dudousxd/nestjs-inertia-client: provideInertiaRoutes() not called.\n\n' +
-        "Call provideInertiaRoutes(route) in your app setup:\n\n" +
+        'Call provideInertiaRoutes(route) in your app setup:\n\n' +
         "  import { provideInertiaRoutes } from '@dudousxd/nestjs-inertia-client/vue';\n" +
         "  import { route } from './.nestjs-inertia/routes.js';\n\n" +
         '  setup({ el, App, props, plugin }) {\n' +

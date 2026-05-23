@@ -13,10 +13,10 @@ End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus
 
 | Subpath | Contents |
 |---------|----------|
-| `@dudousxd/nestjs-inertia-client` | Core: `Contract`, `@ApplyContract`, `createFetcher`, `setRouteResolver`, `invalidate`, etc. |
-| `@dudousxd/nestjs-inertia-client/react` | Typed `<Link>` component for React + `@inertiajs/react` |
-| `@dudousxd/nestjs-inertia-client/vue` | Typed `<Link>` component for Vue 3 + `@inertiajs/vue3` |
-| `@dudousxd/nestjs-inertia-client/svelte` | Typed `<Link>` component for Svelte 5 + `@inertiajs/svelte` |
+| `@dudousxd/nestjs-inertia-client` | Core: `Contract`, `@ApplyContract`, `createFetcher`, `invalidate`, etc. |
+| `@dudousxd/nestjs-inertia-client/react` | Typed `<Link>`, `<InertiaRouteProvider>`, `useInertiaRoutes()` for React + `@inertiajs/react` |
+| `@dudousxd/nestjs-inertia-client/vue` | Typed `<Link>`, `provideInertiaRoutes()`, `useInertiaRoutes()`, `INERTIA_ROUTES_KEY` for Vue 3 + `@inertiajs/vue3` |
+| `@dudousxd/nestjs-inertia-client/svelte` | Typed `<Link>`, `provideInertiaRoutes()`, `useInertiaRoutes()` for Svelte 5 + `@inertiajs/svelte` |
 | `@dudousxd/nestjs-inertia-client/ssr` | SSR hydration helpers (`hydrateClientFromInertia`, `seedInitialQueries`) |
 
 ## Key API surface
@@ -26,7 +26,9 @@ End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus
 | `Contract.get/post/put/patch/delete` | Declare a typed REST contract with Zod schemas |
 | `@ApplyContract(contract)` | Attach a contract to a controller method (read by codegen) |
 | `createFetcher<Api>(options)` | Create a typed fetch client from `api.ts` |
-| `setRouteResolver(fn)` | Wire the codegen `route()` function into typed `Link` components |
+| `InertiaRouteProvider` (React) | Context provider — wrap your app root to enable `<Link>` route resolution |
+| `provideInertiaRoutes()` (Vue/Svelte) | Provide the route resolver to all child `<Link>` components |
+| `useInertiaRoutes()` (React/Vue/Svelte) | Hook/function to access the route resolver in any component |
 | `Route.Response<K>` / `Route.Body<K>` / `Route.Query<K>` | Extract request/response types by contract name |
 | `hydrateClientFromInertia(page)` | SSR: initialise TanStack Query from Inertia initial-page data |
 
