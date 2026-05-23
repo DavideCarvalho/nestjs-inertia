@@ -7,6 +7,49 @@ import {
 import type { Observable } from 'rxjs';
 import { generateCsrfToken, verifyCsrfToken } from './csrf-token.js';
 
+type CookieResponse = {
+  cookie?: (name: string, value: string, opts?: unknown) => unknown;
+  setCookie?: (name: string, value: string, opts?: unknown) => unknown;
+};
+
+function writeCsrfCookie(
+  res: CookieResponse,
+  cookieName: string,
+  token: string,
+  cookieOpts: Record<string, unknown>,
+): void {
+  if (typeof res.cookie === 'function') {
+    res.cookie(cookieName, token, cookieOpts);
+  } else if (typeof res.setCookie === 'function') {
+    res.setCookie(cookieName, token, cookieOpts);
+  }
+}
+
+/**
+ * Force-issue a new CSRF token on the next response, discarding the existing
+ * one. Call this on login, logout, and password-reset flows to prevent token
+ * fixation attacks.
+ *
+ * @example
+ * ```ts
+ * rotateCsrfToken(res, { secret: this.csrfSecret });
+ * ```
+ */
+export function rotateCsrfToken(
+  res: CookieResponse,
+  options: Pick<CsrfCookieOptions, 'secret' | 'cookieName' | 'httpOnly' | 'sameSite' | 'secure'>,
+): void {
+  const cookieName = options.cookieName ?? 'XSRF-TOKEN';
+  const token = generateCsrfToken(options.secret);
+  const cookieOpts = {
+    httpOnly: options.httpOnly ?? false,
+    sameSite: options.sameSite ?? 'lax',
+    secure: options.secure ?? process.env.NODE_ENV === 'production',
+    path: '/',
+  };
+  writeCsrfCookie(res, cookieName, token, cookieOpts);
+}
+
 export interface CsrfCookieOptions {
   secret: string;
   cookieName?: string;
@@ -26,27 +69,11 @@ export class CsrfCookieInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest<{ cookies?: Record<string, string> }>();
-    const res = context.switchToHttp().getResponse<{
-      cookie?: (name: string, value: string, opts?: unknown) => unknown;
-      setCookie?: (name: string, value: string, opts?: unknown) => unknown;
-    }>();
+    const res = context.switchToHttp().getResponse<CookieResponse>();
 
     const existing = req.cookies?.[this.cookieName];
     if (!existing || !verifyCsrfToken(existing, this.options.secret)) {
-      const token = generateCsrfToken(this.options.secret);
-      const cookieOpts = {
-        httpOnly: this.options.httpOnly ?? false,
-        sameSite: this.options.sameSite ?? 'lax',
-        secure: this.options.secure ?? false,
-        path: '/',
-      };
-      if (typeof res.cookie === 'function') {
-        // Express
-        res.cookie(this.cookieName, token, cookieOpts);
-      } else if (typeof res.setCookie === 'function') {
-        // Fastify
-        res.setCookie(this.cookieName, token, cookieOpts);
-      }
+      rotateCsrfToken(res, this.options);
     }
     return next.handle();
   }

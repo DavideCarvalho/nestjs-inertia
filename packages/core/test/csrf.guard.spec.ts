@@ -54,4 +54,16 @@ describe('CsrfGuard', () => {
     });
     expect(() => guard.canActivate(ctx)).toThrow(InvalidCsrfTokenException);
   });
+
+  it('throws for mismatched-length tokens without crashing (constant-time path)', () => {
+    const short = generateCsrfToken('shh');
+    const guard = new CsrfGuard({ secret: 'shh' });
+    // Supply a header value that is much shorter than the cookie
+    const ctx = makeCtx({
+      method: 'POST',
+      cookies: { 'XSRF-TOKEN': short },
+      headers: { 'x-xsrf-token': 'x' },
+    });
+    expect(() => guard.canActivate(ctx)).toThrow(InvalidCsrfTokenException);
+  });
 });

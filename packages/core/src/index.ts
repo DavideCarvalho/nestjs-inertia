@@ -50,11 +50,11 @@ export type {
   InertiaFeatureAsyncOptions,
 } from './types.js';
 
-export { CsrfCookieInterceptor } from './csrf/csrf-cookie.interceptor.js';
+export { CsrfCookieInterceptor, rotateCsrfToken } from './csrf/csrf-cookie.interceptor.js';
 export type { CsrfCookieOptions } from './csrf/csrf-cookie.interceptor.js';
 export { CsrfGuard } from './csrf/csrf.guard.js';
 export type { CsrfGuardOptions } from './csrf/csrf.guard.js';
-export { generateCsrfToken, verifyCsrfToken } from './csrf/csrf-token.js';
+export { generateCsrfToken, verifyCsrfToken, timingSafeEqualSafe } from './csrf/csrf-token.js';
 
 declare global {
   namespace Express {

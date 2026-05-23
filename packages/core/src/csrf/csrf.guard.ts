@@ -1,6 +1,6 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { InvalidCsrfTokenException } from '../errors/exceptions.js';
-import { verifyCsrfToken } from './csrf-token.js';
+import { timingSafeEqualSafe, verifyCsrfToken } from './csrf-token.js';
 
 export interface CsrfGuardOptions {
   secret: string;
@@ -33,7 +33,10 @@ export class CsrfGuard implements CanActivate {
     const headerToken = Array.isArray(headerRaw) ? headerRaw[0] : headerRaw;
 
     if (!cookieToken || !headerToken) throw new InvalidCsrfTokenException();
-    if (cookieToken !== headerToken) throw new InvalidCsrfTokenException();
+    // Use constant-time comparison to avoid timing oracle on cookie vs header
+    if (!timingSafeEqualSafe(Buffer.from(cookieToken), Buffer.from(headerToken))) {
+      throw new InvalidCsrfTokenException();
+    }
     if (!verifyCsrfToken(cookieToken, this.options.secret)) throw new InvalidCsrfTokenException();
 
     return true;
