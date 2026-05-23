@@ -7,7 +7,10 @@ export async function emitPages(pages: DiscoveredPage[], outDir: string): Promis
   const body = pages
     .map((p) => {
       const propType = p.propsSource ?? 'unknown';
-      const key = needsQuotes(p.name) ? `'${p.name}'` : p.name;
+      // Use JSON.stringify for the key so unsafe chars (quotes, backslashes, etc.)
+      // are properly escaped. Strip the surrounding double-quotes for TypeScript
+      // interface key syntax (TS accepts both 'key' and "key" — we use double).
+      const key = needsQuotes(p.name) ? JSON.stringify(p.name) : p.name;
       return `  ${key}: ${propType};`;
     })
     .join('\n');

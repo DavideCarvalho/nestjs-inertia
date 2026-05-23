@@ -47,20 +47,20 @@ describe('emitPages', () => {
     await emitPages(pages, outDir);
     const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
     expect(content).toContain('Dashboard: { user: { id: number; name: string }; count: number }');
-    expect(content).toContain("'users/Detail': { userId: string }");
+    expect(content).toContain('"users/Detail": { userId: string }');
   });
 
   it('uses unknown for pages without propsSource', async () => {
     await emitPages(pages, outDir);
     const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
-    expect(content).toContain("'nopprops/Bare': unknown");
+    expect(content).toContain('"nopprops/Bare": unknown');
   });
 
-  it('quotes page names that contain slashes', async () => {
+  it('quotes page names that contain slashes (using JSON.stringify)', async () => {
     await emitPages(pages, outDir);
     const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
-    expect(content).toContain("'users/Detail'");
-    expect(content).toContain("'nopprops/Bare'");
+    expect(content).toContain('"users/Detail"');
+    expect(content).toContain('"nopprops/Bare"');
   });
 
   it('creates outDir if it does not exist', async () => {
@@ -68,5 +68,37 @@ describe('emitPages', () => {
     await emitPages(pages, nestedOut);
     const content = await readFile(join(nestedOut, 'pages.d.ts'), 'utf8');
     expect(content).toContain('InertiaPages');
+  });
+
+  // L-3: JSON.stringify properly escapes unsafe characters in component names
+  describe('L-3: JSON.stringify escaping', () => {
+    it('escapes backslashes in page names', async () => {
+      const p: DiscoveredPage[] = [
+        { name: 'foo\\bar', absolutePath: '/x.tsx', relativePath: 'x.tsx', propsSource: null },
+      ];
+      await emitPages(p, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      // JSON.stringify('foo\\bar') = '"foo\\\\bar"'
+      expect(content).toContain('"foo\\\\bar"');
+    });
+
+    it('escapes double quotes in page names', async () => {
+      const p: DiscoveredPage[] = [
+        { name: 'foo"bar', absolutePath: '/x.tsx', relativePath: 'x.tsx', propsSource: null },
+      ];
+      await emitPages(p, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('"foo\\"bar"');
+    });
+
+    it('simple identifier names are not quoted', async () => {
+      const p: DiscoveredPage[] = [
+        { name: 'Dashboard', absolutePath: '/x.tsx', relativePath: 'x.tsx', propsSource: null },
+      ];
+      await emitPages(p, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('  Dashboard: unknown;');
+      expect(content).not.toContain('"Dashboard"');
+    });
   });
 });
