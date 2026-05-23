@@ -97,6 +97,76 @@ export interface InertiaApi {
 
 This file is consumed by `@dudousxd/nestjs-inertia-client`'s `createFetcher` to produce a fully typed client.
 
+## Using class-validator DTOs (no `defineContract` needed)
+
+For standard NestJS projects that already use class-validator DTOs and `@nestjs/swagger`, you get typed API generation **without** writing `defineContract` at all. The codegen reads types directly from:
+
+- `@Body() body: CreatePostDto` → body type
+- `@Query() query: ListPostsQuery` → query type
+- `@Param('id') id: string` → params type
+- `@ApiResponse({ type: [PostDto] })` or `@ApiResponse({ type: PostDto })` → response type
+- Return type annotation (`Promise<PostDto[]>`) → response fallback
+
+```ts
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiResponse } from '@nestjs/swagger';
+
+class ListPostsQuery {
+  page?: number;
+}
+
+class PostDto {
+  id: string;
+  title: string;
+}
+
+class CreatePostBody {
+  title: string;
+  content: string;
+}
+
+@Controller('/api/posts')
+export class PostsController {
+  @Get()
+  @ApiResponse({ type: [PostDto] })
+  list(@Query() query: ListPostsQuery): Promise<PostDto[]> {
+    return this.postsService.list(query);
+  }
+
+  @Post()
+  @ApiResponse({ type: PostDto })
+  create(@Body() body: CreatePostBody): Promise<PostDto> {
+    return this.postsService.create(body);
+  }
+
+  @Get(':id')
+  @ApiResponse({ type: PostDto })
+  show(@Param('id') id: string): Promise<PostDto> {
+    return this.postsService.findOne(id);
+  }
+}
+```
+
+After running `pnpm codegen`, the `api.ts` file will contain fully typed entries for all three methods — no `defineContract`, no Zod schemas required.
+
+### Priority chain
+
+When building contract info for a method the codegen applies this priority:
+
+1. **`@ApplyContract(defineContract({...}))`** — Zod schemas win. When present, DTO extraction is skipped entirely for that method.
+2. **Parameter decorators** — `@Body()`, `@Query()`, `@Param('name')` contribute body, query, and params types from the DTO class.
+3. **`@ApiResponse({ type: ... })`** — provides the response type.
+4. **Return type annotation** — `list(): Promise<PostDto[]>` is used as a response fallback when `@ApiResponse` is absent.
+5. **Nothing** — `unknown`.
+
+### Notes and limitations
+
+- `@Query('key')` for individual string query params is **ignored** (only `@Query()` with no argument pointing to a DTO class is extracted).
+- DTO classes must be declared in the **same file** as the controller for the fast AST path to resolve them. Imported DTOs fall back to the class name string.
+- Recursive class resolution is limited to **depth 3** to prevent infinite loops on circular references.
+- `Date` properties are emitted as `string` (common REST API convention).
+- `defineContract` with Zod is the **advanced path** for teams that prefer explicit, validated schemas. DTOs are the zero-boilerplate path for teams already using class-validator.
+
 ## `@ApplyContract` example
 
 ```ts

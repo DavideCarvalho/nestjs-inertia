@@ -98,6 +98,32 @@ export class UserController {
 
 `@ApplyContract` only attaches the contract metadata (`CONTRACT_METADATA`) — it does **not** set the NestJS routing path or HTTP method. Always pair it with a NestJS HTTP verb decorator (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`). `@dudousxd/nestjs-inertia-codegen` reads both the verb decorator and the contract to emit a typed `api.ts`.
 
+### Alternative: class-validator DTOs (no `defineContract` needed)
+
+If you already use class-validator DTOs and `@nestjs/swagger`, the codegen reads types automatically — no `defineContract` required:
+
+```ts
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiResponse } from '@nestjs/swagger';
+
+class ListPostsQuery { page?: number; }
+class PostDto { id: string; title: string; }
+class CreatePostBody { title: string; content: string; }
+
+@Controller('/api/posts')
+export class PostsController {
+  @Get()
+  @ApiResponse({ type: [PostDto] })
+  list(@Query() query: ListPostsQuery): Promise<PostDto[]> { ... }
+
+  @Post()
+  @ApiResponse({ type: PostDto })
+  create(@Body() body: CreatePostBody): Promise<PostDto> { ... }
+}
+```
+
+The codegen extracts `@Body()` → body type, `@Query()` → query type, `@ApiResponse({ type })` → response type, and return type annotation as a fallback. When `@ApplyContract` is present, Zod schemas take full priority and DTO extraction is skipped for that method.
+
 ### 4. Create a Fetcher and Call Endpoints
 
 ```ts
