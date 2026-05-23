@@ -143,21 +143,30 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
   });
 
   it('extracts GET method from @Get()', async () => {
-    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
     const r = routes.find((x) => x.name === 'items.list');
     expect(r?.method).toBe('GET');
     expect(r?.path).toBe('/api/items');
   });
 
   it('extracts POST method from @Post()', async () => {
-    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
     const r = routes.find((x) => x.name === 'items.create');
     expect(r?.method).toBe('POST');
     expect(r?.path).toBe('/api/items');
   });
 
   it('extracts PUT method from @Put() with path param', async () => {
-    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
     const r = routes.find((x) => x.name === 'items.replace');
     expect(r?.method).toBe('PUT');
     expect(r?.path).toBe('/api/items/:id');
@@ -165,21 +174,30 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
   });
 
   it('extracts PATCH method from @Patch()', async () => {
-    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
     const r = routes.find((x) => x.name === 'items.update');
     expect(r?.method).toBe('PATCH');
     expect(r?.path).toBe('/api/items/:id');
   });
 
   it('extracts DELETE method from @Delete()', async () => {
-    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
     const r = routes.find((x) => x.name === 'items.delete');
     expect(r?.method).toBe('DELETE');
     expect(r?.path).toBe('/api/items/:id');
   });
 
   it('all routes have contracts', async () => {
-    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
     for (const r of routes) {
       expect(r.contract, `${r.name} should have a contract`).toBeDefined();
     }

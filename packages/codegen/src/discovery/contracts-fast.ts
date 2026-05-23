@@ -206,9 +206,12 @@ function decoratorStringArg(decoratorExpr: Node | undefined): string | undefined
  * Parse a defineContract({...}) call expression.
  * Returns { name, query, body, response } or null if unrecognised.
  */
-function parseDefineContractCall(
-  callExpr: Node,
-): { name: string | undefined; query: string | null; body: string | null; response: string } | null {
+function parseDefineContractCall(callExpr: Node): {
+  name: string | undefined;
+  query: string | null;
+  body: string | null;
+  response: string;
+} | null {
   if (!Node.isCallExpression(callExpr)) return null;
 
   const callee = callExpr.getExpression();
@@ -254,9 +257,14 @@ function parseDefineContractCall(
  * Parse a legacy Contract.get/post/etc(...) call expression.
  * Returns { method, path, name, query, body, response } or null if unrecognised.
  */
-function parseLegacyContractCall(
-  callExpr: Node,
-): { method: string; path: string; name: string | undefined; query: string | null; body: string | null; response: string } | null {
+function parseLegacyContractCall(callExpr: Node): {
+  method: string;
+  path: string;
+  name: string | undefined;
+  query: string | null;
+  body: string | null;
+  response: string;
+} | null {
   if (!Node.isCallExpression(callExpr)) return null;
 
   const calleeExpr = callExpr.getExpression();
@@ -381,7 +389,14 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
         if (!firstDecoratorArg) continue;
 
         // Resolve contract definition from inline call or identifier
-        let contractDef: { name: string | undefined; query: string | null; body: string | null; response: string; legacyMethod?: string; legacyPath?: string } | null = null;
+        let contractDef: {
+          name: string | undefined;
+          query: string | null;
+          body: string | null;
+          response: string;
+          legacyMethod?: string;
+          legacyPath?: string;
+        } | null = null;
 
         if (Node.isCallExpression(firstDecoratorArg)) {
           // Try new defineContract({...}) call first

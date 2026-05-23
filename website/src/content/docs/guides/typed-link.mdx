@@ -96,19 +96,27 @@ The route name passed to `<Link route="..." />` comes from the `name` field on t
 
 ```ts
 // Contract definition (server-side)
-const ShowUser = Contract.get('/users/:id', {
+import { defineContract } from '@dudousxd/nestjs-inertia-client';
+import { Put } from '@nestjs/common';
+
+const ShowUser = defineContract({
+  name: 'users.show',  // ← this becomes the route name
   params: z.object({ id: z.string() }),
   response: z.object({ id: z.string(), name: z.string() }),
-  name: 'users.show',  // ← this becomes the route name
 });
+
+// In the controller — routing comes from @Get, not from the contract
+@Get('/users/:id')
+@ApplyContract(ShowUser)
+show() { ... }
 ```
 
 ```tsx
-// Frontend usage — name comes directly from Contract.name
+// Frontend usage — name comes directly from defineContract's name field
 <Link route="users.show" routeParams={{ id: user.id }}>View profile</Link>
 ```
 
-**Best practice:** keep `Contract.name` aligned with your resource hierarchy so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
+**Best practice:** keep the contract `name` aligned with your resource hierarchy so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
 
 ## Conditional `routeParams` behaviour
 

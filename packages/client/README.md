@@ -17,35 +17,30 @@ pnpm add @dudousxd/nestjs-inertia-client @tanstack/query-core zod
 ### 1. Define a Contract
 
 ```ts
-import { Contract } from '@dudousxd/nestjs-inertia-client';
+import { defineContract } from '@dudousxd/nestjs-inertia-client';
 import { z } from 'zod';
 
-export const listUsersContract = Contract.get('/users', {
+export const listUsersContract = defineContract({
+  name: 'users.list',
   query: z.object({ page: z.number().optional() }),
   response: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
-export const createUserContract = Contract.post('/users', {
+export const createUserContract = defineContract({
+  name: 'users.create',
   body: z.object({ name: z.string(), email: z.string().email() }),
   response: z.object({ id: z.string(), name: z.string() }),
 });
 ```
 
+Contracts carry **no** `method` or `path` — routing is the responsibility of NestJS decorators.
+
 ### 2. Name your Contract
 
-The `name` field on the `Contract` definition controls how the generated `api.ts` exposes the endpoint — it is **not** derived from the controller or method name. Use dot-notation to nest under `api.*.*`:
+The `name` field controls how the generated `api.ts` exposes the endpoint — it is **not** derived from the controller or method name. Use dot-notation to nest under `api.*.*`:
 
-```ts
-Contract.get('/users', {
-  // ...
-  name: 'users.list',   // → api.users.list.queryOptions(...)
-});
-
-Contract.get('/health', {
-  // ...
-  name: 'health',       // → api.health.queryOptions(...)
-});
-```
+- `'users.list'` → `api.users.list.queryOptions(...)`
+- `'health'` → `api.health.queryOptions(...)`
 
 Best practice: align names with your resource hierarchy (`'users.list'`, `'users.show'`, `'users.create'`) so the generated `api` object mirrors your domain model.
 
@@ -68,7 +63,7 @@ export class UserController {
 }
 ```
 
-`@ApplyContract` stores the contract definition under `CONTRACT_METADATA` so that `@dudousxd/nestjs-inertia-codegen` can discover it and emit a typed `api.ts` file.
+`@ApplyContract` only attaches the contract metadata (`CONTRACT_METADATA`) — it does **not** set the NestJS routing path or HTTP method. Always pair it with a NestJS HTTP verb decorator (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`). `@dudousxd/nestjs-inertia-codegen` reads both the verb decorator and the contract to emit a typed `api.ts`.
 
 ### 4. Create a Fetcher and Call Endpoints
 
@@ -162,13 +157,30 @@ This avoids a second network round-trip for data the server already fetched duri
 
 ## API Reference
 
-### `Contract`
+### `defineContract(def)`
 
-Builder object with methods: `Contract.get`, `Contract.post`, `Contract.put`, `Contract.patch`, `Contract.delete`. Each accepts a path and a definition with optional `query` / `body` and required `response` Zod schemas.
+Creates a typed contract definition. Accepts:
 
-### `@ApplyContract(contractDef)`
+| Field | Required | Description |
+|---|---|---|
+| `name` | yes | Dot-separated name used as the `api.*` key |
+| `response` | yes | Zod schema for the response body |
+| `query` | no | Zod schema for URL query parameters |
+| `body` | no | Zod schema for the request body |
+| `params` | no | Zod schema for path parameters |
+| `error` | no | Zod schema for error responses |
 
-NestJS method decorator. Attaches the contract to the handler via `Reflect` metadata under `CONTRACT_METADATA`. Used by codegen for `api.ts` contract discovery.
+No `method` or `path` — those come from NestJS decorators.
+
+### `@ApplyContract(contractDef, opts?)`
+
+NestJS method decorator. Attaches the contract to the handler via `Reflect` metadata under `CONTRACT_METADATA`. Does **not** set HTTP method or path — always combine with `@Get`, `@Post`, etc.
+
+Options:
+
+| Option | Default | Description |
+|---|---|---|
+| `validate` | `false` | When `true`, installs a `ContractValidationPipe` that validates `body` and `query` against Zod schemas at runtime |
 
 ### `createFetcher(opts?): Fetcher`
 

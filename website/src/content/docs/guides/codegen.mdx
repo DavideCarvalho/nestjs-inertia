@@ -100,18 +100,19 @@ This file is consumed by `@dudousxd/nestjs-inertia-client`'s `createFetcher` to 
 ## `@ApplyContract` example
 
 ```ts
-import { Controller } from '@nestjs/common';
-import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
+import { Controller, Get } from '@nestjs/common';
+import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
 import { z } from 'zod';
 
-const ListUsers = Contract.get('/api/users', {
+const ListUsers = defineContract({
+  name: 'users.list',
   query: z.object({ active: z.boolean().optional() }),
   response: z.array(z.object({ id: z.string(), name: z.string() })),
-  name: 'users.list',
 });
 
 @Controller()
 export class UsersController {
+  @Get('/api/users')
   @ApplyContract(ListUsers)
   list() {
     return [
@@ -122,11 +123,14 @@ export class UsersController {
 }
 ```
 
+Use standard NestJS decorators (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) as the routing source-of-truth.
+`@ApplyContract` only attaches the contract metadata — it no longer sets the HTTP method or path.
+
 After running `pnpm codegen`, the `users.list` contract appears in `api.ts`.
 
 ## How the API name is chosen
 
-The `name` field on the `Contract` definition is the API key — it is **not** derived from the controller class name or method name. You control it entirely.
+The `name` field on the `defineContract` definition is the API key — it is **not** derived from the controller class name or method name. You control it entirely.
 
 Use dot-notation in `name` to produce a nested path under `api.*.*`:
 

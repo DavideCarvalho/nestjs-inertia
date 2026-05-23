@@ -42,8 +42,9 @@ describe('defineContract', () => {
       name: 'users.list',
       response: z.object({ ok: z.boolean() }),
     });
-    expect((c as Record<string, unknown>)['method']).toBeUndefined();
-    expect((c as Record<string, unknown>)['path']).toBeUndefined();
+    const anyC = c as Record<string, unknown>;
+    expect(anyC.method).toBeUndefined();
+    expect(anyC.path).toBeUndefined();
   });
 
   it('carries params and error fields when provided', () => {
