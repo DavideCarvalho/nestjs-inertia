@@ -19,4 +19,35 @@ describe('ApiHttpError', () => {
     expect(new ApiHttpError(404, 'x', null).isNotFound).toBe(true);
     expect(new ApiHttpError(500, 'x', null).isServer).toBe(true);
   });
+
+  // L-5: toJSON() redacts body by default
+  describe('L-5: toJSON() redacts body', () => {
+    it('JSON.stringify does not contain the body', () => {
+      const err = new ApiHttpError(422, 'Unprocessable', { secret: 'sensitive-data' });
+      const json = JSON.stringify(err);
+      expect(json).not.toContain('sensitive-data');
+      expect(json).toContain('[redacted');
+    });
+
+    it('toJSON(false) redacts body (default)', () => {
+      const err = new ApiHttpError(422, 'Unprocessable', { secret: 'sensitive' });
+      const result = err.toJSON(false);
+      expect(result.body).toBe('[redacted — pass verbose=true to include]');
+    });
+
+    it('toJSON(true) includes full body', () => {
+      const err = new ApiHttpError(422, 'Unprocessable', { secret: 'sensitive' });
+      const result = err.toJSON(true);
+      expect(result.body).toEqual({ secret: 'sensitive' });
+    });
+
+    it('toJSON includes name, message, status, statusText', () => {
+      const err = new ApiHttpError(404, 'Not Found', null);
+      const result = err.toJSON();
+      expect(result.name).toBe('ApiHttpError');
+      expect(result.message).toContain('404');
+      expect(result.status).toBe(404);
+      expect(result.statusText).toBe('Not Found');
+    });
+  });
 });
