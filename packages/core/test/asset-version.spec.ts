@@ -33,6 +33,38 @@ describe('loadManifest', () => {
     expect(m).not.toBeNull();
     expect(m).toHaveProperty('app/client.tsx');
   });
+
+  // M-4: manifest shape validation
+  describe('M-4: manifest shape validation', () => {
+    it('throws clear error when manifest is an array (not an object)', () => {
+      const path = makeTmpManifest({});
+      writeFileSync(path, '[]');
+      expect(() => loadManifest(path)).toThrow('Vite manifest at');
+      expect(() => loadManifest(path)).toThrow('unexpected shape');
+    });
+
+    it('throws clear error when an entry is missing the "file" field', () => {
+      const path = makeTmpManifest({});
+      writeFileSync(path, JSON.stringify({ 'app/client.tsx': { css: ['x.css'] } }));
+      expect(() => loadManifest(path)).toThrow('Vite manifest at');
+      expect(() => loadManifest(path)).toThrow('"file"');
+    });
+
+    it('throws clear error when an entry is a primitive (not object)', () => {
+      const path = makeTmpManifest({});
+      writeFileSync(path, JSON.stringify({ 'app/client.tsx': 'bad-value' }));
+      expect(() => loadManifest(path)).toThrow('Vite manifest at');
+    });
+
+    it('accepts a valid manifest with file + optional css/imports', () => {
+      const path = makeTmpManifest({
+        'app/client.tsx': { file: 'assets/x.js', css: ['assets/x.css'], imports: ['a.js'] },
+      });
+      const m = loadManifest(path);
+      expect(m).not.toBeNull();
+      expect(m?.['app/client.tsx'].file).toBe('assets/x.js');
+    });
+  });
 });
 
 describe('computeAssetVersion', () => {

@@ -14,12 +14,44 @@ export type Manifest = Record<string, ManifestEntry>;
 
 const DEFAULT_MANIFEST_PATH = 'dist/inertia/client/.vite/manifest.json';
 
+/**
+ * Validates that a parsed manifest has the expected Vite manifest shape.
+ * Each entry must be a non-null object with a string `file` property.
+ * Throws with a clear error if any entry is malformed.
+ */
+function assertManifestShape(parsed: unknown, path: string): Manifest {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(
+      `Vite manifest at ${path} has unexpected shape: expected a JSON object, got ${Array.isArray(parsed) ? 'array' : typeof parsed}`,
+    );
+  }
+  for (const [key, entry] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      throw new Error(
+        `Vite manifest at ${path} has unexpected shape: entry "${key}" is not an object`,
+      );
+    }
+    const e = entry as Record<string, unknown>;
+    if (typeof e.file !== 'string') {
+      throw new Error(
+        `Vite manifest at ${path} has unexpected shape: entry "${key}" is missing required string field "file"`,
+      );
+    }
+  }
+  return parsed as Manifest;
+}
+
 export function loadManifest(path: string): Manifest | null {
   try {
     const abs = isAbsolute(path) ? path : resolve(process.cwd(), path);
     const raw = readFileSync(abs, 'utf8');
-    return JSON.parse(raw) as Manifest;
-  } catch {
+    const parsed = JSON.parse(raw) as unknown;
+    return assertManifestShape(parsed, abs);
+  } catch (err) {
+    // Propagate shape validation errors — they indicate a misconfigured build
+    if (err instanceof Error && err.message.includes('Vite manifest at')) {
+      throw err;
+    }
     return null;
   }
 }
