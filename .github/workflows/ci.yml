@@ -25,12 +25,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Lint
-        # Soft-fail: formatting pass done (chore: biome format pass across monorepo).
-        # Remaining 70 errors are semantic lint issues: 44× noExplicitAny, 3× noVoidTypeReturn,
-        # 2× noBannedTypes, 1× noStaticOnlyClass, plus parse errors for parameter decorators
-        # (biome needs `unsafeParameterDecoratorsEnabled: true` to parse NestJS decorator syntax).
-        # TODO: fix semantic lint + enable unsafeParameterDecoratorsEnabled, then harden to `biome ci .`
-        run: pnpm exec biome ci . || true
+        run: pnpm exec biome ci .
       - name: Build all packages
         run: pnpm -r --filter "./packages/*" build
       - name: Test all packages
