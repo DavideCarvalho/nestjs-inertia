@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,16 +23,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r build
-      - run: pnpm -r test
-      - name: Create Release Pull Request
+      - run: pnpm exec turbo run build --filter='./packages/*'
+      - run: pnpm exec turbo run test --filter='./packages/*'
+      - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
           version: pnpm version-packages
-          # publish: pnpm release   # ← uncomment when ready to publish to npm
+          publish: pnpm -r --filter './packages/*' publish --access public --provenance --no-git-checks
           commit: "chore: version packages"
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }}   # ← needed when publish is enabled
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
