@@ -103,6 +103,15 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
     expect(route.contract).toBeUndefined();
   });
 
+  it('discovers a route-only controller with an empty prefix path', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'inertia-dashboard.controller.ts',
+    });
+
+    expect(routes[0].params).toEqual([]);
+  });
+
   it('enumerates both @ApplyContract and plain @Get methods in a mixed controller', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
@@ -120,5 +129,41 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
     expect(plain?.method).toBe('GET');
     expect(plain?.path).toBe('/dashboard');
     expect(plain?.contract).toBeUndefined();
+  });
+});
+
+describe('discoverContractsFast — inline Contract.* call inside @ApplyContract (B-3)', () => {
+  it('discovers a route with inline @ApplyContract(Contract.get(...))', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'inline-contract.controller.ts',
+    });
+
+    expect(routes).toHaveLength(1);
+    const route = routes[0];
+    expect(route.method).toBe('GET');
+    expect(route.path).toBe('/api/foo');
+    expect(route.contract).toBeDefined();
+  });
+
+  it('inline contract has the correct name from the options object', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'inline-contract.controller.ts',
+    });
+
+    const route = routes[0];
+    expect(route.contract?.name).toBe('foo.list');
+  });
+
+  it('inline contract has response type extracted from Zod schema', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'inline-contract.controller.ts',
+    });
+
+    const cs = routes[0].contract?.contractSource;
+    expect(cs?.response).toContain('id');
+    expect(cs?.body).toBeNull();
   });
 });
