@@ -1,63 +1,68 @@
 import 'reflect-metadata';
-import { BadRequestException, Controller } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Patch, Post, Put } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { ApplyContract } from '../src/contract/apply-contract.decorator.js';
 import { ContractValidationPipe } from '../src/contract/contract-validation.pipe.js';
-import { Contract } from '../src/contract/contract.js';
+import { defineContract } from '../src/contract/contract.js';
 import { CONTRACT_METADATA } from '../src/contract/metadata.js';
 
-const ListUsers = Contract.get('/users', {
+const ListUsers = defineContract({
+  name: 'users.list',
   query: z.object({ q: z.string().optional() }),
   response: z.array(z.object({ id: z.string() })),
-  name: 'users.list',
 });
 
-const CreateUser = Contract.post('/users', {
-  body: z.object({ name: z.string() }),
-  response: z.object({ id: z.string() }),
+const CreateUser = defineContract({
   name: 'users.create',
-});
-
-const UpdateUser = Contract.put('/users/:id', {
   body: z.object({ name: z.string() }),
   response: z.object({ id: z.string() }),
+});
+
+const UpdateUser = defineContract({
   name: 'users.update',
-});
-
-const PatchUser = Contract.patch('/users/:id', {
   body: z.object({ name: z.string() }),
   response: z.object({ id: z.string() }),
-  name: 'users.patch',
 });
 
-const DeleteUser = Contract.delete('/users/:id', {
-  response: z.object({ ok: z.boolean() }),
+const PatchUser = defineContract({
+  name: 'users.patch',
+  body: z.object({ name: z.string() }),
+  response: z.object({ id: z.string() }),
+});
+
+const DeleteUser = defineContract({
   name: 'users.delete',
+  response: z.object({ ok: z.boolean() }),
 });
 
 @Controller()
 class TestController {
+  @Get('/users')
   @ApplyContract(ListUsers)
   list() {
     return [];
   }
 
+  @Post('/users')
   @ApplyContract(CreateUser)
   create() {
     return {};
   }
 
+  @Put('/users/:id')
   @ApplyContract(UpdateUser)
   update() {
     return {};
   }
 
+  @Patch('/users/:id')
   @ApplyContract(PatchUser)
   patch() {
     return {};
   }
 
+  @Delete('/users/:id')
   @ApplyContract(DeleteUser)
   delete() {
     return {};
@@ -65,13 +70,13 @@ class TestController {
 }
 
 describe('@ApplyContract', () => {
-  describe('GET contract', () => {
-    it('attaches path metadata', () => {
+  describe('GET contract — NestJS decorator provides routing', () => {
+    it('attaches path metadata via @Get (not @ApplyContract)', () => {
       const path = Reflect.getMetadata('path', TestController.prototype.list);
       expect(path).toBe('/users');
     });
 
-    it('attaches HTTP method metadata (RequestMethod.GET = 0)', () => {
+    it('attaches HTTP method metadata via @Get (RequestMethod.GET = 0)', () => {
       const method = Reflect.getMetadata('method', TestController.prototype.list);
       expect(method).toBe(0); // RequestMethod.GET = 0
     });
@@ -83,14 +88,14 @@ describe('@ApplyContract', () => {
   });
 
   describe('POST contract', () => {
-    it('attaches path metadata', () => {
+    it('attaches path metadata via @Post', () => {
       const path = Reflect.getMetadata('path', TestController.prototype.create);
       expect(path).toBe('/users');
     });
 
-    it('attaches HTTP method metadata (RequestMethod.POST = 1)', () => {
+    it('attaches HTTP method metadata via @Post (RequestMethod.POST = 1)', () => {
       const method = Reflect.getMetadata('method', TestController.prototype.create);
-      expect(method).toBe(1); // RequestMethod.POST = 1
+      expect(method).toBe(1);
     });
 
     it('attaches the contract via CONTRACT_METADATA', () => {
@@ -100,28 +105,51 @@ describe('@ApplyContract', () => {
   });
 
   describe('PUT contract', () => {
-    it('attaches path /users/:id', () => {
+    it('attaches path /users/:id via @Put', () => {
       const path = Reflect.getMetadata('path', TestController.prototype.update);
       expect(path).toBe('/users/:id');
     });
 
-    it('attaches HTTP method metadata (RequestMethod.PUT = 2)', () => {
+    it('attaches HTTP method metadata via @Put (RequestMethod.PUT = 2)', () => {
       const method = Reflect.getMetadata('method', TestController.prototype.update);
-      expect(method).toBe(2); // RequestMethod.PUT = 2
+      expect(method).toBe(2);
     });
   });
 
   describe('PATCH contract', () => {
-    it('attaches HTTP method metadata (RequestMethod.PATCH = 4)', () => {
+    it('attaches HTTP method metadata via @Patch (RequestMethod.PATCH = 4)', () => {
       const method = Reflect.getMetadata('method', TestController.prototype.patch);
-      expect(method).toBe(4); // RequestMethod.PATCH = 4
+      expect(method).toBe(4);
     });
   });
 
   describe('DELETE contract', () => {
-    it('attaches HTTP method metadata (RequestMethod.DELETE = 3)', () => {
+    it('attaches HTTP method metadata via @Delete (RequestMethod.DELETE = 3)', () => {
       const method = Reflect.getMetadata('method', TestController.prototype.delete);
-      expect(method).toBe(3); // RequestMethod.DELETE = 3
+      expect(method).toBe(3);
+    });
+  });
+
+  describe('@ApplyContract does NOT set NestJS routing metadata', () => {
+    it('does not set path metadata on a standalone @ApplyContract', () => {
+      @Controller()
+      class Ctrl {
+        @ApplyContract(ListUsers)
+        handler() {}
+      }
+      // Without a NestJS HTTP verb decorator, path is undefined
+      const path = Reflect.getMetadata('path', Ctrl.prototype.handler);
+      expect(path).toBeUndefined();
+    });
+
+    it('does not set HTTP method metadata on a standalone @ApplyContract', () => {
+      @Controller()
+      class Ctrl {
+        @ApplyContract(ListUsers)
+        handler() {}
+      }
+      const method = Reflect.getMetadata('method', Ctrl.prototype.handler);
+      expect(method).toBeUndefined();
     });
   });
 });
@@ -129,12 +157,14 @@ describe('@ApplyContract', () => {
 // ────────────────────────────────────────────────────────────────────────────
 // ContractValidationPipe unit tests
 // ────────────────────────────────────────────────────────────────────────────
-const BodyContract = Contract.post('/items', {
+const BodyContract = defineContract({
+  name: 'items.create',
   body: z.object({ name: z.string().min(1) }),
   response: z.object({ id: z.string() }),
 });
 
-const QueryContract = Contract.get('/items', {
+const QueryContract = defineContract({
+  name: 'items.list',
   query: z.object({ q: z.string() }),
   response: z.array(z.object({ id: z.string() })),
 });
@@ -200,7 +230,6 @@ describe('ContractValidationPipe', () => {
         @ApplyContract(BodyContract)
         handler() {}
       }
-      // NestJS stores pipes at 'pipes' metadata key
       const pipes = Reflect.getMetadata('__pipes__', Ctrl.prototype.handler) ?? [];
       expect(pipes).toHaveLength(0);
     });

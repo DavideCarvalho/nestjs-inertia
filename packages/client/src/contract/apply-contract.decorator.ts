@@ -1,26 +1,7 @@
-import {
-  Delete,
-  Get,
-  Patch,
-  Post,
-  Put,
-  SetMetadata,
-  UsePipes,
-  applyDecorators,
-} from '@nestjs/common';
+import { SetMetadata, UsePipes, applyDecorators } from '@nestjs/common';
 import { ContractValidationPipe } from './contract-validation.pipe.js';
 import type { ContractDef } from './contract.js';
 import { CONTRACT_METADATA } from './metadata.js';
-
-type HttpMethodKey = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-
-const METHOD_DECORATORS: Record<HttpMethodKey, (path: string) => MethodDecorator> = {
-  GET: Get,
-  POST: Post,
-  PUT: Put,
-  PATCH: Patch,
-  DELETE: Delete,
-} as const;
 
 export interface ApplyContractOptions {
   /**
@@ -39,19 +20,15 @@ export interface ApplyContractOptions {
   validate?: boolean;
 }
 
-export function ApplyContract<C extends ContractDef<string, unknown, unknown, unknown>>(
+export function ApplyContract<C extends ContractDef>(
   c: C,
   opts: ApplyContractOptions = {},
 ): MethodDecorator {
-  const HttpMethod = METHOD_DECORATORS[c.method];
-  const decorators: (MethodDecorator | ClassDecorator | PropertyDecorator)[] = [
-    HttpMethod(c.path),
-    SetMetadata(CONTRACT_METADATA, c),
-  ];
+  const decorators: (ClassDecorator | MethodDecorator)[] = [SetMetadata(CONTRACT_METADATA, c)];
 
   if (opts.validate) {
     decorators.push(UsePipes(new ContractValidationPipe(c)));
   }
 
-  return applyDecorators(...decorators);
+  return applyDecorators(...(decorators as MethodDecorator[]));
 }

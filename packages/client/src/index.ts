@@ -3,7 +3,7 @@ export const VERSION = '0.9.0-alpha.0';
 export { createFetcher } from './fetcher/fetcher.js';
 export { ApiHttpError } from './fetcher/errors.js';
 export { buildUrl } from './fetcher/url-builder.js';
-export { Contract } from './contract/contract.js';
+export { defineContract } from './contract/contract.js';
 export { ApplyContract } from './contract/apply-contract.decorator.js';
 export { ContractValidationPipe } from './contract/contract-validation.pipe.js';
 export { CONTRACT_METADATA, getContract } from './contract/metadata.js';

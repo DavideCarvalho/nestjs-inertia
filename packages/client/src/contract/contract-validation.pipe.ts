@@ -15,7 +15,7 @@ import type { ContractDef } from './contract.js';
  * contains `{ message: 'Contract validation failed', issues: ZodIssue[] }`.
  */
 @Injectable()
-export class ContractValidationPipe<C extends ContractDef<string, unknown, unknown, unknown>>
+export class ContractValidationPipe<C extends ContractDef>
   implements PipeTransform
 {
   constructor(private readonly contract: C) {}

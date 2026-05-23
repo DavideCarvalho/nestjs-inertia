@@ -2,7 +2,7 @@ import type { ContractDef } from './contract.js';
 
 export const CONTRACT_METADATA = Symbol.for('nestjs-inertia:contract');
 
-type AnyContract = ContractDef<string, unknown, unknown, unknown>;
+type AnyContract = ContractDef<unknown, unknown, unknown, unknown, unknown>;
 
 export function getContract(target: unknown): AnyContract | undefined {
   if (typeof target !== 'function') return undefined;
