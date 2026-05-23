@@ -501,10 +501,24 @@ Codegen reads your controller decorators and generates three typed output files 
 pnpm exec nestjs-inertia init
 ```
 
-This creates:
-- `nestjs-inertia.config.ts` — codegen configuration (pages directory, output directory, included patterns)
-- `nestjs-inertia.d.ts` — TypeScript ambient module declaration
-- Adds `.nestjs-inertia/` to `.gitignore` (the output is generated, not committed)
+The `init` command is a **comprehensive scaffold** — it detects your setup and creates everything needed for Inertia.js in one step. Run it on a fresh project and it will:
+
+1. **Detect your frontend framework** from `package.json` (React, Vue, or Svelte). If none is found it asks interactively (defaults to React in CI).
+2. **Detect your template engine** (Handlebars, EJS, Pug, Liquid — or plain HTML).
+3. **Create all scaffold files** (skips any that already exist — fully idempotent):
+   - `nestjs-inertia.config.ts` — codegen configuration with a framework-specific page glob
+   - `nestjs-inertia.d.ts` — TypeScript ambient module declaration
+   - `inertia/index.html` — HTML shell with the `{{page}}` placeholder
+   - `vite.config.ts` — Vite config with the correct framework plugin
+   - `inertia/app.{tsx,ts}` — frontend entry point bootstrapping `createInertiaApp`
+   - `inertia/pages/Home.{tsx,vue,svelte}` — sample page component
+   - `src/home.controller.ts` — sample NestJS controller
+   - Adds `.nestjs-inertia/` to `.gitignore`
+4. **Add build scripts** to `package.json` (`build:client`, `build:ssr`).
+5. **Install missing framework deps** via the detected package manager.
+6. **Print manual-step instructions** for wiring `InertiaModule` and `setupInertiaVite`.
+
+If you are setting up a fresh project, `nestjs-inertia init` replaces Steps 3–6 above. If your project already has some of those files, `init` skips them and only creates what is missing.
 
 Enable the auto-watcher in `app.module.ts` so codegen runs on every controller change during development:
 
