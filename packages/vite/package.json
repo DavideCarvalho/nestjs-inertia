@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-vite",
-  "version": "0.9.0-alpha.0",
+  "version": "1.0.0",
   "description": "Vite integration for @dudousxd/nestjs-inertia — dev middleware, prod static serving, plugin.",
   "license": "MIT",
   "repository": {
@@ -25,7 +25,11 @@
       "require": "./dist/plugin/plugin.cjs"
     }
   },
-  "files": ["dist/", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -33,7 +37,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
-    "@dudousxd/nestjs-inertia": ">=0.3.0-alpha.0",
+    "@dudousxd/nestjs-inertia": ">=1.0.0",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
     "vite": ">=5.0.0",
@@ -42,9 +46,15 @@
     "@sveltejs/vite-plugin-svelte": ">=3.0.0"
   },
   "peerDependenciesMeta": {
-    "@vitejs/plugin-react": { "optional": true },
-    "@vitejs/plugin-vue": { "optional": true },
-    "@sveltejs/vite-plugin-svelte": { "optional": true }
+    "@vitejs/plugin-react": {
+      "optional": true
+    },
+    "@vitejs/plugin-vue": {
+      "optional": true
+    },
+    "@sveltejs/vite-plugin-svelte": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@dudousxd/nestjs-inertia": "workspace:*",
@@ -58,5 +68,7 @@
     "vite": "^6.4.2",
     "vitest": "^3.0.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
