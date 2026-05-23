@@ -431,16 +431,10 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       // 2. Honor kill-switch env var (in addition to options.codegen.enabled === false)
       if (process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN === '1') return;
 
-      // 3. Skip when running inside the codegen probe child process (avoids spawn loop:
-      //    probe boots Nest → onApplicationBootstrap → starts watcher → child never exits).
-      //    The probe is spawned via fork() (IPC channel present), but we rely on the
-      //    explicit env var because vitest also uses fork() for its test pool.
-      if (process.env.NESTJS_INERTIA_CODEGEN_PROBE === '1') return;
-
-      // 4. Skip if explicitly disabled
+      // 3. Skip if explicitly disabled
       if (this.options.codegen?.enabled === false) return;
 
-      // 5. Lazy-import the codegen package (peer-optional — do not fail if missing).
+      // 4. Lazy-import the codegen package (peer-optional — do not fail if missing).
       //    _resolveCodegenModule() uses a cast to prevent TS from resolving the module
       //    at compile time. Override it in tests via subclass to inject a stub.
       let codegen: CodegenModule;
@@ -455,7 +449,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
         return;
       }
 
-      // 6. Load config — skip if no config file present, warn on other failures
+      // 5. Load config — skip if no config file present, warn on other failures
       let config: unknown;
       try {
         config = await codegen.loadConfig(process.cwd());
@@ -465,7 +459,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
         return;
       }
 
-      // 7. Start the watcher (lock-file mechanism ensures a second watcher is a no-op)
+      // 6. Start the watcher (lock-file mechanism ensures a second watcher is a no-op)
       this.codegenWatcher = await codegen.watch(config);
       this.logger.log('Codegen auto-watch started (dev mode).');
     } catch (err: unknown) {
