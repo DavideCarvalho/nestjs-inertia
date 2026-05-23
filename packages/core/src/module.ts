@@ -59,12 +59,11 @@ interface CodegenModule {
 
 @Module({})
 export class InertiaModule implements NestModule, OnApplicationBootstrap, OnApplicationShutdown {
-  static forRoot(options: InertiaModuleOptions = {}): DynamicModule {
-    const optionsProvider: Provider = {
-      provide: INERTIA_MODULE_OPTIONS,
-      useValue: options,
-    };
-
+  /**
+   * Shared provider set for both `forRoot` and `forRootAsync`.
+   * Does NOT include the options provider(s) — callers prepend those themselves.
+   */
+  private static buildModuleProviders(): Provider[] {
     const shellProvider: Provider = {
       provide: 'INERTIA_SHELL_RENDERER',
       inject: [INERTIA_MODULE_OPTIONS],
@@ -86,38 +85,48 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       useClass: SsrLoaderService,
     };
 
+    return [
+      manifestProvider,
+      assetVersionProvider,
+      shellProvider,
+      ssrProvider,
+      InertiaMiddleware,
+      MethodSpoofMiddleware,
+      {
+        provide: APP_INTERCEPTOR,
+        useClass: InertiaScopeSwitcherInterceptor,
+      },
+      {
+        provide: APP_INTERCEPTOR,
+        useClass: InertiaRenderInterceptor,
+      },
+      {
+        provide: APP_INTERCEPTOR,
+        useClass: RedirectInterceptor,
+      },
+    ];
+  }
+
+  private static readonly moduleExports = [
+    INERTIA_MODULE_OPTIONS,
+    INERTIA_MANIFEST,
+    INERTIA_ASSET_VERSION,
+    'INERTIA_SHELL_RENDERER',
+    'INERTIA_SSR_LOADER',
+    InertiaMiddleware,
+  ] as const;
+
+  static forRoot(options: InertiaModuleOptions = {}): DynamicModule {
+    const optionsProvider: Provider = {
+      provide: INERTIA_MODULE_OPTIONS,
+      useValue: options,
+    };
+
     return {
       module: InertiaModule,
       global: true,
-      providers: [
-        optionsProvider,
-        manifestProvider,
-        assetVersionProvider,
-        shellProvider,
-        ssrProvider,
-        InertiaMiddleware,
-        MethodSpoofMiddleware,
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: InertiaScopeSwitcherInterceptor,
-        },
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: InertiaRenderInterceptor,
-        },
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: RedirectInterceptor,
-        },
-      ],
-      exports: [
-        INERTIA_MODULE_OPTIONS,
-        INERTIA_MANIFEST,
-        INERTIA_ASSET_VERSION,
-        'INERTIA_SHELL_RENDERER',
-        'INERTIA_SSR_LOADER',
-        InertiaMiddleware,
-      ],
+      providers: [optionsProvider, ...InertiaModule.buildModuleProviders()],
+      exports: [...InertiaModule.moduleExports],
     };
   }
 
@@ -131,61 +140,12 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       .filter((token): token is new (...args: unknown[]) => unknown => typeof token === 'function')
       .map((token) => token as unknown as Provider);
 
-    const shellProvider: Provider = {
-      provide: 'INERTIA_SHELL_RENDERER',
-      inject: [INERTIA_MODULE_OPTIONS],
-      useFactory: (opts: InertiaModuleOptions): ShellRenderer => {
-        const rv = opts.rootView;
-        if (typeof rv === 'function') {
-          const fn = rv as RootViewFn;
-          return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
-        }
-        if (typeof rv === 'string') {
-          return new FileBasedShellRenderer(rv);
-        }
-        return new DefaultShellRenderer();
-      },
-    };
-
-    const ssrProvider: Provider = {
-      provide: 'INERTIA_SSR_LOADER',
-      useClass: SsrLoaderService,
-    };
-
     return {
       module: InertiaModule,
       global: true,
       imports: (asyncOptions.imports as DynamicModule['imports'] | undefined) ?? [],
-      providers: [
-        ...injectProviders,
-        ...optionsProviders,
-        manifestProvider,
-        assetVersionProvider,
-        shellProvider,
-        ssrProvider,
-        InertiaMiddleware,
-        MethodSpoofMiddleware,
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: InertiaScopeSwitcherInterceptor,
-        },
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: InertiaRenderInterceptor,
-        },
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: RedirectInterceptor,
-        },
-      ],
-      exports: [
-        INERTIA_MODULE_OPTIONS,
-        INERTIA_MANIFEST,
-        INERTIA_ASSET_VERSION,
-        'INERTIA_SHELL_RENDERER',
-        'INERTIA_SSR_LOADER',
-        InertiaMiddleware,
-      ],
+      providers: [...injectProviders, ...optionsProviders, ...InertiaModule.buildModuleProviders()],
+      exports: [...InertiaModule.moduleExports],
     };
   }
 
