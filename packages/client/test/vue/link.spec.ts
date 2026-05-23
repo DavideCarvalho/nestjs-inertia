@@ -4,9 +4,8 @@
  * We mock @inertiajs/vue3 so tests don't need a full Inertia context.
  */
 import { mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
-import { setRouteResolver } from '../../src/routes-stub.js';
 
 // Mock @inertiajs/vue3 Link: renders a plain <a> with all props forwarded
 vi.mock('@inertiajs/vue3', () => ({
@@ -29,7 +28,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 // Import AFTER mocking
-const { Link } = await import('../../src/vue/index.js');
+const { Link, INERTIA_ROUTES_KEY } = await import('../../src/vue/index.js');
 
 function makeResolver(): (
   name: string,
@@ -62,18 +61,17 @@ function makeResolver(): (
 }
 
 describe('Vue Link component', () => {
-  beforeEach(() => {
-    setRouteResolver(makeResolver());
-  });
-
   afterEach(() => {
-    setRouteResolver(null);
+    // nothing to clean up - Vue test-utils manages this per mount
   });
 
   it('renders an anchor with the computed href for a parameterless route', () => {
     const wrapper = mount(Link, {
       props: { route: 'users.list' },
       slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
     });
     const a = wrapper.find('[data-testid="inertia-link"]');
     expect(a.exists()).toBe(true);
@@ -85,6 +83,9 @@ describe('Vue Link component', () => {
     const wrapper = mount(Link, {
       props: { route: 'users.list', class: 'nav-link' },
       slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
     });
     const a = wrapper.find('[data-testid="inertia-link"]');
     expect(a.attributes('class')).toBe('nav-link');
@@ -94,19 +95,21 @@ describe('Vue Link component', () => {
     const wrapper = mount(Link, {
       props: { route: 'users.list', query: { active: 'true' } },
       slots: { default: 'Active Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
     });
     const a = wrapper.find('[data-testid="inertia-link"]');
     expect(a.attributes('href')).toBe('/api/users?active=true');
   });
 
-  it('throws a clear error when setRouteResolver not called', () => {
-    setRouteResolver(null);
+  it('throws a clear error when provideInertiaRoutes not called', () => {
     expect(() =>
       mount(Link, {
         props: { route: 'users.list' },
         slots: { default: 'Users' },
       }),
-    ).toThrowError('@dudousxd/nestjs-inertia-client: setRouteResolver() not called');
+    ).toThrowError('@dudousxd/nestjs-inertia-client: provideInertiaRoutes() not called');
   });
 });
 
@@ -115,15 +118,13 @@ describe('type smoke (runtime placeholder)', () => {
   it('compiles without error when routeParams is omitted for a parameterless route', () => {
     // This asserts the component mounts without a type error.
     // Typed checks happen in the example app after codegen augments InertiaRegistry.
-    setRouteResolver(makeResolver());
-    try {
-      const wrapper = mount(Link, {
-        props: { route: 'some.route' },
-        slots: { default: 'text' },
-      });
-      expect(wrapper).toBeTruthy();
-    } finally {
-      setRouteResolver(null);
-    }
+    const wrapper = mount(Link, {
+      props: { route: 'some.route' },
+      slots: { default: 'text' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    expect(wrapper).toBeTruthy();
   });
 });

@@ -2,7 +2,7 @@ import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
 import { Link as InertiaLink } from '@inertiajs/vue3';
 import { defineComponent, h } from 'vue';
 import type { PropType } from 'vue';
-import { route as buildRoute } from '../routes-stub.js';
+import { useInertiaRoutes } from './provider.js';
 
 type AnyRoutes = RegistryRoutes;
 
@@ -46,8 +46,9 @@ export const Link = defineComponent({
     },
   },
   setup(props, { slots, attrs }) {
+    const resolveRoute = useInertiaRoutes();
     return () => {
-      const href = buildRoute(
+      const href = resolveRoute(
         props.route,
         props.routeParams as Record<string, unknown> | undefined,
         props.query,

@@ -1,0 +1,27 @@
+import { getContext, setContext } from 'svelte';
+
+type RouteResolver = (
+  name: string,
+  params?: Record<string, unknown>,
+  query?: Record<string, unknown>,
+) => string;
+
+const KEY = 'inertia-routes';
+
+export function provideInertiaRoutes(resolver: RouteResolver): void {
+  setContext(KEY, resolver);
+}
+
+export function useInertiaRoutes(): RouteResolver {
+  const resolver = getContext<RouteResolver | undefined>(KEY);
+  if (!resolver) {
+    throw new Error(
+      '@dudousxd/nestjs-inertia-client: provideInertiaRoutes() not called.\n\n' +
+        "Call provideInertiaRoutes(route) in your root layout or app setup:\n\n" +
+        "  import { provideInertiaRoutes } from '@dudousxd/nestjs-inertia-client/svelte';\n" +
+        "  import { route } from './.nestjs-inertia/routes.js';\n\n" +
+        '  provideInertiaRoutes(route);',
+    );
+  }
+  return resolver;
+}

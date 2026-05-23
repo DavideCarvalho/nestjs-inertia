@@ -10,7 +10,6 @@ export { ContractValidationPipe } from './contract/contract-validation.pipe.js';
 export { CONTRACT_METADATA, getContract } from './contract/metadata.js';
 export type { ApplyContractOptions } from './contract/apply-contract.decorator.js';
 export { invalidate } from './invalidate.js';
-export { setRouteResolver } from './routes-stub.js';
 export type { FetcherOptions, Fetcher } from './fetcher/fetcher.js';
 export type { ContractDef } from './contract/contract.js';
 // SSR helpers are available via the `./ssr` subpath export (dist/ssr/hydrate.js)

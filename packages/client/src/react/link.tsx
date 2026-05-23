@@ -1,7 +1,7 @@
 import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
 import { Link as InertiaLink } from '@inertiajs/react';
 import type { ComponentProps, ReactNode } from 'react';
-import { route as buildRoute } from '../routes-stub.js';
+import { useInertiaRoutes } from './provider.js';
 
 type AnyRoutes = RegistryRoutes;
 
@@ -19,6 +19,7 @@ export type LinkProps<K extends keyof AnyRoutes> = Omit<
 
 export function Link<K extends keyof AnyRoutes & string>(props: LinkProps<K>) {
   const { route, routeParams, query, ...rest } = props;
-  const href = buildRoute(route, routeParams as Record<string, unknown> | undefined, query);
+  const resolveRoute = useInertiaRoutes();
+  const href = resolveRoute(route, routeParams as Record<string, unknown> | undefined, query);
   return <InertiaLink {...rest} href={href} />;
 }

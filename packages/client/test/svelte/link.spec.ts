@@ -4,8 +4,7 @@
  * We mock @inertiajs/svelte so tests don't need a full Inertia context.
  */
 import { cleanup, render } from '@testing-library/svelte';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setRouteResolver } from '../../src/routes-stub.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import MockInertiaLink from './__mocks__/MockInertiaLink.svelte';
 
 // Mock @inertiajs/svelte Link: renders a plain <a> forwarding href and slot
@@ -46,35 +45,37 @@ function makeResolver(): (
   };
 }
 
-describe('Svelte Link component', () => {
-  beforeEach(() => {
-    setRouteResolver(makeResolver());
-  });
+// Svelte 5 mount accepts a `context` Map — @testing-library/svelte passes it through
+function contextWith(resolver: ReturnType<typeof makeResolver>) {
+  return new Map([['inertia-routes', resolver]]);
+}
 
+describe('Svelte Link component', () => {
   afterEach(() => {
-    setRouteResolver(null);
     cleanup();
   });
 
   it('renders an anchor with computed href for a parameterless route', () => {
-    const { getByTestId } = render(Link, { route: 'items.list' });
+    const { getByTestId } = render(Link, {
+      props: { route: 'items.list' },
+      context: contextWith(makeResolver()),
+    });
     const a = getByTestId('inertia-link');
     expect(a.getAttribute('href')).toBe('/api/items');
   });
 
   it('appends query params to the href', () => {
     const { getByTestId } = render(Link, {
-      route: 'items.list',
-      query: { active: 'true' },
+      props: { route: 'items.list', query: { active: 'true' } },
+      context: contextWith(makeResolver()),
     });
     const a = getByTestId('inertia-link');
     expect(a.getAttribute('href')).toBe('/api/items?active=true');
   });
 
-  it('throws a clear error when setRouteResolver not called', () => {
-    setRouteResolver(null);
-    expect(() => render(Link, { route: 'items.list' })).toThrowError(
-      '@dudousxd/nestjs-inertia-client: setRouteResolver() not called',
+  it('throws a clear error when provideInertiaRoutes not called', () => {
+    expect(() => render(Link, { props: { route: 'items.list' } })).toThrowError(
+      '@dudousxd/nestjs-inertia-client: provideInertiaRoutes() not called',
     );
   });
 });
@@ -82,9 +83,10 @@ describe('Svelte Link component', () => {
 // ---------- type-level smoke tests ----------
 describe('type smoke (runtime placeholder)', () => {
   it('compiles without error when routeParams is omitted for a parameterless route', () => {
-    setRouteResolver(makeResolver());
-    const result = render(Link, { route: 'items.list' });
+    const result = render(Link, {
+      props: { route: 'items.list' },
+      context: contextWith(makeResolver()),
+    });
     expect(result).toBeTruthy();
-    setRouteResolver(null);
   });
 });
