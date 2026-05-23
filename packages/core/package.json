@@ -18,7 +18,11 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist/", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -42,24 +46,44 @@
     "rxjs": ">=7.0.0"
   },
   "peerDependenciesMeta": {
-    "@fastify/cookie": { "optional": true },
-    "@nestjs/platform-fastify": { "optional": true },
-    "@types/express": { "optional": true },
-    "cookie-parser": { "optional": true },
-    "ejs": { "optional": true },
-    "express": { "optional": true },
-    "fastify": { "optional": true },
-    "handlebars": { "optional": true },
-    "liquidjs": { "optional": true },
-    "pug": { "optional": true }
+    "@fastify/cookie": {
+      "optional": true
+    },
+    "@nestjs/platform-fastify": {
+      "optional": true
+    },
+    "@types/express": {
+      "optional": true
+    },
+    "cookie-parser": {
+      "optional": true
+    },
+    "ejs": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    },
+    "fastify": {
+      "optional": true
+    },
+    "handlebars": {
+      "optional": true
+    },
+    "liquidjs": {
+      "optional": true
+    },
+    "pug": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@fastify/cookie": "^9.3.1",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/platform-fastify": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
     "@types/cookie-parser": "^1.4.7",
     "@types/ejs": "^3.1.5",
     "@types/express": "^4.17.21",
@@ -69,7 +93,7 @@
     "cookie-parser": "^1.4.6",
     "ejs": "^3.1.10",
     "express": "^4.19.2",
-    "fastify": "^4.28.1",
+    "fastify": "^5.8.5",
     "handlebars": "^4.7.8",
     "liquidjs": "^10.16.0",
     "pug": "^3.0.3",
@@ -82,5 +106,13 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["nestjs", "inertia", "inertia.js", "ssr", "react", "vue", "svelte"]
+  "keywords": [
+    "nestjs",
+    "inertia",
+    "inertia.js",
+    "ssr",
+    "react",
+    "vue",
+    "svelte"
+  ]
 }
