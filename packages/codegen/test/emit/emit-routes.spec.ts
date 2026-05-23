@@ -136,7 +136,7 @@ describe('emitRoutes', () => {
     // (This is the definitive assertion since new Function can't parse TypeScript)
     expect(content).toContain('URLSearchParams');
     expect(content).toContain('qs.append(k, String(v))');
-    expect(content).toContain("path.includes('?') ? '&' : '?'");
+    expect(content).toContain("resolvedPath.includes('?') ? '&' : '?'");
 
     // Also verify the ROUTES entries are present so we know the route() call would work
     expect(content).toContain('"UsersController.list": "/users"');
@@ -152,5 +152,25 @@ describe('emitRoutes', () => {
 
     // The name should appear JSON-encoded (double-quoted with escaped content)
     expect(content).toContain('"na\'me"');
+  });
+
+  it('route() throws a rich error for invalid route names listing available routes', async () => {
+    await emitRoutes(sampleRoutes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // Must contain the undefined-check guard
+    expect(content).toContain('path === undefined');
+
+    // Must throw with a message including the route name and "does not exist"
+    expect(content).toContain('[nestjs-inertia] Route');
+    expect(content).toContain('does not exist');
+
+    // Must list available routes in the error
+    expect(content).toContain('Available routes');
+    expect(content).toContain('Object.keys(ROUTES)');
+
+    // Must include guidance about common causes
+    expect(content).toContain('nestjs-inertia codegen');
+    expect(content).toContain('@As()');
   });
 });

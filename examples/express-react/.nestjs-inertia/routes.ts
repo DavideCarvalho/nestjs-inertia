@@ -55,9 +55,21 @@ export function route<K extends RouteName>(
     : [params: RouteParams<K>, query?: Record<string, unknown>]
 ): string {
   const [params, query] = args as [Record<string, string> | undefined, Record<string, unknown> | undefined];
-  let path: string = ROUTES[name];
+  const path: string | undefined = ROUTES[name as RouteName];
+  if (path === undefined) {
+    const available = Object.keys(ROUTES).join(', ');
+    throw new Error(
+      `[nestjs-inertia] Route "${String(name)}" does not exist.\n\n` +
+      `Available routes: ${available}\n\n` +
+      `This usually means:\n` +
+      `  - The route name has a typo\n` +
+      `  - The controller hasn't been scanned by codegen yet (run: nestjs-inertia codegen)\n` +
+      `  - The @As() decorator changed the route name\n`
+    );
+  }
+  let resolvedPath: string = path;
   if (params) {
-    path = path.replace(/:([^/]+)/g, (_, key) => {
+    resolvedPath = resolvedPath.replace(/:([^/]+)/g, (_, key) => {
       const val = params[key];
       if (val === undefined) throw new Error(`Missing route param: ${key}`);
       return encodeURIComponent(val);
@@ -70,9 +82,9 @@ export function route<K extends RouteName>(
     }
     const qStr = qs.toString();
     if (qStr) {
-      const sep = path.includes('?') ? '&' : '?';
-      path = `${path}${sep}${qStr}`;
+      const sep = resolvedPath.includes('?') ? '&' : '?';
+      resolvedPath = `${resolvedPath}${sep}${qStr}`;
     }
   }
-  return path;
+  return resolvedPath;
 }
