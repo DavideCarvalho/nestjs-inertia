@@ -24,8 +24,6 @@ describe('emitApi', () => {
       params: [],
       contract: {
         name: 'users.list',
-        method: 'GET',
-        path: '/api/users',
         contractSource: {
           query: '{ active?: boolean | undefined }',
           body: null,
@@ -40,8 +38,6 @@ describe('emitApi', () => {
       params: [],
       contract: {
         name: 'users.create',
-        method: 'POST',
-        path: '/api/users',
         contractSource: {
           query: null,
           body: '{ name: string; email: string }',
@@ -169,8 +165,6 @@ describe('emitApi', () => {
         params: [],
         contract: {
           name: 'health',
-          method: 'GET',
-          path: '/health',
           contractSource: { query: null, body: null, response: '{ ok: boolean }' },
         },
       },
@@ -193,8 +187,6 @@ describe('emitApi', () => {
         params: [],
         contract: {
           name: 'admin.users.list',
-          method: 'GET',
-          path: '/admin/users',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -219,8 +211,6 @@ describe('emitApi', () => {
         params: [],
         contract: {
           name: 'users',
-          method: 'GET',
-          path: '/users',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -231,8 +221,6 @@ describe('emitApi', () => {
         params: [],
         contract: {
           name: 'users.list',
-          method: 'GET',
-          path: '/api/users',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -290,8 +278,6 @@ describe('emitApi', () => {
         params: [],
         contract: {
           name: 'safe.name',
-          method: 'GET',
-          path: unsafePath,
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -314,8 +300,6 @@ describe('emitApi', () => {
         params: [],
         contract: {
           name: 'safe.name',
-          method: 'GET',
-          path: '/safe',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -404,8 +388,6 @@ describe('emitApi', () => {
           params: [],
           contract: {
             name,
-            method: 'GET',
-            path: '/test',
             contractSource: { query: null, body: null, response: 'unknown' },
           },
         },

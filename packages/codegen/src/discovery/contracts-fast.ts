@@ -202,31 +202,77 @@ function decoratorStringArg(decoratorExpr: Node | undefined): string | undefined
   return undefined;
 }
 
-/** Build a RouteDescriptor from a discovered contract call expression. */
-function buildRouteDescriptor(
-  contractName: string,
-  contractCallExpr: Node,
-  controllerPrefix: string,
-): RouteDescriptor | null {
-  if (!Node.isCallExpression(contractCallExpr)) return null;
+/**
+ * Parse a defineContract({...}) call expression.
+ * Returns { name, query, body, response } or null if unrecognised.
+ */
+function parseDefineContractCall(
+  callExpr: Node,
+): { name: string | undefined; query: string | null; body: string | null; response: string } | null {
+  if (!Node.isCallExpression(callExpr)) return null;
 
-  // Contract.get('/path', { ... }) — method is the property name
-  const calleeExpr = contractCallExpr.getExpression();
+  const callee = callExpr.getExpression();
+  // Accept both `defineContract(...)` and any identifier named defineContract
+  const calleeName = Node.isIdentifier(callee)
+    ? callee.getText()
+    : Node.isPropertyAccessExpression(callee)
+      ? callee.getName()
+      : '';
+
+  if (calleeName !== 'defineContract') return null;
+
+  const args = callExpr.getArguments();
+  const optsArg = args[0];
+  if (!optsArg || !Node.isObjectLiteralExpression(optsArg)) return null;
+
+  let name: string | undefined = undefined;
+  let query: string | null = null;
+  let body: string | null = null;
+  let response = 'unknown';
+
+  for (const prop of optsArg.getProperties()) {
+    if (!Node.isPropertyAssignment(prop)) continue;
+    const propName = prop.getName();
+    const val = prop.getInitializer();
+    if (!val) continue;
+
+    if (propName === 'name' && Node.isStringLiteral(val)) {
+      name = val.getLiteralValue();
+    } else if (propName === 'query') {
+      query = zodAstToTs(val);
+    } else if (propName === 'body') {
+      body = zodAstToTs(val);
+    } else if (propName === 'response') {
+      response = zodAstToTs(val);
+    }
+  }
+
+  return { name, query, body, response };
+}
+
+/**
+ * Parse a legacy Contract.get/post/etc(...) call expression.
+ * Returns { method, path, name, query, body, response } or null if unrecognised.
+ */
+function parseLegacyContractCall(
+  callExpr: Node,
+): { method: string; path: string; name: string | undefined; query: string | null; body: string | null; response: string } | null {
+  if (!Node.isCallExpression(callExpr)) return null;
+
+  const calleeExpr = callExpr.getExpression();
   if (!Node.isPropertyAccessExpression(calleeExpr)) return null;
 
   const httpMethodRaw = calleeExpr.getName(); // 'get', 'post', etc.
+  const validMethods = ['get', 'post', 'put', 'patch', 'delete'];
+  if (!validMethods.includes(httpMethodRaw)) return null;
+
   const method = httpMethodRaw.toUpperCase();
 
-  const args = contractCallExpr.getArguments();
+  const args = callExpr.getArguments();
   const pathArg = args[0];
   if (!pathArg || !Node.isStringLiteral(pathArg)) return null;
-  const handlerPath = pathArg.getLiteralValue();
+  const path = pathArg.getLiteralValue();
 
-  // Combine prefix + handler path
-  const combined = joinPaths(controllerPrefix, handlerPath);
-  const params = extractParams(combined);
-
-  // Optional options object
   const optsArg = args[1];
   let name: string | undefined = undefined;
   let query: string | null = null;
@@ -252,25 +298,19 @@ function buildRouteDescriptor(
     }
   }
 
-  return {
-    method,
-    path: combined,
-    name: contractName,
-    params,
-    contract: {
-      name,
-      method,
-      path: combined,
-      contractSource: { query, body, response },
-    },
-  };
+  return { method, path, name, query, body, response };
 }
 
 /** Join two URL path segments, normalising duplicate slashes. */
-function joinPaths(prefix: string, suffix: string): string {
+export function joinPaths(prefix: string, suffix: string): string {
+  if (!prefix && !suffix) return '/';
+  if (!prefix) return suffix.startsWith('/') ? suffix : `/${suffix}`;
+  if (!suffix) return prefix.startsWith('/') ? prefix : `/${prefix}`;
+
   const p = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
   const s = suffix.startsWith('/') ? suffix : `/${suffix}`;
-  return p + s;
+  const combined = p + s;
+  return combined === '' ? '/' : combined;
 }
 
 /** Extract path params from a URL pattern string, e.g. `/users/:id` → [{name:'id',source:'path'}] */
@@ -291,6 +331,9 @@ const HTTP_METHOD_DECORATORS: Record<string, string> = {
   Put: 'PUT',
   Patch: 'PATCH',
   Delete: 'DELETE',
+  Options: 'OPTIONS',
+  Head: 'HEAD',
+  All: 'ALL',
 };
 
 // ---------------------------------------------------------------------------
@@ -314,76 +357,134 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
 
     // Walk all methods
     for (const method of cls.getMethods()) {
+      // ── Determine HTTP method + sub-path from NestJS verb decorators ──────
+      let httpMethod: string | undefined;
+      let handlerPath = '';
+
+      for (const [decoratorName, verb] of Object.entries(HTTP_METHOD_DECORATORS)) {
+        const httpDecorator = method.getDecorator(decoratorName);
+        if (httpDecorator) {
+          httpMethod = verb;
+          const httpArgs = httpDecorator.getArguments();
+          const pathArg = httpArgs[0];
+          handlerPath = decoratorStringArg(pathArg) ?? '';
+          break;
+        }
+      }
+
+      // ── Check for @ApplyContract ──────────────────────────────────────────
       const applyContractDecorator = method.getDecorator('ApplyContract');
 
       if (applyContractDecorator) {
-        // ── @ApplyContract path ──────────────────────────────────────────
         const decoratorArgs = applyContractDecorator.getArguments();
         const firstDecoratorArg = decoratorArgs[0];
         if (!firstDecoratorArg) continue;
 
-        if (Node.isCallExpression(firstDecoratorArg)) {
-          // B-3 fix: inline Contract.get(...) call — pass directly to buildRouteDescriptor
-          const descriptor = buildRouteDescriptor(
-            `${cls.getName() ?? 'Unknown'}.${method.getName()}`,
-            firstDecoratorArg,
-            prefix,
-          );
-          if (descriptor) {
-            routes.push(descriptor);
-          }
-          continue;
-        }
+        // Resolve contract definition from inline call or identifier
+        let contractDef: { name: string | undefined; query: string | null; body: string | null; response: string; legacyMethod?: string; legacyPath?: string } | null = null;
 
-        // The argument must be an identifier (variable name)
-        if (!Node.isIdentifier(firstDecoratorArg)) {
+        if (Node.isCallExpression(firstDecoratorArg)) {
+          // Try new defineContract({...}) call first
+          const parsed = parseDefineContractCall(firstDecoratorArg);
+          if (parsed) {
+            contractDef = parsed;
+          } else {
+            // Fall back to legacy Contract.get('/path', {...})
+            const legacy = parseLegacyContractCall(firstDecoratorArg);
+            if (legacy) {
+              contractDef = {
+                name: legacy.name,
+                query: legacy.query,
+                body: legacy.body,
+                response: legacy.response,
+                legacyMethod: legacy.method,
+                legacyPath: legacy.path,
+              };
+            }
+          }
+        } else if (Node.isIdentifier(firstDecoratorArg)) {
+          const identName = firstDecoratorArg.getText();
+          const varDecl = sourceFile.getVariableDeclaration(identName);
+          if (!varDecl) {
+            console.warn(
+              `[nestjs-inertia-codegen/fast] Cannot resolve '${identName}' in ${sourceFile.getFilePath()} (cross-file imports are out-of-scope for v1) — skipping`,
+            );
+            continue;
+          }
+
+          const initializer = varDecl.getInitializer();
+          if (!initializer) continue;
+
+          // Try defineContract first
+          const parsed = parseDefineContractCall(initializer);
+          if (parsed) {
+            contractDef = parsed;
+          } else {
+            // Fall back to legacy Contract.get(...)
+            const legacy = parseLegacyContractCall(initializer);
+            if (legacy) {
+              contractDef = {
+                name: legacy.name,
+                query: legacy.query,
+                body: legacy.body,
+                response: legacy.response,
+                legacyMethod: legacy.method,
+                legacyPath: legacy.path,
+              };
+            }
+          }
+        } else {
           console.warn(
             `[nestjs-inertia-codegen/fast] @ApplyContract arg is not an identifier or call expression in ${sourceFile.getFilePath()} — skipping`,
           );
           continue;
         }
 
-        const identName = firstDecoratorArg.getText();
+        if (!contractDef) continue;
 
-        // Resolve the identifier to a variable declaration IN THIS SOURCE FILE
-        const varDecl = sourceFile.getVariableDeclaration(identName);
-        if (!varDecl) {
-          console.warn(
-            `[nestjs-inertia-codegen/fast] Cannot resolve '${identName}' in ${sourceFile.getFilePath()} (cross-file imports are out-of-scope for v1) — skipping`,
-          );
+        // For new-style contracts, method+path come from NestJS decorators.
+        // For legacy contracts (Contract.get), fall back to the embedded path/method
+        // if no NestJS HTTP decorator is present on the method.
+        let resolvedMethod = httpMethod;
+        let resolvedPath: string;
+
+        if (resolvedMethod) {
+          // NestJS decorator present: use it
+          resolvedPath = joinPaths(prefix, handlerPath);
+        } else if (contractDef.legacyMethod && contractDef.legacyPath !== undefined) {
+          // Legacy fallback: method+path from Contract.get(...)
+          resolvedMethod = contractDef.legacyMethod;
+          resolvedPath = joinPaths(prefix, contractDef.legacyPath);
+        } else {
+          // No routing info available — skip
           continue;
         }
 
-        const initializer = varDecl.getInitializer();
-        if (!initializer) continue;
+        const combined = resolvedPath;
+        const params = extractParams(combined);
+        const routeName = contractDef.name ?? `${cls.getName() ?? 'Unknown'}.${method.getName()}`;
 
-        const descriptor = buildRouteDescriptor(identName, initializer, prefix);
-        if (descriptor) {
-          routes.push(descriptor);
-        }
+        routes.push({
+          method: resolvedMethod,
+          path: combined,
+          name: routeName,
+          params,
+          contract: {
+            name: contractDef.name,
+            contractSource: {
+              query: contractDef.query,
+              body: contractDef.body,
+              response: contractDef.response,
+            },
+          },
+        });
       } else {
-        // ── @Get / @Post / @Put / @Patch / @Delete / @Inertia path (no @ApplyContract) ──
-        // Enumerate methods with HTTP verb decorators (parity with heavy probe)
-        let httpMethod: string | undefined;
-        let handlerPath = '';
-
-        for (const [decoratorName, verb] of Object.entries(HTTP_METHOD_DECORATORS)) {
-          const httpDecorator = method.getDecorator(decoratorName);
-          if (httpDecorator) {
-            httpMethod = verb;
-            const httpArgs = httpDecorator.getArguments();
-            const pathArg = httpArgs[0];
-            handlerPath = decoratorStringArg(pathArg) ?? '';
-            break;
-          }
-        }
-
-        if (!httpMethod) continue; // No HTTP verb decorator — skip
+        // ── Plain HTTP verb decorator (no @ApplyContract) ──────────────────
+        if (!httpMethod) continue;
 
         const combined = joinPaths(prefix, handlerPath);
         const params = extractParams(combined);
 
-        // Use class.method as route name (same convention as heavy probe)
         const className = cls.getName() ?? 'Unknown';
         const methodName = method.getName();
         const routeName = `${className}.${methodName}`;

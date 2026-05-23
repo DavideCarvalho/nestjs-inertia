@@ -76,7 +76,7 @@ describe('runCodegen one-shot route discovery', () => {
     await runCodegen({ watch: false, cwd: tmpBase });
 
     const routesContent = await readFile(join(tmpBase, '.nestjs-inertia', 'routes.ts'), 'utf8');
-    expect(routesContent).toContain('ListUsers');
+    expect(routesContent).toContain('users.list');
   });
 });
 

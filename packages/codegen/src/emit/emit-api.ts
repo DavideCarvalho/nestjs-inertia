@@ -297,9 +297,9 @@ function buildApiFile(routes: RouteDescriptor[]): string {
     }
     const leaf: LeafEntry = {
       kind: 'leaf',
-      method: c.method,
+      method: r.method,
       name: name,
-      path: c.path,
+      path: r.path,
       contractSource: c.contractSource,
     };
     insertIntoTree(tree, segments, leaf, name);

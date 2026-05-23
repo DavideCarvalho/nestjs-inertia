@@ -1,16 +1,17 @@
 import 'reflect-metadata';
-import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
-import { Controller } from '@nestjs/common';
+import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
+import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
 
-const ListUsers = Contract.get('/api/users', {
+const ListUsers = defineContract({
+  name: 'users.list',
   query: z.object({ active: z.boolean().optional() }),
   response: z.array(z.object({ id: z.string(), name: z.string() })),
-  name: 'users.list',
 });
 
 @Controller()
 export class ContractUsersController {
+  @Get('/api/users')
   @ApplyContract(ListUsers)
   list() {
     return [];

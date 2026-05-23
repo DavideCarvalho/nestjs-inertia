@@ -19,9 +19,9 @@ describe('discoverContractsFast', () => {
       glob: '*.controller.ts',
     });
 
-    // Should find at least the ListUsers contract
-    const route = routes.find((r) => r.name === 'ListUsers');
-    expect(route, 'ListUsers route not found').toBeDefined();
+    // Should find at least the ListUsers contract (name comes from defineContract's name field)
+    const route = routes.find((r) => r.name === 'users.list');
+    expect(route, 'users.list route not found').toBeDefined();
   });
 
   it('returns GET method and /api/users path', async () => {
@@ -132,8 +132,62 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
   });
 });
 
-describe('discoverContractsFast — inline Contract.* call inside @ApplyContract (B-3)', () => {
-  it('discovers a route with inline @ApplyContract(Contract.get(...))', async () => {
+describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', () => {
+  it('discovers all 5 routes from the all-verbs fixture', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'all-verbs.controller.ts',
+    });
+
+    expect(routes).toHaveLength(5);
+  });
+
+  it('extracts GET method from @Get()', async () => {
+    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const r = routes.find((x) => x.name === 'items.list');
+    expect(r?.method).toBe('GET');
+    expect(r?.path).toBe('/api/items');
+  });
+
+  it('extracts POST method from @Post()', async () => {
+    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const r = routes.find((x) => x.name === 'items.create');
+    expect(r?.method).toBe('POST');
+    expect(r?.path).toBe('/api/items');
+  });
+
+  it('extracts PUT method from @Put() with path param', async () => {
+    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const r = routes.find((x) => x.name === 'items.replace');
+    expect(r?.method).toBe('PUT');
+    expect(r?.path).toBe('/api/items/:id');
+    expect(r?.params).toEqual([{ name: 'id', source: 'path' }]);
+  });
+
+  it('extracts PATCH method from @Patch()', async () => {
+    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const r = routes.find((x) => x.name === 'items.update');
+    expect(r?.method).toBe('PATCH');
+    expect(r?.path).toBe('/api/items/:id');
+  });
+
+  it('extracts DELETE method from @Delete()', async () => {
+    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    const r = routes.find((x) => x.name === 'items.delete');
+    expect(r?.method).toBe('DELETE');
+    expect(r?.path).toBe('/api/items/:id');
+  });
+
+  it('all routes have contracts', async () => {
+    const routes = await discoverContractsFast({ cwd: fixturesDir, glob: 'all-verbs.controller.ts' });
+    for (const r of routes) {
+      expect(r.contract, `${r.name} should have a contract`).toBeDefined();
+    }
+  });
+});
+
+describe('discoverContractsFast — inline defineContract call inside @ApplyContract', () => {
+  it('discovers a route with inline @ApplyContract(defineContract(...))', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
       glob: 'inline-contract.controller.ts',
@@ -146,7 +200,7 @@ describe('discoverContractsFast — inline Contract.* call inside @ApplyContract
     expect(route.contract).toBeDefined();
   });
 
-  it('inline contract has the correct name from the options object', async () => {
+  it('inline defineContract has the correct name from the options object', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
       glob: 'inline-contract.controller.ts',
@@ -156,7 +210,7 @@ describe('discoverContractsFast — inline Contract.* call inside @ApplyContract
     expect(route.contract?.name).toBe('foo.list');
   });
 
-  it('inline contract has response type extracted from Zod schema', async () => {
+  it('inline defineContract has response type extracted from Zod schema', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
       glob: 'inline-contract.controller.ts',

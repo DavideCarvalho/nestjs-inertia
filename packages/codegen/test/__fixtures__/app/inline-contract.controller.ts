@@ -1,14 +1,15 @@
 import 'reflect-metadata';
-import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
-import { Controller } from '@nestjs/common';
+import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
+import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
 
 @Controller()
 export class InlineContractController {
+  @Get('/api/foo')
   @ApplyContract(
-    Contract.get('/api/foo', {
-      response: z.array(z.object({ id: z.string() })),
+    defineContract({
       name: 'foo.list',
+      response: z.array(z.object({ id: z.string() })),
     }),
   )
   list() {

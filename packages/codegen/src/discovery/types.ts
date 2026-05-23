@@ -6,8 +6,6 @@ export interface ContractSource {
 
 export interface ContractDescriptor {
   name: string | undefined;
-  method: string;
-  path: string;
   contractSource: ContractSource;
 }
 

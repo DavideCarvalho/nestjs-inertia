@@ -1,16 +1,17 @@
 import 'reflect-metadata';
-import { ApplyContract, Contract } from '@dudousxd/nestjs-inertia-client';
+import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
 import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
 
 // One route with @ApplyContract (contract route)
-const ListPosts = Contract.get('/api/posts', {
-  response: z.array(z.object({ id: z.string(), title: z.string() })),
+const ListPosts = defineContract({
   name: 'posts.list',
+  response: z.array(z.object({ id: z.string(), title: z.string() })),
 });
 
 @Controller()
 export class MixedController {
+  @Get('/api/posts')
   @ApplyContract(ListPosts)
   list() {
     return [];
