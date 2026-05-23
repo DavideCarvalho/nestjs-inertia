@@ -293,7 +293,7 @@ describe('idempotency', () => {
     await runInitInTmpDir('react');
     spy.mockRestore();
 
-    const skipLogs = logs.filter((l) => l.includes('already exists, skipping'));
+    const skipLogs = logs.filter((l) => l.includes('already exists, skipped'));
     // Expect at least the main scaffold files to be skipped
     expect(skipLogs.length).toBeGreaterThanOrEqual(6);
   });

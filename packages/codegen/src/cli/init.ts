@@ -17,6 +17,32 @@ type PackageManager = 'pnpm' | 'npm' | 'yarn';
 const GITIGNORE_ENTRY = '.nestjs-inertia/';
 
 // ---------------------------------------------------------------------------
+// ANSI color helpers (no external deps)
+// ---------------------------------------------------------------------------
+
+const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
+const yellow = (s: string) => `\x1b[33m${s}\x1b[0m`;
+const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
+const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
+
+function logCreated(path: string) {
+  console.log(`  ${green('✓')} ${path} ${dim('(created)')}`);
+}
+function logPatched(path: string, detail: string) {
+  console.log(`  ${green('✓')} ${path} ${dim(`(${detail})`)}`);
+}
+function logSkipped(path: string) {
+  console.log(`  ${cyan('→')} ${path} ${dim('(already exists, skipped)')}`);
+}
+function logWarning(msg: string) {
+  console.log(`  ${yellow('⚠')} ${msg}`);
+}
+function logSection(title: string) {
+  console.log(`\n${bold(title)}`);
+}
+
+// ---------------------------------------------------------------------------
 // Detection helpers
 // ---------------------------------------------------------------------------
 
@@ -109,7 +135,7 @@ export async function writeIfNotExists(
   label: string,
 ): Promise<void> {
   if (await fileExists(filePath)) {
-    console.log(`✓ ${label} (already exists, skipping)`);
+    logSkipped(label);
     return;
   }
   // Ensure parent directory exists
@@ -118,7 +144,34 @@ export async function writeIfNotExists(
     await mkdir(dir, { recursive: true });
   }
   await writeFile(filePath, content, 'utf8');
-  console.log(`+ ${label}`);
+  logCreated(label);
+}
+
+/**
+ * Handle vite.config.ts — create if missing, warn if present without nestInertia plugin.
+ */
+async function handleViteConfig(cwd: string, framework: Framework): Promise<void> {
+  const filePath = join(cwd, 'vite.config.ts');
+  if (await fileExists(filePath)) {
+    const existing = await readFile(filePath, 'utf8');
+    const hasPlugin =
+      existing.includes('nestInertia') || existing.includes('nestjs-inertia-vite/plugin');
+    if (!hasPlugin) {
+      logSkipped('vite.config.ts');
+      logWarning(
+        `vite.config.ts exists but nestInertia plugin not detected — add it manually:\n    import nestInertia from '@dudousxd/nestjs-inertia-vite/plugin';\n    plugins: [nestInertia({ ${framework}: true })]`,
+      );
+    } else {
+      logSkipped('vite.config.ts');
+    }
+    return;
+  }
+  const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+  if (dir) {
+    await mkdir(dir, { recursive: true });
+  }
+  await writeFile(filePath, viteConfigTemplate(framework), 'utf8');
+  logCreated('vite.config.ts');
 }
 
 async function patchGitignore(gitignorePath: string): Promise<void> {
@@ -128,7 +181,7 @@ async function patchGitignore(gitignorePath: string): Promise<void> {
   }
 
   if (existing.split('\n').some((line) => line.trim() === GITIGNORE_ENTRY)) {
-    console.log(`✓ .gitignore (already contains ${GITIGNORE_ENTRY}, skipping)`);
+    console.log(`  ${cyan('→')} .gitignore ${dim('(already contains .nestjs-inertia/, skipped)')}`);
     return;
   }
 
@@ -138,7 +191,7 @@ async function patchGitignore(gitignorePath: string): Promise<void> {
       : `${existing}\n${GITIGNORE_ENTRY}\n`;
 
   await writeFile(gitignorePath, newContent, 'utf8');
-  console.log(`+ .gitignore (patched with ${GITIGNORE_ENTRY})`);
+  logPatched('.gitignore', 'added .nestjs-inertia/');
 }
 
 export function installDeps(pkgManager: PackageManager, deps: string[], dev: boolean): void {
@@ -152,11 +205,11 @@ export function installDeps(pkgManager: PackageManager, deps: string[], dev: boo
         ? `yarn add ${flag} ${deps.join(' ')}`
         : `pnpm add ${flag} ${deps.join(' ')}`;
 
-  console.log(`\n[nestjs-inertia] Installing: ${deps.join(', ')}`);
+  logPatched(deps.join(', '), 'installed');
   try {
     execSync(cmd, { stdio: 'inherit' });
   } catch {
-    console.error(`[nestjs-inertia] Warning: failed to install deps. Run manually:\n  ${cmd}`);
+    logWarning(`Failed to install deps. Run manually:\n    ${cmd}`);
   }
 }
 
@@ -179,17 +232,18 @@ export async function patchPackageJsonScripts(
     if (!(key in existing)) {
       existing[key] = value;
       changed = true;
+      logPatched('package.json', `added ${key} script`);
+    } else {
+      console.log(`  ${cyan('→')} package.json ${dim(`(${key} already defined, skipped)`)}`);
     }
   }
 
   if (!changed) {
-    console.log('✓ package.json scripts (already up to date, skipping)');
     return;
   }
 
   pkg.scripts = existing;
   await writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
-  console.log('+ package.json (added build scripts)');
 }
 
 // ---------------------------------------------------------------------------
@@ -502,25 +556,33 @@ export class HomeController {
  * `nestjs-inertia init` — scaffold a full Inertia.js project in `cwd`.
  *
  * Idempotent: each file is only written if it does not already exist.
+ * Smart patching: existing files are checked and patched where safe.
  */
 export async function runInit(opts: RunInitOptions = {}): Promise<void> {
   const cwd = opts.cwd ?? process.cwd();
+
+  console.log(`\n${bold('nestjs-inertia init')}`);
 
   // 1. Detect (or ask for) framework
   let framework = await detectFramework(cwd);
   if (!framework) {
     framework = await promptFramework();
   }
-  console.log(`[nestjs-inertia] Framework: ${framework}`);
 
   // 2. Detect template engine
   const engine = await detectTemplateEngine(cwd);
+
+  const engineLabel = engine === 'html' ? 'plain HTML' : engine;
+  const frameworkLabel = framework.charAt(0).toUpperCase() + framework.slice(1);
+  console.log(`\n  Detected: ${bold(`${frameworkLabel} + ${engineLabel}`)}`);
 
   // 3. Scaffold files
   const shellFileName =
     engine === 'html' ? 'index.html' : `index.${engine === 'handlebars' ? 'hbs' : engine}`;
   const entryExt = framework === 'react' ? 'tsx' : 'ts';
   const pageExt = framework === 'react' ? 'tsx' : framework === 'vue' ? 'vue' : 'svelte';
+
+  logSection('Scaffold files');
 
   await writeIfNotExists(
     join(cwd, 'nestjs-inertia.config.ts'),
@@ -530,19 +592,13 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
 
   await writeIfNotExists(join(cwd, 'nestjs-inertia.d.ts'), DTS_TEMPLATE, 'nestjs-inertia.d.ts');
 
-  await patchGitignore(join(cwd, '.gitignore'));
-
   await writeIfNotExists(
     join(cwd, 'inertia', shellFileName),
     htmlShellTemplate(framework, engine),
     `inertia/${shellFileName}`,
   );
 
-  await writeIfNotExists(
-    join(cwd, 'vite.config.ts'),
-    viteConfigTemplate(framework),
-    'vite.config.ts',
-  );
+  await handleViteConfig(cwd, framework);
 
   await writeIfNotExists(
     join(cwd, 'inertia', `app.${entryExt}`),
@@ -563,6 +619,8 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
   );
 
   // 4. Patch app.module.ts and main.ts
+  logSection('Patch existing files');
+
   const rootView =
     engine === 'html'
       ? 'inertia/index.html'
@@ -571,22 +629,27 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
   const appModulePath = join(cwd, 'src', 'app.module.ts');
   const appModuleResult = patchAppModule(appModulePath, rootView);
   if (appModuleResult === 'patched') {
-    console.log('+ src/app.module.ts (added InertiaModule.forRoot + HomeController)');
+    logPatched('src/app.module.ts', 'added InertiaModule.forRoot');
+    logPatched('src/app.module.ts', 'added HomeController to controllers');
   } else if (appModuleResult === 'already') {
-    console.log('✓ src/app.module.ts (InertiaModule already registered)');
+    console.log(
+      `  ${cyan('→')} src/app.module.ts ${dim('(InertiaModule already registered, skipped)')}`,
+    );
   } else {
-    console.log('⚠ src/app.module.ts not found — add InertiaModule.forRoot() manually');
+    logWarning('src/app.module.ts not found — add InertiaModule.forRoot() manually');
   }
 
   const mainTsPath = join(cwd, 'src', 'main.ts');
   const mainTsResult = patchMainTs(mainTsPath);
   if (mainTsResult === 'patched') {
-    console.log('+ src/main.ts (added setupInertiaVite)');
+    logPatched('src/main.ts', 'added setupInertiaVite after NestFactory.create');
   } else if (mainTsResult === 'already') {
-    console.log('✓ src/main.ts (setupInertiaVite already present)');
+    console.log(`  ${cyan('→')} src/main.ts ${dim('(setupInertiaVite already present, skipped)')}`);
   } else {
-    console.log('⚠ src/main.ts not found — add setupInertiaVite() manually');
+    logWarning('src/main.ts not found — add setupInertiaVite() manually');
   }
+
+  await patchGitignore(join(cwd, '.gitignore'));
 
   // 5. Add build scripts to package.json
   await patchPackageJsonScripts(cwd, {
@@ -595,6 +658,8 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
   });
 
   // 6. Install missing deps
+  logSection('Install dependencies');
+
   const pkg = await readPackageJson(cwd);
   const installedDeps = allDeps(pkg);
   const pkgManager = await detectPackageManager(cwd);
@@ -633,5 +698,5 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
     installDeps(pkgManager, devDepsToInstall, true);
   }
 
-  console.log('\n✓ Setup complete! Run: nest start --watch\n');
+  console.log(`\n${green('✓')} Setup complete! Run: ${bold('nest start --watch')}\n`);
 }
