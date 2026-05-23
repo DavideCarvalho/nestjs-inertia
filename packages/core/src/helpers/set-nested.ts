@@ -1,10 +1,20 @@
 import type { Props } from '../types.js';
 
+/** Keys that, if used as property names, would allow prototype-pollution attacks. */
+const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+function assertSafeKey(key: string): void {
+  if (FORBIDDEN_KEYS.has(key)) {
+    throw new Error(`[nestjs-inertia] Disallowed property key in nested path: "${key}"`);
+  }
+}
+
 export function setNested(target: Record<string, unknown>, path: string[], value: unknown): void {
   if (path.length === 0) return;
   let cur: Record<string, unknown> = target;
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i]!;
+    assertSafeKey(key);
     const existing = cur[key];
     if (existing === undefined) {
       cur[key] = {};
@@ -15,7 +25,9 @@ export function setNested(target: Record<string, unknown>, path: string[], value
     }
     cur = cur[key] as Record<string, unknown>;
   }
-  cur[path[path.length - 1]!] = value;
+  const finalKey = path[path.length - 1]!;
+  assertSafeKey(finalKey);
+  cur[finalKey] = value;
 }
 
 export function unpackDotKeys(props: Props): Props {

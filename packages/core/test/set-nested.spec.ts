@@ -50,3 +50,38 @@ describe('unpackDotKeys', () => {
     expect(() => unpackDotKeys({ user: 'X', 'user.name': 'Y' })).toThrow(/conflict/i);
   });
 });
+
+// M-1: Prototype pollution protection
+describe('setNested — prototype pollution prevention', () => {
+  it('throws when path contains __proto__', () => {
+    const target: Record<string, unknown> = {};
+    expect(() => setNested(target, ['__proto__', 'polluted'], true)).toThrow(/Disallowed/i);
+  });
+
+  it('throws when path contains prototype', () => {
+    const target: Record<string, unknown> = {};
+    expect(() => setNested(target, ['prototype', 'polluted'], true)).toThrow(/Disallowed/i);
+  });
+
+  it('throws when path contains constructor', () => {
+    const target: Record<string, unknown> = {};
+    expect(() => setNested(target, ['constructor', 'polluted'], true)).toThrow(/Disallowed/i);
+  });
+
+  it('throws when __proto__ is the final segment', () => {
+    const target: Record<string, unknown> = {};
+    expect(() => setNested(target, ['a', '__proto__'], true)).toThrow(/Disallowed/i);
+  });
+
+  it('does NOT pollute Object.prototype even when called directly', () => {
+    const target: Record<string, unknown> = {};
+    expect(() => setNested(target, ['__proto__', 'polluted'], true)).toThrow();
+    expect((Object.prototype as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('legitimate keys still work after adding the guard', () => {
+    const target: Record<string, unknown> = {};
+    setNested(target, ['user', 'name'], 'Alice');
+    expect(target).toEqual({ user: { name: 'Alice' } });
+  });
+});
