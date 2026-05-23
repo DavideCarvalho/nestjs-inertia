@@ -217,33 +217,30 @@ For the full options reference see the [core package docs](/nestjs-inertia/packa
 
 ### Adding a typed API endpoint
 
-The client package lets you declare request/response contracts for endpoints and share the types between the server and browser. Contracts use Zod for runtime validation.
+The codegen reads types directly from standard NestJS decorators — no extra schemas or contracts needed. Use the DTOs and decorators you already have:
 
 ```ts
 // src/posts.controller.ts
 import { Controller, Get, Query } from '@nestjs/common';
-import { z } from 'zod';
-import { As, ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
+import { ApiResponse } from '@nestjs/swagger';
+import { As } from '@dudousxd/nestjs-inertia-client';
 
-const ListPostsContract = defineContract({
-  query: z.object({
-    page: z.coerce.number().min(1).optional().default(1),
-  }),
-  response: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      publishedAt: z.string(),
-    }),
-  ),
-});
+class ListPostsQuery {
+  page?: number;
+}
+
+class PostDto {
+  id: string;
+  title: string;
+  publishedAt: string;
+}
 
 @Controller('/api/posts')
 @As('posts')
 export class PostsController {
   @Get()
-  @ApplyContract(ListPostsContract)
-  list(@Query() query: z.infer<NonNullable<typeof ListPostsContract.query>>) {
+  @ApiResponse({ type: [PostDto] })
+  list(@Query() query: ListPostsQuery) {
     return [
       { id: '1', title: 'Hello World', publishedAt: '2026-01-01' },
     ];
@@ -251,7 +248,15 @@ export class PostsController {
 }
 ```
 
-`@As('posts')` on the class sets the namespace; the method name `list` becomes the action. The generated route name is `posts.list`. No URL is declared twice.
+The codegen reads:
+- **`@Controller('/api/posts')` + `@Get()`** → HTTP method + path
+- **`@Query() query: ListPostsQuery`** → query type from the DTO class
+- **`@ApiResponse({ type: [PostDto] })`** → response type
+- **`@As('posts')`** → class namespace; method name `list` → route name `posts.list`
+
+No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
+
+> **Advanced:** If you prefer explicit Zod schemas (runtime validation + type extraction), see the [defineContract + @ApplyContract docs](/nestjs-inertia/guides/codegen/#applycontract-example). Both paths work — DTOs are zero-config, Zod is explicit.
 
 ---
 
@@ -261,7 +266,6 @@ Enable the file watcher in `app.module.ts` so codegen runs on every controller c
 
 ```ts
 InertiaModule.forRoot({
-  version: '1',
   rootView: 'views/shell.html',
   codegen: {
     enabled: process.env.NODE_ENV !== 'production',
@@ -276,7 +280,7 @@ your-project/
 ├── .nestjs-inertia/
 │   ├── pages.d.ts     ← typed page component map
 │   ├── routes.ts      ← Route.* and Path.* typed route constants
-│   ├── api.ts         ← @ApplyContract endpoints as typed client surface
+│   ├── api.ts         ← typed API surface from controller DTOs + @ApiResponse
 │   └── index.d.ts     ← barrel re-export
 ```
 
