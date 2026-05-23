@@ -101,6 +101,46 @@ export default config;
     expect(config.contracts.useStaticDiscovery).toBe(false);
   });
 
+  // S-2: tsconfig path jail (closes H-4 escape)
+  describe('S-2: tsconfig path jail', () => {
+    it('accepts tsconfig inside cwd', async () => {
+      await writeFile(
+        join(tmpDir, 'nestjs-inertia.config.ts'),
+        `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  app: { moduleEntry: 'src/app.module.ts', tsconfig: 'tsconfig.json' },
+};`,
+      );
+
+      const config = await loadConfig(tmpDir);
+      expect(config.app?.tsconfig).toContain('tsconfig.json');
+    });
+
+    it('throws ConfigError when tsconfig traverses above cwd via ..', async () => {
+      await writeFile(
+        join(tmpDir, 'nestjs-inertia.config.ts'),
+        `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  app: { moduleEntry: 'src/app.module.ts', tsconfig: '../../etc/tsconfig.json' },
+};`,
+      );
+
+      await expect(loadConfig(tmpDir)).rejects.toThrow(ConfigError);
+    });
+
+    it('throws ConfigError when tsconfig is an absolute path outside cwd', async () => {
+      await writeFile(
+        join(tmpDir, 'nestjs-inertia.config.ts'),
+        `export default {
+  pages: { glob: 'src/pages/**/*.vue' },
+  app: { moduleEntry: 'src/app.module.ts', tsconfig: '/etc/tsconfig.json' },
+};`,
+      );
+
+      await expect(loadConfig(tmpDir)).rejects.toThrow(ConfigError);
+    });
+  });
+
   // H-4: moduleEntry path jail
   describe('H-4: moduleEntry path jail', () => {
     it('accepts moduleEntry inside cwd', async () => {

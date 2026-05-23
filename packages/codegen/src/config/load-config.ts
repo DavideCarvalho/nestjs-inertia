@@ -68,9 +68,15 @@ function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
     const resolvedEntry = resolveAbsolute(cwd, userConfig.app.moduleEntry);
     assertInsideCwd(cwd, resolvedEntry, 'app.moduleEntry');
 
+    let resolvedTsconfig: string | null = null;
+    if (userConfig.app.tsconfig) {
+      resolvedTsconfig = resolveAbsolute(cwd, userConfig.app.tsconfig);
+      assertInsideCwd(cwd, resolvedTsconfig, 'app.tsconfig');
+    }
+
     app = {
       moduleEntry: resolvedEntry,
-      tsconfig: userConfig.app.tsconfig ? resolveAbsolute(cwd, userConfig.app.tsconfig) : null,
+      tsconfig: resolvedTsconfig,
     };
   }
 
