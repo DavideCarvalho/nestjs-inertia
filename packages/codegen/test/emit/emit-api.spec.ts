@@ -82,17 +82,17 @@ describe('emitApi', () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain('export type ApiRouter');
-    expect(content).toContain("'users.list'");
-    expect(content).toContain("'users.create'");
+    expect(content).toContain('"users.list"');
+    expect(content).toContain('"users.create"');
     // Non-contracted route must not appear in ApiRouter
-    expect(content).not.toContain("'HealthController.check'");
+    expect(content).not.toContain('"HealthController.check"');
   });
 
   it('GET contract produces queryOptions', async () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain('queryOptions');
-    expect(content).toContain("queryKey: ['users.list'");
+    expect(content).toContain('queryKey: ["users.list"');
     expect(content).toContain('fetcher.get<');
   });
 
@@ -110,7 +110,7 @@ describe('emitApi', () => {
     // GET routes must declare body as never — find the users.list entry line
     const listLine = content
       .split('\n')
-      .find((l) => l.includes("'users.list'") && l.includes('method:'));
+      .find((l) => l.includes('"users.list"') && l.includes('method:'));
     expect(listLine).toBeDefined();
     expect(listLine).toMatch(/body:\s*never/);
   });
@@ -133,7 +133,7 @@ describe('emitApi', () => {
     // find the users.create entry line in ApiRouter
     const createLine = content
       .split('\n')
-      .find((l) => l.includes("'users.create'") && l.includes('method:'));
+      .find((l) => l.includes('"users.create"') && l.includes('method:'));
     expect(createLine).toBeDefined();
     expect(createLine).toMatch(/query:\s*never/);
   });
@@ -153,7 +153,7 @@ describe('emitApi', () => {
     await emitApi(onlyNoContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     // ApiRouter should be empty / only contracts
-    expect(content).not.toContain("'HealthController.check'");
+    expect(content).not.toContain('"HealthController.check"');
   });
 
   it('creates outDir if it does not exist', async () => {
@@ -167,7 +167,55 @@ describe('emitApi', () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain('export const api');
-    expect(content).toContain("'users.list'");
-    expect(content).toContain("'users.create'");
+    expect(content).toContain('"users.list"');
+    expect(content).toContain('"users.create"');
+  });
+
+  it('sanitizes route names with unsafe chars using JSON.stringify', async () => {
+    const unsafeName = "na'me\nwith\nnewlines";
+    const maliciousRoutes: RouteDescriptor[] = [
+      {
+        method: 'GET',
+        path: '/safe',
+        name: unsafeName,
+        params: [],
+        contract: {
+          name: unsafeName,
+          method: 'GET',
+          path: '/safe',
+          contractSource: { query: null, body: null, response: 'unknown' },
+        },
+      },
+    ];
+    await emitApi(maliciousRoutes, outDir);
+    const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+
+    // The newlines must be escaped (\\n) — raw newlines would break the generated file
+    expect(content).not.toMatch(/na'me\n/);
+    // The name should appear JSON-encoded (double-quoted with escape sequences)
+    expect(content).toContain(JSON.stringify(unsafeName));
+  });
+
+  it('sanitizes route paths with unsafe chars using JSON.stringify', async () => {
+    const unsafePath = '/api/foo`bar';
+    const maliciousRoutes: RouteDescriptor[] = [
+      {
+        method: 'GET',
+        path: unsafePath,
+        name: 'safe.name',
+        params: [],
+        contract: {
+          name: 'safe.name',
+          method: 'GET',
+          path: unsafePath,
+          contractSource: { query: null, body: null, response: 'unknown' },
+        },
+      },
+    ];
+    await emitApi(maliciousRoutes, outDir);
+    const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+
+    // The path must appear JSON-encoded, not as a raw template literal
+    expect(content).toContain(JSON.stringify(unsafePath));
   });
 });

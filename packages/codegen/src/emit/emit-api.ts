@@ -38,8 +38,10 @@ function buildApiFile(routes: RouteDescriptor[]): string {
       const query = c.contractSource.query ?? 'never';
       const body = method === 'GET' ? 'never' : (c.contractSource.body ?? 'never');
       const response = c.contractSource.response;
+      const safeName = JSON.stringify(c.name);
+      const safeMethod = JSON.stringify(method);
       lines.push(
-        `  '${c.name}': { method: '${method}'; query: ${query}; body: ${body}; response: ${response} };`,
+        `  ${safeName}: { method: ${safeMethod}; query: ${query}; body: ${body}; response: ${response} };`,
       );
     }
     lines.push('};');
@@ -55,27 +57,27 @@ function buildApiFile(routes: RouteDescriptor[]): string {
     for (const r of contracted) {
       const c = r.contract!;
       const method = c.method.toUpperCase();
-      const name = c.name;
-      const path = c.path;
+      const safeName = JSON.stringify(c.name);
+      const safePath = JSON.stringify(c.path);
       const fetcherMethod = method.toLowerCase();
 
       if (method === 'GET') {
         // queryOptions
-        lines.push(`  '${name}': {`);
-        lines.push(`    queryOptions: (query?: ApiRouter['${name}']['query']) =>`);
+        lines.push(`  ${safeName}: {`);
+        lines.push(`    queryOptions: (query?: ApiRouter[${safeName}]['query']) =>`);
         lines.push('      queryOptions({');
-        lines.push(`        queryKey: ['${name}', query],`);
+        lines.push(`        queryKey: [${safeName}, query],`);
         lines.push(
-          `        queryFn: () => fetcher.get<ApiRouter['${name}']['response']>(route('${name}' as never) || '${path}', { query }),`,
+          `        queryFn: () => fetcher.get<ApiRouter[${safeName}]['response']>(route(${safeName} as never) || ${safePath}, { query }),`,
         );
         lines.push('      }),');
         lines.push('  },');
       } else {
         // mutationOptions
-        lines.push(`  '${name}': {`);
+        lines.push(`  ${safeName}: {`);
         lines.push('    mutationOptions: () => ({');
         lines.push(
-          `      mutationFn: (body: ApiRouter['${name}']['body']) => fetcher.${fetcherMethod}<ApiRouter['${name}']['response']>(route('${name}' as never) || '${path}', { body }),`,
+          `      mutationFn: (body: ApiRouter[${safeName}]['body']) => fetcher.${fetcherMethod}<ApiRouter[${safeName}]['response']>(route(${safeName} as never) || ${safePath}, { body }),`,
         );
         lines.push('    }),');
         lines.push('  },');
