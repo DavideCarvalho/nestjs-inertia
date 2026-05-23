@@ -149,9 +149,9 @@ describe('watch', () => {
       // Wait for onChange to fire
       await waitForCondition(() => onChangeCalled > 0, 4000);
 
-      // The api.ts should reference the users.list contract name (from contract options)
+      // The api.ts should reference the auto-derived contract name (ContractUsersController.list → contractUsers.list)
       const apiContent = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(apiContent).toContain('users.list');
+      expect(apiContent).toContain('contractUsers');
     } finally {
       // Restore original fixture content
       await writeFile(controllerPath, originalContent, 'utf8');

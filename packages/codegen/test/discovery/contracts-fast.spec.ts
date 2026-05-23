@@ -7,7 +7,7 @@
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { discoverContractsFast } from '../../src/discovery/contracts-fast.js';
+import { deriveRouteName, discoverContractsFast } from '../../src/discovery/contracts-fast.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = resolve(__dirname, '../__fixtures__/app');
@@ -16,12 +16,12 @@ describe('discoverContractsFast', () => {
   it('discovers routes from the contract-users fixture controller', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
-      glob: '*.controller.ts',
+      glob: 'contract-users.controller.ts',
     });
 
-    // Should find at least the ListUsers contract (name comes from defineContract's name field)
-    const route = routes.find((r) => r.name === 'users.list');
-    expect(route, 'users.list route not found').toBeDefined();
+    // Name is now derived from ContractUsersController.list → contractUsers.list
+    const route = routes.find((r) => r.name === 'contractUsers.list');
+    expect(route, 'contractUsers.list route not found').toBeDefined();
   });
 
   it('returns GET method and /api/users path', async () => {
@@ -36,7 +36,7 @@ describe('discoverContractsFast', () => {
     expect(route.path).toBe('/api/users');
   });
 
-  it('includes contract with users.list name', async () => {
+  it('derives route name contractUsers.list from ContractUsersController.list', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
       glob: 'contract-users.controller.ts',
@@ -44,7 +44,8 @@ describe('discoverContractsFast', () => {
 
     const route = routes[0];
     expect(route.contract).toBeDefined();
-    expect(route.contract?.name).toBe('users.list');
+    // name is on RouteDescriptor, not ContractDescriptor
+    expect(route.name).toBe('contractUsers.list');
   });
 
   it('includes contractSource with active in query and id/name in response', async () => {
@@ -119,7 +120,8 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
     });
 
     expect(routes).toHaveLength(2);
-    const contract = routes.find((r) => r.name === 'posts.list' || r.contract !== undefined);
+    // MixedController.list → mixed.list (auto-derived)
+    const contract = routes.find((r) => r.name === 'mixed.list' || r.contract !== undefined);
     const plain = routes.find((r) => r.name === 'MixedController.index');
 
     expect(contract).toBeDefined();
@@ -147,7 +149,8 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
       cwd: fixturesDir,
       glob: 'all-verbs.controller.ts',
     });
-    const r = routes.find((x) => x.name === 'items.list');
+    // AllVerbsController.list → allVerbs.list
+    const r = routes.find((x) => x.name === 'allVerbs.list');
     expect(r?.method).toBe('GET');
     expect(r?.path).toBe('/api/items');
   });
@@ -157,7 +160,8 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
       cwd: fixturesDir,
       glob: 'all-verbs.controller.ts',
     });
-    const r = routes.find((x) => x.name === 'items.create');
+    // AllVerbsController.create → allVerbs.create
+    const r = routes.find((x) => x.name === 'allVerbs.create');
     expect(r?.method).toBe('POST');
     expect(r?.path).toBe('/api/items');
   });
@@ -167,7 +171,8 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
       cwd: fixturesDir,
       glob: 'all-verbs.controller.ts',
     });
-    const r = routes.find((x) => x.name === 'items.replace');
+    // AllVerbsController.replace → allVerbs.replace
+    const r = routes.find((x) => x.name === 'allVerbs.replace');
     expect(r?.method).toBe('PUT');
     expect(r?.path).toBe('/api/items/:id');
     expect(r?.params).toEqual([{ name: 'id', source: 'path' }]);
@@ -178,7 +183,8 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
       cwd: fixturesDir,
       glob: 'all-verbs.controller.ts',
     });
-    const r = routes.find((x) => x.name === 'items.update');
+    // AllVerbsController.update → allVerbs.update
+    const r = routes.find((x) => x.name === 'allVerbs.update');
     expect(r?.method).toBe('PATCH');
     expect(r?.path).toBe('/api/items/:id');
   });
@@ -188,7 +194,8 @@ describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', ()
       cwd: fixturesDir,
       glob: 'all-verbs.controller.ts',
     });
-    const r = routes.find((x) => x.name === 'items.delete');
+    // AllVerbsController.remove → allVerbs.remove (method is named 'remove')
+    const r = routes.find((x) => x.name === 'allVerbs.remove');
     expect(r?.method).toBe('DELETE');
     expect(r?.path).toBe('/api/items/:id');
   });
@@ -218,14 +225,15 @@ describe('discoverContractsFast — inline defineContract call inside @ApplyCont
     expect(route.contract).toBeDefined();
   });
 
-  it('inline defineContract has the correct name from the options object', async () => {
+  it('derives name inlineContract.list from InlineContractController.list', async () => {
     const routes = await discoverContractsFast({
       cwd: fixturesDir,
       glob: 'inline-contract.controller.ts',
     });
 
     const route = routes[0];
-    expect(route.contract?.name).toBe('foo.list');
+    // Name is now on RouteDescriptor, not ContractDescriptor
+    expect(route.name).toBe('inlineContract.list');
   });
 
   it('inline defineContract has response type extracted from Zod schema', async () => {
@@ -237,5 +245,82 @@ describe('discoverContractsFast — inline defineContract call inside @ApplyCont
     const cs = routes[0].contract?.contractSource;
     expect(cs?.response).toContain('id');
     expect(cs?.body).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unit tests for deriveRouteName helper
+// ---------------------------------------------------------------------------
+
+describe('deriveRouteName', () => {
+  it('UsersController.list → users.list', () => {
+    expect(deriveRouteName('UsersController', 'list')).toBe('users.list');
+  });
+
+  it('AdminUsersController.create → adminUsers.create', () => {
+    expect(deriveRouteName('AdminUsersController', 'create')).toBe('adminUsers.create');
+  });
+
+  it('PostsController.show → posts.show', () => {
+    expect(deriveRouteName('PostsController', 'show')).toBe('posts.show');
+  });
+
+  it('throws for a class named exactly Controller (empty segment after strip)', () => {
+    expect(() => deriveRouteName('Controller', 'list')).toThrow(/derives empty route segment/);
+  });
+
+  it('class name with no Controller suffix is used as-is (first letter lowercased)', () => {
+    // If someone names a class Widgets (no Controller suffix), use it as-is
+    expect(deriveRouteName('Widgets', 'list')).toBe('widgets.list');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// @As decorator override
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — @As decorator override', () => {
+  it('@As overrides auto-derived name', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'as-override.controller.ts',
+    });
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0].name).toBe('crew.directory.fetch');
+  });
+
+  it('@As override preserves method and path', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'as-override.controller.ts',
+    });
+
+    expect(routes[0].method).toBe('GET');
+    expect(routes[0].path).toBe('/api/crew');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Collision detection
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — collision detection', () => {
+  it('throws when two methods derive/assign to the same name', async () => {
+    await expect(
+      discoverContractsFast({
+        cwd: fixturesDir,
+        glob: 'collision.controller.ts',
+      }),
+    ).rejects.toThrow(/Route name collision/);
+  });
+
+  it('error message includes both conflicting method refs', async () => {
+    await expect(
+      discoverContractsFast({
+        cwd: fixturesDir,
+        glob: 'collision.controller.ts',
+      }),
+    ).rejects.toThrow(/CollisionController/);
   });
 });

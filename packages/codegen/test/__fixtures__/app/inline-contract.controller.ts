@@ -8,7 +8,6 @@ export class InlineContractController {
   @Get('/api/foo')
   @ApplyContract(
     defineContract({
-      name: 'foo.list',
       response: z.array(z.object({ id: z.string() })),
     }),
   )

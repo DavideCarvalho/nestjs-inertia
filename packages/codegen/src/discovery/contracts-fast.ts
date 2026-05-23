@@ -204,10 +204,9 @@ function decoratorStringArg(decoratorExpr: Node | undefined): string | undefined
 
 /**
  * Parse a defineContract({...}) call expression.
- * Returns { name, query, body, response } or null if unrecognised.
+ * Returns { query, body, response } or null if unrecognised.
  */
 function parseDefineContractCall(callExpr: Node): {
-  name: string | undefined;
   query: string | null;
   body: string | null;
   response: string;
@@ -228,7 +227,6 @@ function parseDefineContractCall(callExpr: Node): {
   const optsArg = args[0];
   if (!optsArg || !Node.isObjectLiteralExpression(optsArg)) return null;
 
-  let name: string | undefined = undefined;
   let query: string | null = null;
   let body: string | null = null;
   let response = 'unknown';
@@ -239,9 +237,7 @@ function parseDefineContractCall(callExpr: Node): {
     const val = prop.getInitializer();
     if (!val) continue;
 
-    if (propName === 'name' && Node.isStringLiteral(val)) {
-      name = val.getLiteralValue();
-    } else if (propName === 'query') {
+    if (propName === 'query') {
       query = zodAstToTs(val);
     } else if (propName === 'body') {
       body = zodAstToTs(val);
@@ -250,7 +246,23 @@ function parseDefineContractCall(callExpr: Node): {
     }
   }
 
-  return { name, query, body, response };
+  return { query, body, response };
+}
+
+/**
+ * Derive the route name from a controller class name and method name.
+ * Strips the `Controller` suffix from the class name and lowercases the first letter.
+ * e.g. `UsersController.list` → `users.list`
+ */
+export function deriveRouteName(className: string, methodName: string): string {
+  const noSuffix = className.replace(/Controller$/, '');
+  if (!noSuffix) {
+    throw new Error(
+      `Controller class name "${className}" derives empty route segment after stripping "Controller". Add an @As(...) override.`,
+    );
+  }
+  const segment = noSuffix.charAt(0).toLowerCase() + noSuffix.slice(1);
+  return `${segment}.${methodName}`;
 }
 
 /** Join two URL path segments, normalising duplicate slashes. */
@@ -294,6 +306,8 @@ const HTTP_METHOD_DECORATORS: Record<string, string> = {
 
 function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
   const routes: RouteDescriptor[] = [];
+  // Track derived/assigned names to detect collisions: name → fully-qualified method ref
+  const seenNames = new Map<string, string>();
 
   const classes = sourceFile.getClasses();
 
@@ -306,6 +320,8 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
     const controllerArgs = controllerDecorator.getArguments();
     const firstArg = controllerArgs[0];
     const prefix = decoratorStringArg(firstArg) ?? '';
+
+    const className = cls.getName() ?? 'Unknown';
 
     // Walk all methods
     for (const method of cls.getMethods()) {
@@ -334,7 +350,6 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
 
         // Resolve contract definition from inline call or identifier
         let contractDef: {
-          name: string | undefined;
           query: string | null;
           body: string | null;
           response: string;
@@ -372,7 +387,33 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
 
         const combined = resolvedPath;
         const params = extractParams(combined);
-        const routeName = contractDef.name ?? `${cls.getName() ?? 'Unknown'}.${method.getName()}`;
+
+        // Determine route name: @As override takes priority, else derive from class.method
+        const methodName = method.getName();
+        const asDecorator = method.getDecorator('As');
+        let routeName: string;
+        if (asDecorator) {
+          const asArgs = asDecorator.getArguments();
+          const asName = decoratorStringArg(asArgs[0]);
+          if (!asName) {
+            throw new Error(
+              `@As decorator on ${className}.${methodName} must have a non-empty string argument.`,
+            );
+          }
+          routeName = asName;
+        } else {
+          routeName = deriveRouteName(className, methodName);
+        }
+
+        // Collision detection across contracted routes
+        const qualifiedRef = `${className}.${methodName}`;
+        const existing = seenNames.get(routeName);
+        if (existing !== undefined) {
+          throw new Error(
+            `Route name collision: "${routeName}" is used by both "${existing}" and "${qualifiedRef}". Use @As(...) to give one of them a unique name.`,
+          );
+        }
+        seenNames.set(routeName, qualifiedRef);
 
         routes.push({
           method: resolvedMethod,
@@ -380,7 +421,6 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
           name: routeName,
           params,
           contract: {
-            name: contractDef.name,
             contractSource: {
               query: contractDef.query,
               body: contractDef.body,
@@ -395,7 +435,6 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
         const combined = joinPaths(prefix, handlerPath);
         const params = extractParams(combined);
 
-        const className = cls.getName() ?? 'Unknown';
         const methodName = method.getName();
         const routeName = `${className}.${methodName}`;
 

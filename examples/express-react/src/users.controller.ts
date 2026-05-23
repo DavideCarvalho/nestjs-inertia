@@ -3,7 +3,6 @@ import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
 
 const ListUsers = defineContract({
-  name: 'users.list',
   query: z.object({ active: z.boolean().optional() }),
   response: z.array(z.object({ id: z.string(), name: z.string() })),
 });

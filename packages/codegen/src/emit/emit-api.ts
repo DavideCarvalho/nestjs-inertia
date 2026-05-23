@@ -284,8 +284,7 @@ function buildApiFile(routes: RouteDescriptor[]): string {
 
   for (const r of contracted) {
     const c = r.contract!;
-    if (!c.name) continue; // skip contracts without a name
-    const name: string = c.name;
+    const name: string = r.name;
     const segments = splitName(name);
     // Validate each segment is a valid camelCase identifier
     for (const seg of segments) {

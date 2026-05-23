@@ -23,7 +23,6 @@ describe('emitApi', () => {
       name: 'users.list',
       params: [],
       contract: {
-        name: 'users.list',
         contractSource: {
           query: '{ active?: boolean | undefined }',
           body: null,
@@ -37,7 +36,6 @@ describe('emitApi', () => {
       name: 'users.create',
       params: [],
       contract: {
-        name: 'users.create',
         contractSource: {
           query: null,
           body: '{ name: string; email: string }',
@@ -164,7 +162,6 @@ describe('emitApi', () => {
         name: 'health',
         params: [],
         contract: {
-          name: 'health',
           contractSource: { query: null, body: null, response: '{ ok: boolean }' },
         },
       },
@@ -186,7 +183,6 @@ describe('emitApi', () => {
         name: 'admin.users.list',
         params: [],
         contract: {
-          name: 'admin.users.list',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -210,7 +206,6 @@ describe('emitApi', () => {
         name: 'users',
         params: [],
         contract: {
-          name: 'users',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -220,7 +215,6 @@ describe('emitApi', () => {
         name: 'users.list',
         params: [],
         contract: {
-          name: 'users.list',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -268,7 +262,6 @@ describe('emitApi', () => {
         name: 'safe.name',
         params: [],
         contract: {
-          name: 'safe.name',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -290,7 +283,6 @@ describe('emitApi', () => {
         name: 'safe.name',
         params: [],
         contract: {
-          name: 'safe.name',
           contractSource: { query: null, body: null, response: 'unknown' },
         },
       },
@@ -359,7 +351,6 @@ describe('emitApi', () => {
           name,
           params: [],
           contract: {
-            name,
             contractSource: { query: null, body: null, response: 'unknown' },
           },
         },

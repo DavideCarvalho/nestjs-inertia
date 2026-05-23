@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 // One route with @ApplyContract (contract route)
 const ListPosts = defineContract({
-  name: 'posts.list',
   response: z.array(z.object({ id: z.string(), title: z.string() })),
 });
 

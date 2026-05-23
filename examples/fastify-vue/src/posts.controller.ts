@@ -3,7 +3,6 @@ import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
 
 const ListPosts = defineContract({
-  name: 'posts.list',
   response: z.array(z.object({ id: z.string(), title: z.string() })),
 });
 
