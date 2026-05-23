@@ -1,8 +1,4 @@
 export const VERSION = '0.9.0-alpha.0';
-export { InertiaAuthGuard } from './guard/auth.guard.js';
-export type { InertiaAuthGuardOptions } from './guard/auth.guard.js';
-export { InertiaNotFoundFilter } from './filter/not-found.filter.js';
-export type { InertiaNotFoundFilterOptions } from './filter/not-found.filter.js';
 export { ErrorBagInterceptor } from './interceptor/error-bag.interceptor.js';
 export { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 export { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';

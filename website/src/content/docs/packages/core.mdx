@@ -23,8 +23,8 @@ The heart of the system. Implements the Inertia.js v2 protocol as a NestJS modul
 | `Inertia.optional(fn)` | Prop marker — resolved only when explicitly requested |
 | `Inertia.defer(fn, group?)` | Prop marker — deferred to a separate request |
 | `Inertia.merge(fn, opts?)` | Prop marker — appended/prepended on reload |
-| `InertiaAuthGuard` | 409 for XHR, 302 for initial GET |
-| `InertiaNotFoundFilter` | Renders `NotFound` component outside `/api` routes |
+| `InertiaAuthGuard` | Removed — see [auth-redirect recipe](/nestjs-inertia/guides/auth-redirect/) |
+| `InertiaNotFoundFilter` | Removed — see [not-found recipe](/nestjs-inertia/guides/not-found/) |
 | `ErrorBagInterceptor` | Namespaces `errors` by `X-Inertia-Error-Bag` header |
 | `CsrfCookieInterceptor` | Sets `XSRF-TOKEN` cookie and validates `X-XSRF-TOKEN` |
 

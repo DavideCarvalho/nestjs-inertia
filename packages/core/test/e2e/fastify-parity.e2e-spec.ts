@@ -1,12 +1,48 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Controller, Get, Put, Res, UseGuards } from '@nestjs/common';
+import { type CanActivate, Controller, type ExecutionContext, Get, Put, Res, UseGuards } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import type { FastifyReply } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Inertia, InertiaAuthGuard, InertiaModule } from '../../src/index.js';
+import { Inertia, InertiaModule } from '../../src/index.js';
+
+/**
+ * Inline auth guard implementing the 302/409 Inertia redirect pattern for Fastify.
+ */
+class LocalFastifyAuthGuard implements CanActivate {
+  private readonly signInUrl = '/signin';
+
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest<{ user?: unknown; url?: string; headers: Record<string, string | undefined> }>();
+    const res = ctx.switchToHttp().getResponse<{
+      code: (n: number) => unknown;
+      header: (k: string, v: string) => unknown;
+      send: (body: string) => void;
+      redirect: (url: string, code: number) => void;
+    }>();
+
+    if (req.user) return true;
+
+    const rawUrl = (req as unknown as { raw?: { originalUrl?: string; url?: string } }).raw?.originalUrl
+      ?? (req as unknown as { raw?: { url?: string } }).raw?.url
+      ?? req.url ?? '/';
+    const path = new URL(rawUrl, 'http://localhost').pathname;
+    const target = path === this.signInUrl
+      ? this.signInUrl
+      : `${this.signInUrl}?return_to=${encodeURIComponent(path)}`;
+
+    const isInertia = req.headers['x-inertia'] !== undefined;
+    if (isInertia) {
+      (res as unknown as { code: (n: number) => { header: (k: string, v: string) => { send: (b: string) => void } } })
+        .code(409).header('X-Inertia-Location', target).send('');
+    } else {
+      res.redirect(target, 302);
+    }
+    return false;
+  }
+}
 
 @Controller()
 class TestController {
@@ -22,7 +58,7 @@ class TestController {
   }
 
   @Get('/protected')
-  @UseGuards(new InertiaAuthGuard({ signInUrl: '/signin', allowList: [] }))
+  @UseGuards(new LocalFastifyAuthGuard())
   @Inertia('Protected')
   protected() {
     return {};
