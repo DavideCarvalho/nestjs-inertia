@@ -4,7 +4,15 @@ import fg from 'fast-glob';
  * Static AST-based contract discovery using ts-morph.
  * Cold start ~100-500 ms.
  */
-import { Node, Project, type SourceFile, SyntaxKind } from 'ts-morph';
+import {
+  type ClassDeclaration,
+  type MethodDeclaration,
+  Node,
+  Project,
+  type SourceFile,
+  SyntaxKind,
+  type TypeNode,
+} from 'ts-morph';
 import type { RouteDescriptor } from './types.js';
 
 export interface FastDiscoveryOptions {
@@ -318,6 +326,246 @@ function extractParams(
 }
 
 // ---------------------------------------------------------------------------
+// DTO-based contract extraction (standard NestJS patterns — no defineContract)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a TypeNode to a TypeScript type-source string by inspecting the
+ * referenced class declaration in the same source file.
+ * Falls back to the raw text of the typeNode when the class cannot be resolved.
+ * `depth` limits recursive expansion (guards against circular references).
+ */
+function resolveTypeNodeToString(
+  typeNode: TypeNode,
+  sourceFile: SourceFile,
+  depth: number,
+): string {
+  if (depth <= 0) return 'unknown';
+
+  // Array<T> or T[] — unwrap and wrap
+  if (Node.isArrayTypeNode(typeNode)) {
+    const elementType = typeNode.getElementTypeNode();
+    return `Array<${resolveTypeNodeToString(elementType, sourceFile, depth)}>`;
+  }
+
+  // TypeReference: Foo, Foo[], Array<Foo>, Promise<Foo>, etc.
+  if (Node.isTypeReference(typeNode)) {
+    const typeName = typeNode.getTypeName();
+    const name = Node.isIdentifier(typeName) ? typeName.getText() : typeNode.getText();
+
+    // Well-known pass-through primitives and types
+    if (name === 'string' || name === 'number' || name === 'boolean') return name;
+    if (name === 'Date') return 'string';
+    if (name === 'unknown' || name === 'any') return 'unknown';
+
+    // Array<T> generic form
+    if (name === 'Array') {
+      const typeArgs = typeNode.getTypeArguments();
+      const firstTypeArg = typeArgs[0];
+      if (typeArgs.length > 0 && firstTypeArg !== undefined) {
+        return `Array<${resolveTypeNodeToString(firstTypeArg, sourceFile, depth)}>`;
+      }
+      return 'Array<unknown>';
+    }
+
+    // Promise<T> — unwrap
+    if (name === 'Promise') {
+      const typeArgs = typeNode.getTypeArguments();
+      const firstTypeArg = typeArgs[0];
+      if (typeArgs.length > 0 && firstTypeArg !== undefined) {
+        return resolveTypeNodeToString(firstTypeArg, sourceFile, depth);
+      }
+      return 'unknown';
+    }
+
+    // Try to find a class declaration with that name in the same file
+    const classDec = sourceFile.getClass(name);
+    if (classDec) {
+      return resolveClassDeclaration(classDec, sourceFile, depth - 1);
+    }
+
+    // Fall back: use the name as-is (could be an imported type we can't resolve)
+    return name;
+  }
+
+  // Primitive keyword types
+  const kind = typeNode.getKind();
+  if (kind === SyntaxKind.StringKeyword) return 'string';
+  if (kind === SyntaxKind.NumberKeyword) return 'number';
+  if (kind === SyntaxKind.BooleanKeyword) return 'boolean';
+  if (kind === SyntaxKind.UnknownKeyword) return 'unknown';
+  if (kind === SyntaxKind.AnyKeyword) return 'unknown';
+
+  // Fallback: raw text
+  return typeNode.getText();
+}
+
+/**
+ * Turn a class declaration's properties into a TS object type string like
+ * `{ id: string; title: string; page?: number }`.
+ */
+function resolveClassDeclaration(
+  cls: ClassDeclaration,
+  sourceFile: SourceFile,
+  depth: number,
+): string {
+  if (depth < 0) return 'unknown';
+
+  const lines: string[] = [];
+  for (const prop of cls.getProperties()) {
+    const propName = prop.getName();
+    const isOptional = prop.hasQuestionToken();
+    const propTypeNode = prop.getTypeNode();
+    let propType = 'unknown';
+    if (propTypeNode) {
+      propType = resolveTypeNodeToString(propTypeNode, sourceFile, depth);
+    }
+    lines.push(`${propName}${isOptional ? '?' : ''}: ${propType}`);
+  }
+  return `{ ${lines.join('; ')} }`;
+}
+
+/**
+ * Extract the body type from a `@Body()` (no-arg) decorated parameter.
+ * Returns a TS type string or null.
+ */
+function extractBodyType(method: MethodDeclaration, sourceFile: SourceFile): string | null {
+  for (const param of method.getParameters()) {
+    const bodyDecorator = param.getDecorators().find((d) => d.getName() === 'Body');
+    if (!bodyDecorator) continue;
+    // Only handle @Body() with no arguments (DTO mode)
+    const bodyArgs = bodyDecorator.getArguments();
+    if (bodyArgs.length > 0) continue;
+    const typeNode = param.getTypeNode();
+    if (typeNode) {
+      return resolveTypeNodeToString(typeNode, sourceFile, 3);
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract the query type from a `@Query()` (no-arg) decorated parameter.
+ * Returns a TS type string or null.
+ */
+function extractQueryType(method: MethodDeclaration, sourceFile: SourceFile): string | null {
+  for (const param of method.getParameters()) {
+    const queryDecorator = param.getDecorators().find((d) => d.getName() === 'Query');
+    if (!queryDecorator) continue;
+    // Only handle @Query() with no arguments (DTO mode) — @Query('key') for individual params is skipped
+    const queryArgs = queryDecorator.getArguments();
+    if (queryArgs.length > 0) continue;
+    const typeNode = param.getTypeNode();
+    if (typeNode) {
+      return resolveTypeNodeToString(typeNode, sourceFile, 3);
+    }
+  }
+  return null;
+}
+
+/**
+ * Collect `@Param('name')` decorated parameters into a `{ name: type; ... }` string.
+ * Returns a TS type string or null when no @Param decorators are present.
+ */
+function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile): string | null {
+  const entries: string[] = [];
+  for (const param of method.getParameters()) {
+    const paramDecorator = param.getDecorators().find((d) => d.getName() === 'Param');
+    if (!paramDecorator) continue;
+    // @Param('name') — must have a string arg
+    const paramArgs = paramDecorator.getArguments();
+    if (paramArgs.length === 0) continue;
+    const nameArg = paramArgs[0];
+    if (!Node.isStringLiteral(nameArg)) continue;
+    const paramName = nameArg.getLiteralValue();
+    const typeNode = param.getTypeNode();
+    const paramType = typeNode ? resolveTypeNodeToString(typeNode, sourceFile, 3) : 'string';
+    entries.push(`${paramName}: ${paramType}`);
+  }
+  return entries.length > 0 ? `{ ${entries.join('; ')} }` : null;
+}
+
+/**
+ * Extract the response type from `@ApiResponse({ type: X })` or `@ApiResponse({ type: [X] })`.
+ * Falls back to the method return type annotation (unwrapping `Promise<>`).
+ * Returns a TS type string (never null — falls back to 'unknown').
+ */
+function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile): string {
+  // 1. Try @ApiResponse
+  const apiResponseDecorator = method.getDecorator('ApiResponse');
+  if (apiResponseDecorator) {
+    const args = apiResponseDecorator.getArguments();
+    const optsArg = args[0];
+    if (optsArg && Node.isObjectLiteralExpression(optsArg)) {
+      for (const prop of optsArg.getProperties()) {
+        if (!Node.isPropertyAssignment(prop)) continue;
+        if (prop.getName() !== 'type') continue;
+        const val = prop.getInitializer();
+        if (!val) continue;
+
+        // type: [PostDto] — array syntax
+        if (Node.isArrayLiteralExpression(val)) {
+          const elements = val.getElements();
+          const firstEl = elements[0];
+          if (elements.length > 0 && firstEl !== undefined) {
+            const innerType = resolveIdentifierToClassType(firstEl, sourceFile, 3);
+            return `Array<${innerType}>`;
+          }
+          return 'Array<unknown>';
+        }
+
+        // type: PostDto — single class reference
+        return resolveIdentifierToClassType(val, sourceFile, 3);
+      }
+    }
+  }
+
+  // 2. Fall back to return type annotation
+  const returnTypeNode = method.getReturnTypeNode();
+  if (returnTypeNode) {
+    return resolveTypeNodeToString(returnTypeNode, sourceFile, 3);
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Resolve an expression (expected to be a class identifier) to its expanded type string.
+ * E.g. the `PostDto` identifier in `@ApiResponse({ type: PostDto })`.
+ */
+function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, depth: number): string {
+  if (!Node.isIdentifier(node)) return 'unknown';
+  const name = node.getText();
+  const classDec = sourceFile.getClass(name);
+  if (classDec) {
+    return resolveClassDeclaration(classDec, sourceFile, depth - 1);
+  }
+  return name;
+}
+
+/**
+ * Determine whether a method has any DTO-based contract info worth emitting
+ * (body, query, params, or non-unknown response).
+ * Returns a ContractSource-shaped object or null.
+ */
+export function extractDtoContract(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+): { query: string | null; body: string | null; response: string; params: string | null } | null {
+  const body = extractBodyType(method, sourceFile);
+  const query = extractQueryType(method, sourceFile);
+  const paramsType = extractParamsType(method, sourceFile);
+  const response = extractResponseType(method, sourceFile);
+
+  // Only emit a contract if there is at least something useful
+  if (body === null && query === null && paramsType === null && response === 'unknown') {
+    return null;
+  }
+
+  return { query, body, response, params: paramsType };
+}
+
+// ---------------------------------------------------------------------------
 // HTTP method decorator names recognised by the fast path
 // ---------------------------------------------------------------------------
 
@@ -486,12 +734,26 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
         const methodName = method.getName();
         const routeName = `${className}.${methodName}`;
 
+        // ── DTO-based contract extraction ──────────────────────────────────
+        const dtoContract = extractDtoContract(method, sourceFile);
+
         routes.push({
           method: httpMethod,
           path: combined,
           name: routeName,
           params,
-          // No contract — goes into routes.ts only, not api.ts
+          // Attach contract if DTO extraction produced useful type info
+          ...(dtoContract
+            ? {
+                contract: {
+                  contractSource: {
+                    query: dtoContract.query,
+                    body: dtoContract.body,
+                    response: dtoContract.response,
+                  },
+                },
+              }
+            : {}),
         });
       }
     }
