@@ -428,34 +428,40 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       // 1. Skip in production
       if (process.env.NODE_ENV === 'production') return;
 
-      // 2. Skip when running inside the codegen probe child process (avoids spawn loop:
+      // 2. Honor kill-switch env var (in addition to options.codegen.enabled === false)
+      if (process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN === '1') return;
+
+      // 3. Skip when running inside the codegen probe child process (avoids spawn loop:
       //    probe boots Nest → onApplicationBootstrap → starts watcher → child never exits)
       if (process.env.NESTJS_INERTIA_CODEGEN_PROBE === '1') return;
 
-      // 3. Skip if explicitly disabled
+      // 4. Skip if explicitly disabled
       if (this.options.codegen?.enabled === false) return;
 
-      // 3. Lazy-import the codegen package (peer-optional — do not fail if missing).
+      // 5. Lazy-import the codegen package (peer-optional — do not fail if missing).
       //    _resolveCodegenModule() uses a cast to prevent TS from resolving the module
       //    at compile time. Override it in tests via subclass to inject a stub.
       let codegen: CodegenModule;
       try {
         codegen = await this._resolveCodegenModule();
-      } catch {
-        // Package not installed — silent skip
+      } catch (err: unknown) {
+        // Package not installed — log warn so devs can debug unexpected import failures
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Codegen auto-watch: failed to import @dudousxd/nestjs-inertia-codegen: ${message}`);
         return;
       }
 
-      // 4. Load config — silent skip if no config file present
+      // 6. Load config — skip if no config file present, warn on other failures
       let config: unknown;
       try {
         config = await codegen.loadConfig(process.cwd());
-      } catch {
-        // No config or load failed — silent skip
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Codegen auto-watch: failed to load config: ${message}`);
         return;
       }
 
-      // 5. Start the watcher (lock-file mechanism ensures a second watcher is a no-op)
+      // 7. Start the watcher (lock-file mechanism ensures a second watcher is a no-op)
       this.codegenWatcher = await codegen.watch(config);
       this.logger.log('Codegen auto-watch started (dev mode).');
     } catch (err: unknown) {

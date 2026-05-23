@@ -79,13 +79,20 @@ function makeModule(
 
 describe('InertiaModule — codegen auto-bootstrap', () => {
   const originalNodeEnv = process.env.NODE_ENV;
+  const originalDisableEnv = process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
   });
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
+    if (originalDisableEnv !== undefined) {
+      process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN = originalDisableEnv;
+    } else {
+      delete process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
+    }
   });
 
   it('Test 1: no-op when NODE_ENV === "production" (_resolveCodegenModule never called)', async () => {
@@ -187,5 +194,67 @@ describe('InertiaModule — codegen auto-bootstrap', () => {
     await mod.onApplicationBootstrap();
 
     expect(stub.watch).toHaveBeenCalledOnce();
+  });
+
+  // S-5: NESTJS_INERTIA_DISABLE_AUTO_CODEGEN env kill-switch
+  it('S-5: no-op when NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN = '1';
+
+    const stubFn = vi.fn<[], Promise<FakeCodegenModule>>();
+    const mod = makeModule({}, stubFn);
+
+    await mod.onApplicationBootstrap();
+
+    expect(stubFn).not.toHaveBeenCalled();
+    expect((mod as unknown as { codegenWatcher: unknown }).codegenWatcher).toBeNull();
+  });
+
+  // S-5: codegen import failure → warn logged
+  it('S-5: codegen import failure → warn logged with error message', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const warnSpy = vi.spyOn(
+      (InertiaModule as unknown as { prototype: { logger: { warn: (...a: unknown[]) => void } } }).prototype.logger ?? { warn: vi.fn() },
+      'warn',
+    ).mockImplementation(() => {});
+
+    const importErr = new Error('Cannot find module @dudousxd/nestjs-inertia-codegen');
+    const stubFn = vi.fn().mockRejectedValue(importErr);
+    const mod = makeModule({}, stubFn);
+
+    // Access the logger instance via the module instance
+    const loggerWarn = vi.spyOn(
+      (mod as unknown as { logger: { warn: (...a: unknown[]) => void } }).logger,
+      'warn',
+    );
+
+    await mod.onApplicationBootstrap();
+
+    expect(loggerWarn).toHaveBeenCalledWith(
+      expect.stringContaining('Cannot find module'),
+    );
+    warnSpy.mockRestore();
+  });
+
+  // S-5: loadConfig failure → warn logged
+  it('S-5: loadConfig failure → warn logged', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const configErr = new Error('No nestjs-inertia.config.ts found');
+    const stub = makeCodegenStub({ loadConfigThrows: false });
+    stub.loadConfig = vi.fn().mockRejectedValue(configErr);
+    const mod = makeModule({}, vi.fn().mockResolvedValue(stub));
+
+    const loggerWarn = vi.spyOn(
+      (mod as unknown as { logger: { warn: (...a: unknown[]) => void } }).logger,
+      'warn',
+    );
+
+    await mod.onApplicationBootstrap();
+
+    expect(loggerWarn).toHaveBeenCalledWith(
+      expect.stringContaining('No nestjs-inertia.config.ts found'),
+    );
   });
 });
