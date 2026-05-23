@@ -1,5 +1,12 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`c79cc6d`](https://github.com/DavideCarvalho/nestjs-inertia/commit/c79cc6dad64342bce17c28a705ae27911c3f4c74)]:
+  - @dudousxd/nestjs-inertia@1.0.3
+
 ## 1.0.2
 
 ### Patch Changes
