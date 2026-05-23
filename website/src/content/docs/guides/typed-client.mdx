@@ -83,12 +83,14 @@ export default createServer(async (page) => {
 
 `hydrateClientFromInertia` initialises a TanStack Query `QueryClient` from the Inertia initial-page payload so the client can rehydrate without a redundant network request.
 
-## InferResponse helper
+## Route.* type helpers
 
 ```ts
-import type { InferResponse } from './.nestjs-inertia/api';
+import type { Route } from './.nestjs-inertia/api';
 
 export type ComponentProps = {
-  users: InferResponse<'users.list'>; // reuses the server type
+  users: Route.Response<'users.list'>; // reuses the server type
 };
 ```
+
+All helpers: `Route.Response<K>`, `Route.Body<K>`, `Route.Query<K>`, `Route.Params<K>`, `Route.Error<K>`, `Route.Request<K>`.

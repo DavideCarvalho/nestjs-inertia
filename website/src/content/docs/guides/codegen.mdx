@@ -188,11 +188,7 @@ type CreateBody   = Path.Body<'POST', '/api/users'>;
 
 All helpers: `Path.Response<M, U>`, `Path.Body<M, U>`, `Path.Query<M, U>`, `Path.Params<M, U>`, `Path.Error<M, U>`.
 
-### Backward-compatible `Infer*` aliases
-
-The existing `InferResponse<K>`, `InferBody<K>`, `InferQuery<K>` exports remain and are now aliases to `Route.Response`, `Route.Body`, `Route.Query` respectively.
-
-## Auto-watch via `InertiaModule` (recommended)
+## Auto-watch (recommended)
 
 When the codegen package is installed, `InertiaModule` automatically starts the codegen watcher in dev mode — **no extra terminal or script needed**.
 

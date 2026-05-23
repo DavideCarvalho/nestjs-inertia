@@ -276,10 +276,6 @@ function buildApiFile(routes: RouteDescriptor[]): string {
     lines.push('  export type Error<M extends string, U extends string> = never;');
     lines.push('}');
     lines.push('');
-    lines.push('export type InferResponse<K extends string> = Route.Response<K>;');
-    lines.push('export type InferBody<K extends string> = Route.Body<K>;');
-    lines.push('export type InferQuery<K extends string> = Route.Query<K>;');
-    lines.push('');
     return lines.join('\n');
   }
 
@@ -379,12 +375,6 @@ function buildApiFile(routes: RouteDescriptor[]): string {
     '  export type Error<M extends string, U extends string> = ResolveByPath<M, U, "error">;',
   );
   lines.push('}');
-  lines.push('');
-
-  // --- Backward-compatible Infer* aliases → Route.* ---
-  lines.push('export type InferResponse<K extends string> = Route.Response<K>;');
-  lines.push('export type InferBody<K extends string> = Route.Body<K>;');
-  lines.push('export type InferQuery<K extends string> = Route.Query<K>;');
   lines.push('');
 
   return lines.join('\n');

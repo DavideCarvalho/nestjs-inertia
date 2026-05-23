@@ -230,23 +230,14 @@ describe('emitApi', () => {
     );
   });
 
-  // --- InferResponse / InferBody / InferQuery ---
+  // --- InferResponse / InferBody / InferQuery removed (Route.* is canonical) ---
 
-  it('exports InferResponse, InferBody, InferQuery mapped types', async () => {
+  it('does NOT export InferResponse, InferBody, InferQuery (dropped in favour of Route.*)', async () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-    expect(content).toContain('export type InferResponse');
-    expect(content).toContain('export type InferBody');
-    expect(content).toContain('export type InferQuery');
-  });
-
-  it('InferResponse uses template-literal path splitting on nested ApiRouter', async () => {
-    await emitApi(routesWithContract, outDir);
-    const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-    // The Infer types must accept a dot-path string like 'users.list'
-    // They should split on '.' and traverse the nested ApiRouter type
-    // Verify the definition uses some form of conditional/recursive type splitting
-    expect(content).toMatch(/InferResponse<.*extends.*string/);
+    expect(content).not.toContain('export type InferResponse');
+    expect(content).not.toContain('export type InferBody');
+    expect(content).not.toContain('export type InferQuery');
   });
 
   // --- Skips routes without contract ---
@@ -340,25 +331,6 @@ describe('emitApi', () => {
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
       // The leaf entry should have url: "/api/users" inside the ApiRouter type
       expect(content).toContain('url:');
-    });
-
-    it('InferResponse is aliased to Route.Response', async () => {
-      await emitApi(routesWithContract, outDir);
-      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      // InferResponse should delegate to Route.Response
-      expect(content).toMatch(/InferResponse.*Route\.Response/s);
-    });
-
-    it('InferBody is aliased to Route.Body', async () => {
-      await emitApi(routesWithContract, outDir);
-      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toMatch(/InferBody.*Route\.Body/s);
-    });
-
-    it('InferQuery is aliased to Route.Query', async () => {
-      await emitApi(routesWithContract, outDir);
-      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toMatch(/InferQuery.*Route\.Query/s);
     });
 
     it('Route.Response uses ResolveByName that walks ApiRouter', async () => {

@@ -119,7 +119,7 @@ type ListResp = Path.Response<'GET', '/api/users'>;
 type CreateBody = Path.Body<'POST', '/api/users'>;
 ```
 
-The existing `InferResponse<K>`, `InferBody<K>`, `InferQuery<K>` exports are preserved as aliases to `Route.Response`, `Route.Body`, `Route.Query`.
+Use `Route.*` and `Path.*` — they are the canonical type helpers.
 
 ## SSR Hydration
 
