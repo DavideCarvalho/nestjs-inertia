@@ -432,7 +432,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       if (process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN === '1') return;
 
       // 3. Skip when running inside the codegen probe child process (avoids spawn loop:
-      //    probe boots Nest → onApplicationBootstrap → starts watcher → child never exits)
+      //    probe boots Nest → onApplicationBootstrap → starts watcher → child never exits).
+      //    The probe is spawned via fork() (IPC channel present), but we rely on the
+      //    explicit env var because vitest also uses fork() for its test pool.
       if (process.env.NESTJS_INERTIA_CODEGEN_PROBE === '1') return;
 
       // 4. Skip if explicitly disabled
