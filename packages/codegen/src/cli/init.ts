@@ -298,7 +298,7 @@ export function patchAppModule(
     if (importsMatch?.index !== undefined) {
       const bracketPos = content.indexOf('[', importsMatch.index) + 1;
       const indent = '    ';
-      content = `${content.slice(0, bracketPos)}\n${indent}InertiaModule.forRoot({\n${indent}  version: '1',\n${indent}  rootView: '${rootView}',\n${indent}}),${content.slice(bracketPos)}`;
+      content = `${content.slice(0, bracketPos)}\n${indent}InertiaModule.forRoot({\n${indent}  rootView: '${rootView}',\n${indent}}),${content.slice(bracketPos)}`;
       changed = true;
     }
   }

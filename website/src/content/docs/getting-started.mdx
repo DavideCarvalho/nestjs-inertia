@@ -136,7 +136,6 @@ import { HomeController } from './home.controller.js';
 @Module({
   imports: [
     InertiaModule.forRoot({
-      version: '1',
       rootView: 'inertia/index.html',
     }),
   ],
@@ -203,7 +202,7 @@ The sections below cover the full configuration surface for each piece. They are
 
 | Option | Type | Required | Description |
 |---|---|---|---|
-| `version` | `string \| () => string` | Yes | Asset version token sent to the client on every response |
+| `version` | `string \| () => string` | No | Asset version — auto-computed from Vite manifest if omitted (SHA-1 in prod, UUID in dev) |
 | `rootView` | `string \| (ctx) => string` | Yes | HTML shell — file path or render function |
 | `ssr` | `{ enabled, bundlePath, throwOnError? }` | No | SSR bundle configuration |
 | `share` | `(req) => Promise<Record>` | No | Per-request shared props injected into every page |
@@ -212,27 +211,7 @@ The sections below cover the full configuration surface for each piece. They are
 
 For the full options reference see the [core package docs](/nestjs-inertia/packages/core/).
 
-**Production version factory:** Replace `version: '1'` with a factory that hashes the Vite manifest so the client detects new deployments and triggers a hard reload.
-
-```ts
-// src/app.module.ts
-import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-function computeAssetVersion(): string {
-  try {
-    const manifestPath = resolve(
-      process.cwd(),
-      'dist/inertia/client/.vite/manifest.json',
-    );
-    const raw = readFileSync(manifestPath, 'utf8');
-    return createHash('sha1').update(raw).digest('hex').slice(0, 12);
-  } catch {
-    return randomUUID().replace(/-/g, '').slice(0, 12);
-  }
-}
-```
+**Version auto-detection:** When `version` is omitted, the lib automatically computes it from the Vite manifest in production (SHA-1 hash) or generates a random UUID in development. You only need to set `version` explicitly if you have a custom versioning strategy.
 
 ---
 
