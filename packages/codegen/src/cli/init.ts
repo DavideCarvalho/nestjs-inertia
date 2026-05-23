@@ -405,16 +405,8 @@ declare module '@dudousxd/nestjs-inertia' {
 }
 `;
 
-function htmlShellTemplate(framework: Framework, engine: TemplateEngine): string {
+function htmlShellTemplate(framework: Framework, _engine: TemplateEngine): string {
   const ext = framework === 'react' ? 'tsx' : 'ts';
-  const pagePlaceholder =
-    engine === 'ejs'
-      ? '<%- page %>'
-      : engine === 'pug'
-        ? '!{page}'
-        : engine === 'liquid'
-          ? '{{ page }}'
-          : '{{page}}';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -422,11 +414,11 @@ function htmlShellTemplate(framework: Framework, engine: TemplateEngine): string
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My App</title>
+  @inertiaHead
 </head>
 <body>
-  <div id="app"></div>
-  <script id="inertia-page" type="application/json">${pagePlaceholder}</script>
-  <script type="module" src="/inertia/app.${ext}"></script>
+  @inertia
+  @vite('inertia/app.${ext}')
 </body>
 </html>
 `;

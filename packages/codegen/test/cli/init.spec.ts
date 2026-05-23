@@ -179,11 +179,12 @@ describe('runInit with React', () => {
     expect(content).toContain('Home.tsx');
   });
 
-  it('creates inertia/index.html with {{page}} placeholder', async () => {
+  it('creates inertia/index.html with @inertia directives', async () => {
     await runInitInTmpDir('react');
     const content = await readFile(join(tmpBase, 'inertia', 'index.html'), 'utf8');
-    expect(content).toContain('{{page}}');
-    expect(content).toContain('app.tsx');
+    expect(content).toContain('@inertia');
+    expect(content).toContain('@inertiaHead');
+    expect(content).toContain("@vite('inertia/app.tsx')");
   });
 
   it('creates vite.config.ts referencing react: true', async () => {
