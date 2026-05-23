@@ -12,13 +12,14 @@ export interface BuildUrlOptions {
  *   buildUrl('/users', {}, 'https://api.test')                             → 'https://api.test/users'
  */
 export function buildUrl(path: string, opts: BuildUrlOptions = {}, baseUrl?: string): string {
-  // Interpolate path params
+  // Interpolate path params — encodeURIComponent prevents path traversal
+  // e.g. { id: '../admin' } → '/users/..%2Fadmin' not '/users/../admin'
   let resolved = path.replace(/:(\w+)/g, (_match, key: string) => {
     const val = opts.params?.[key];
     if (val === undefined || val === null) {
       throw new Error(`Missing param: ${key}`);
     }
-    return String(val);
+    return encodeURIComponent(String(val));
   });
 
   // Build query string

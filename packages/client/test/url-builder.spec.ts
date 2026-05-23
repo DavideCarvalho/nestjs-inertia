@@ -24,4 +24,12 @@ describe('buildUrl', () => {
   it('respects baseUrl', () => {
     expect(buildUrl('/users', {}, 'https://api.test')).toBe('https://api.test/users');
   });
+
+  it('URL-encodes path params containing slashes (foo/bar)', () => {
+    expect(buildUrl('/users/:id', { params: { id: 'foo/bar' } })).toBe('/users/foo%2Fbar');
+  });
+
+  it('URL-encodes path traversal in params (../admin)', () => {
+    expect(buildUrl('/users/:id', { params: { id: '../admin' } })).toBe('/users/..%2Fadmin');
+  });
 });
