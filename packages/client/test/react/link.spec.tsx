@@ -10,7 +10,12 @@ import { setRouteResolver } from '../../src/routes-stub.js';
 // Mock @inertiajs/react Link: renders a plain <a> with all props forwarded
 vi.mock('@inertiajs/react', () => ({
   Link: vi.fn(({ href, children, className, ...rest }: Record<string, unknown>) => (
-    <a href={href as string} className={className as string | undefined} data-testid="inertia-link" {...rest}>
+    <a
+      href={href as string}
+      className={className as string | undefined}
+      data-testid="inertia-link"
+      {...rest}
+    >
       {children}
     </a>
   )),
@@ -72,16 +77,20 @@ describe('Link component', () => {
   });
 
   it('appends query params to the href', () => {
-    render(<Link route="users.list" query={{ active: 'true' }}>Active Users</Link>);
+    render(
+      <Link route="users.list" query={{ active: 'true' }}>
+        Active Users
+      </Link>,
+    );
     const a = screen.getByTestId('inertia-link');
     expect(a.getAttribute('href')).toBe('/api/users?active=true');
   });
 
   it('throws a clear error when setRouteResolver not called', () => {
     setRouteResolver(null);
-    expect(() =>
-      render(<Link route="users.list">Users</Link>),
-    ).toThrowError('@dudousxd/nestjs-inertia-client: setRouteResolver() not called');
+    expect(() => render(<Link route="users.list">Users</Link>)).toThrowError(
+      '@dudousxd/nestjs-inertia-client: setRouteResolver() not called',
+    );
   });
 });
 

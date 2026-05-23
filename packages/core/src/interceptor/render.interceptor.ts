@@ -1,4 +1,10 @@
-import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor } from '@nestjs/common';
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Inject,
+  Injectable,
+  type NestInterceptor,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { EMPTY, type Observable, from, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';

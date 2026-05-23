@@ -5,7 +5,7 @@
  * seam so we inject a stub without touching NestJS DI or the production import path.
  * Constructor params use the same order as InertiaModule.
  */
-import { HttpAdapterHost } from '@nestjs/core';
+import type { HttpAdapterHost } from '@nestjs/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InertiaModule } from '../src/module.js';
 import type { InertiaModuleOptions } from '../src/types.js';
@@ -34,10 +34,12 @@ function makeFakeWatcher(): FakeWatcher {
   return { close: vi.fn<[], Promise<void>>().mockResolvedValue(undefined) };
 }
 
-function makeCodegenStub(opts: {
-  loadConfigThrows?: boolean;
-  watcher?: FakeWatcher;
-} = {}): FakeCodegenModule {
+function makeCodegenStub(
+  opts: {
+    loadConfigThrows?: boolean;
+    watcher?: FakeWatcher;
+  } = {},
+): FakeCodegenModule {
   const watcher = opts.watcher ?? makeFakeWatcher();
   return {
     loadConfig: opts.loadConfigThrows
@@ -53,7 +55,9 @@ function makeCodegenStub(opts: {
  */
 function makeModule(
   options: InertiaModuleOptions,
-  stubFn: (() => Promise<FakeCodegenModule>) | (() => never) = () => { throw new Error('Cannot find module'); },
+  stubFn: (() => Promise<FakeCodegenModule>) | (() => never) = () => {
+    throw new Error('Cannot find module');
+  },
 ): InertiaModule {
   class TestInertiaModule extends InertiaModule {
     protected override _resolveCodegenModule() {

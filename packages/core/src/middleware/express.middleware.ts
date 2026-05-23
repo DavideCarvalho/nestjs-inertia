@@ -23,16 +23,20 @@ export class InertiaMiddleware implements NestMiddleware {
     const adaptedReq = expressAdapter.adaptRequest(req);
     const adaptedRes = expressAdapter.adaptResponse(res);
 
-    (req as Request & { inertia?: InertiaService }).inertia = new InertiaService(adaptedReq, adaptedRes, {
-      assetVersion: this.assetVersion,
-      manifest: this.manifest,
-      ssrLoader: this.ssrLoader,
-      rootViewRender: (ctx) => this.shellRenderer.render(ctx),
-      moduleShare: this.options.share,
-      featureShare: undefined,
-      historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
-      flashStore: this.options.flashStore,
-    });
+    (req as Request & { inertia?: InertiaService }).inertia = new InertiaService(
+      adaptedReq,
+      adaptedRes,
+      {
+        assetVersion: this.assetVersion,
+        manifest: this.manifest,
+        ssrLoader: this.ssrLoader,
+        rootViewRender: (ctx) => this.shellRenderer.render(ctx),
+        moduleShare: this.options.share,
+        featureShare: undefined,
+        historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
+        flashStore: this.options.flashStore,
+      },
+    );
 
     suppressPostSendWrites(res as unknown as Parameters<typeof suppressPostSendWrites>[0]);
     next();

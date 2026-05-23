@@ -12,11 +12,17 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Mock @inertiajs/react Link so we don't need a full Inertia context in unit tests
 vi.mock('@inertiajs/react', () => ({
-  Link: vi.fn(({ href, children, ...rest }: { href: string; children: ReactNode } & Record<string, unknown>) => (
-    <a href={href} data-testid="inertia-link" {...rest}>
-      {children}
-    </a>
-  )),
+  Link: vi.fn(
+    ({
+      href,
+      children,
+      ...rest
+    }: { href: string; children: ReactNode } & Record<string, unknown>) => (
+      <a href={href} data-testid="inertia-link" {...rest}>
+        {children}
+      </a>
+    ),
+  ),
 }));
 
 const { Link, setRouteResolver } = await import('@dudousxd/nestjs-inertia-client/react');

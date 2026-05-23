@@ -1,4 +1,10 @@
-import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor } from '@nestjs/common';
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Inject,
+  Injectable,
+  type NestInterceptor,
+} from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { INERTIA_MODULE_OPTIONS } from '../tokens.js';
@@ -11,7 +17,10 @@ type RedirectFnWithStatus = (status: number, url: string) => void;
 
 /** Works for both Express (req.header(n)) and raw Fastify (req.headers[n]) */
 function getHeader(req: unknown, name: string): string | undefined {
-  const r = req as { header?: (n: string) => string | undefined; headers?: Record<string, string | string[] | undefined> };
+  const r = req as {
+    header?: (n: string) => string | undefined;
+    headers?: Record<string, string | string[] | undefined>;
+  };
   if (typeof r.header === 'function') return r.header(name);
   const v = r.headers?.[name.toLowerCase()];
   return Array.isArray(v) ? v[0] : v;
@@ -25,7 +34,9 @@ export class RedirectInterceptor implements NestInterceptor {
     if (this.options.autoUpgrade303 === false) return next.handle();
 
     const req = context.switchToHttp().getRequest<unknown>();
-    const res = context.switchToHttp().getResponse<{ statusCode: number; redirect?: RedirectFn & RedirectFnWithStatus }>();
+    const res = context
+      .switchToHttp()
+      .getResponse<{ statusCode: number; redirect?: RedirectFn & RedirectFnWithStatus }>();
     const method = (req as { method: string }).method;
 
     if (SAFE_METHODS.has(method) && getHeader(req, 'X-Inertia')) {
@@ -57,11 +68,7 @@ export class RedirectInterceptor implements NestInterceptor {
     // Also handle handlers that set res.statusCode = 302 directly (without calling res.redirect).
     return next.handle().pipe(
       tap(() => {
-        if (
-          res.statusCode === 302 &&
-          SAFE_METHODS.has(method) &&
-          getHeader(req, 'X-Inertia')
-        ) {
+        if (res.statusCode === 302 && SAFE_METHODS.has(method) && getHeader(req, 'X-Inertia')) {
           res.statusCode = 303;
         }
       }),

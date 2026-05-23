@@ -42,7 +42,9 @@ describe('InertiaModule.forRootAsync — E2E', () => {
     await app.init();
   });
 
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('serves Inertia JSON with version from async factory', async () => {
     const res = await request(app.getHttpServer()).get('/').set('X-Inertia', 'true');

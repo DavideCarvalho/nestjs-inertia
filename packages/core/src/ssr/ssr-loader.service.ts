@@ -25,14 +25,18 @@ export class SsrLoaderService {
         process.cwd(),
         this.opts.ssr.bundlePath ?? 'dist/inertia/ssr/ssr.mjs',
       );
-      const mod = (await import(pathToFileURL(bundlePath).href)) as { default?: SsrModule; render?: SsrModule['render'] };
+      const mod = (await import(pathToFileURL(bundlePath).href)) as {
+        default?: SsrModule;
+        render?: SsrModule['render'];
+      };
       // Bundle may export default or named `render`
       if (mod.default && typeof mod.default.render === 'function') {
         this.cached = mod.default;
       } else if (typeof mod.render === 'function') {
         this.cached = { render: mod.render };
       } else {
-        if (this.opts.ssr.throwOnError) throw new Error('SSR bundle exports neither default nor render()');
+        if (this.opts.ssr.throwOnError)
+          throw new Error('SSR bundle exports neither default nor render()');
         this.failed = true;
         this.logger.warn('SSR bundle missing required exports; falling back to CSR.');
         return null;

@@ -31,7 +31,9 @@ describe('InertiaModule.forRoot — E2E', () => {
     await app.init();
   });
 
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('returns Inertia JSON when X-Inertia: true', async () => {
     const res = await request(app.getHttpServer()).get('/').set('X-Inertia', 'true');
@@ -55,9 +57,7 @@ describe('InertiaModule.forRoot — E2E', () => {
   });
 
   it('runs middleware on POST requests (req.inertia must be defined)', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/form')
-      .set('X-Inertia', 'true');
+    const res = await request(app.getHttpServer()).post('/form').set('X-Inertia', 'true');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ component: 'FormResult', props: { ok: true, errors: {} } });
   });

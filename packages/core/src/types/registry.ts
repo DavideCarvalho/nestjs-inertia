@@ -1,7 +1,8 @@
 // Empty interface for module augmentation by codegen consumers.
 // Augment this interface to register typed page/route maps.
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface InertiaRegistry {}
+// biome-ignore lint/complexity/noBannedTypes: intentional empty type used for module augmentation by codegen consumers
+export type InertiaRegistry = {};
 
 /**
  * Resolves to the augmented routes map when `InertiaRegistry` has been extended

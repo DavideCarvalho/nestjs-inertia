@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Link } from '@dudousxd/nestjs-inertia-client/svelte';
+import { Link } from '@dudousxd/nestjs-inertia-client/svelte';
 
-  export type ComponentProps = {
-    user: { name: string };
-    items: number;
-  };
+export type ComponentProps = {
+  user: { name: string };
+  items: number;
+};
 
-  const { user, items } = $props<ComponentProps>();
+const { user, items } = $props<ComponentProps>();
 </script>
 
 <main>

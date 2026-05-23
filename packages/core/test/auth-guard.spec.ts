@@ -96,7 +96,10 @@ describe('InertiaAuthGuard', () => {
     it('strips query string before allow-list matching', () => {
       const guard = new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/health'] });
       // /health?foo=bar should normalise to /health and match
-      const ctx = makeCtx(makeReq({ url: '/health?foo=bar', originalUrl: '/health?foo=bar' }), makeRes());
+      const ctx = makeCtx(
+        makeReq({ url: '/health?foo=bar', originalUrl: '/health?foo=bar' }),
+        makeRes(),
+      );
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
@@ -104,13 +107,19 @@ describe('InertiaAuthGuard', () => {
       const guard = new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/public/*'] });
       const res = makeRes();
       // /public/../admin normalises to /admin — should NOT be allowed
-      const ctx = makeCtx(makeReq({ url: '/public/../admin', originalUrl: '/public/../admin' }), res);
+      const ctx = makeCtx(
+        makeReq({ url: '/public/../admin', originalUrl: '/public/../admin' }),
+        res,
+      );
       expect(guard.canActivate(ctx)).toBe(false);
     });
 
     it('allows a legitimate /public/ path after normalisation', () => {
       const guard = new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/public/*'] });
-      const ctx = makeCtx(makeReq({ url: '/public/logo.png', originalUrl: '/public/logo.png' }), makeRes());
+      const ctx = makeCtx(
+        makeReq({ url: '/public/logo.png', originalUrl: '/public/logo.png' }),
+        makeRes(),
+      );
       expect(guard.canActivate(ctx)).toBe(true);
     });
   });

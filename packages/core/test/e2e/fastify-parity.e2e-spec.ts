@@ -12,7 +12,9 @@ import { Inertia, InertiaAuthGuard, InertiaModule } from '../../src/index.js';
 class TestController {
   @Get('/')
   @Inertia('Home')
-  show() { return { hello: 'fastify' }; }
+  show() {
+    return { hello: 'fastify' };
+  }
 
   @Put('/items/:id')
   async update(@Res() reply: FastifyReply) {
@@ -22,7 +24,9 @@ class TestController {
   @Get('/protected')
   @UseGuards(new InertiaAuthGuard({ signInUrl: '/signin', allowList: [] }))
   @Inertia('Protected')
-  protected() { return {}; }
+  protected() {
+    return {};
+  }
 }
 
 const origCwd = process.cwd();
@@ -34,8 +38,11 @@ describe('Fastify parity — E2E', () => {
     const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-fastify-parity-'));
     const sub = join(dir, 'inertia');
     mkdirSync(sub);
-    writeFileSync(join(sub, 'root.html'), `<!doctype html>
-<html><head>@inertiaHead</head><body>@inertia</body></html>`);
+    writeFileSync(
+      join(sub, 'root.html'),
+      `<!doctype html>
+<html><head>@inertiaHead</head><body>@inertia</body></html>`,
+    );
     process.chdir(dir);
 
     const moduleRef = await Test.createTestingModule({
@@ -60,7 +67,10 @@ describe('Fastify parity — E2E', () => {
   it('@Inertia decorator works on Fastify', async () => {
     const res = await app.inject({ method: 'GET', url: '/', headers: { 'x-inertia': 'true' } });
     const body = JSON.parse(res.body);
-    expect(body).toMatchObject({ component: 'Home', props: expect.objectContaining({ hello: 'fastify' }) });
+    expect(body).toMatchObject({
+      component: 'Home',
+      props: expect.objectContaining({ hello: 'fastify' }),
+    });
   });
 
   it('shell directives render correctly on Fastify', async () => {

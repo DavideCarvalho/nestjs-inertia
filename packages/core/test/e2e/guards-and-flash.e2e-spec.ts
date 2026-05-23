@@ -9,16 +9,22 @@ import { Inertia, InertiaAuthGuard, InertiaModule } from '../../src/index.js';
 class HomeController {
   @Get('/')
   @Inertia('Home')
-  show() { return {}; }
+  show() {
+    return {};
+  }
 
   @Get('/protected')
   @UseGuards(new InertiaAuthGuard({ signInUrl: '/signin', allowList: [] }))
   @Inertia('Protected')
-  protected(@Req() _req: Request) { return {}; }
+  protected(@Req() _req: Request) {
+    return {};
+  }
 
   @Get('/signin')
   @Inertia('Signin')
-  signin() { return {}; }
+  signin() {
+    return {};
+  }
 }
 
 describe('Auth + Flash + Error-Bag — E2E', () => {
@@ -36,7 +42,9 @@ describe('Auth + Flash + Error-Bag — E2E', () => {
     app = moduleRef.createNestApplication();
     await app.init();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('GET /protected without user → 302 to /signin?return_to=/protected', async () => {
     const res = await request(app.getHttpServer()).get('/protected').redirects(0);

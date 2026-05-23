@@ -56,7 +56,7 @@ describe('nested markers — full reload (no partial headers)', () => {
     expect(called).toBe(false);
     const props = (res._captured.body as { props: Record<string, unknown> }).props;
     // optional nested is omitted on full reload
-    expect((props.user as Record<string, unknown>)).not.toHaveProperty('avatar');
+    expect(props.user as Record<string, unknown>).not.toHaveProperty('avatar');
     expect((props.user as Record<string, unknown>).name).toBe('Alice');
   });
 
@@ -79,7 +79,7 @@ describe('nested markers — full reload (no partial headers)', () => {
       props: Record<string, unknown>;
       deferredProps?: Record<string, string[]>;
     };
-    expect((body.props.user as Record<string, unknown>)).not.toHaveProperty('feed');
+    expect(body.props.user as Record<string, unknown>).not.toHaveProperty('feed');
     // nested defer key is registered as "user.feed" in deferredProps
     expect(body.deferredProps).toEqual({ default: ['user.feed'] });
   });
@@ -155,7 +155,7 @@ describe('nested markers — partial reload with dot-notation paths', () => {
     });
     expect(called).toBe(false);
     const props = (res._captured.body as { props: Record<string, unknown> }).props;
-    expect((props.user as Record<string, unknown>)).not.toHaveProperty('avatar');
+    expect(props.user as Record<string, unknown>).not.toHaveProperty('avatar');
   });
 
   it('deeply nested optional() resolves via 3-segment dot-path', async () => {

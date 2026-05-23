@@ -11,7 +11,7 @@
 const LS = '\u2028';
 const PS = '\u2029';
 // Build the regex using a RegExp constructor so esbuild handles it fine across encodings
-const UNSAFE_CHARS = new RegExp('[<>&' + LS + PS + ']', 'g');
+const UNSAFE_CHARS = new RegExp(`[<>&${LS}${PS}]`, 'g');
 
 export function serializePageData(page: unknown): string {
   return JSON.stringify(page).replace(UNSAFE_CHARS, (c: string) => {

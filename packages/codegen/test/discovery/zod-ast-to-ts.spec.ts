@@ -99,7 +99,9 @@ describe('zodAstToTs', () => {
   });
 
   it('handles z.record with key+value types', () => {
-    expect(zodAstToTs(parseExpr('z.record(z.string(), z.number())'))).toBe('Record<string, number>');
+    expect(zodAstToTs(parseExpr('z.record(z.string(), z.number())'))).toBe(
+      'Record<string, number>',
+    );
   });
 
   it('handles z.tuple', () => {
@@ -118,9 +120,7 @@ describe('zodAstToTs', () => {
   });
 
   it('handles complex fixture: response array with id and name', () => {
-    const result = zodAstToTs(
-      parseExpr('z.array(z.object({ id: z.string(), name: z.string() }))'),
-    );
+    const result = zodAstToTs(parseExpr('z.array(z.object({ id: z.string(), name: z.string() }))'));
     expect(result).toContain('id');
     expect(result).toContain('name');
     expect(result).toContain('string');

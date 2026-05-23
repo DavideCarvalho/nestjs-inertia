@@ -51,10 +51,7 @@ function assertInsideCwd(cwd: string, resolvedPath: string, fieldName: string): 
   // and isAbsolute() catches platform edge-cases (e.g. Windows drive letters).
   if (rel.startsWith(`..${sep}`) || rel === '..' || isAbsolute(rel)) {
     throw new ConfigError(
-      `\`${fieldName}\` must be inside the project cwd.\n` +
-        `  Resolved to: ${resolvedPath}\n` +
-        `  Project cwd: ${cwd}\n` +
-        'If this is intentional, move the file inside your project directory.',
+      `\`${fieldName}\` must be inside the project cwd.\n  Resolved to: ${resolvedPath}\n  Project cwd: ${cwd}\nIf this is intentional, move the file inside your project directory.`,
     );
   }
 }

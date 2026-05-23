@@ -1,6 +1,15 @@
-import { Delete, Get, Patch, Post, Put, SetMetadata, UsePipes, applyDecorators } from '@nestjs/common';
-import type { ContractDef } from './contract.js';
+import {
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Put,
+  SetMetadata,
+  UsePipes,
+  applyDecorators,
+} from '@nestjs/common';
 import { ContractValidationPipe } from './contract-validation.pipe.js';
+import type { ContractDef } from './contract.js';
 import { CONTRACT_METADATA } from './metadata.js';
 
 type HttpMethodKey = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

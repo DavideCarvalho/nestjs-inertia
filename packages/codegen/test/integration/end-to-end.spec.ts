@@ -151,5 +151,4 @@ describe('end-to-end: pages + routes + api', () => {
   it('index.d.ts re-exports api (because contracts are present)', () => {
     expect(indexContent).toContain("from './api.js'");
   });
-}, // outer suite timeout
-30_000);
+}, 30_000); // outer suite timeout

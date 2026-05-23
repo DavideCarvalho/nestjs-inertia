@@ -1,5 +1,5 @@
 <script lang="ts">
-  export type ComponentProps = Record<string, never>;
+export type ComponentProps = Record<string, never>;
 </script>
 
 <main>

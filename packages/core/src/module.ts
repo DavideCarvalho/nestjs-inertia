@@ -1,6 +1,22 @@
-import { type DynamicModule, Inject, Logger, type MiddlewareConsumer, Module, type NestModule, type OnApplicationBootstrap, type OnApplicationShutdown, type Provider, RequestMethod } from '@nestjs/common';
+import {
+  type DynamicModule,
+  Inject,
+  Logger,
+  type MiddlewareConsumer,
+  Module,
+  type NestModule,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+  type Provider,
+  RequestMethod,
+} from '@nestjs/common';
 import { APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
-import { assetVersionProvider, computeAssetVersion, loadManifest, manifestProvider } from './asset/version.provider.js';
+import {
+  assetVersionProvider,
+  computeAssetVersion,
+  loadManifest,
+  manifestProvider,
+} from './asset/version.provider.js';
 import type { Manifest } from './asset/version.provider.js';
 import { InvalidInertiaConfigException } from './errors/exceptions.js';
 import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
@@ -13,8 +29,22 @@ import { FileBasedShellRenderer } from './shell/file-shell.renderer.js';
 import { DefaultShellRenderer } from './shell/shell.js';
 import type { ShellRenderer } from './shell/shell.js';
 import { SsrLoaderService } from './ssr/ssr-loader.service.js';
-import { INERTIA_ASSET_VERSION, INERTIA_MANIFEST, INERTIA_MODULE_OPTIONS, assertScopeNotReserved, featureToken } from './tokens.js';
-import type { InertiaFeatureAsyncOptions, InertiaFeatureOptions, InertiaModuleAsyncOptions, InertiaModuleOptions, InertiaOptionsFactory, RootViewFn, ShellRenderCtx } from './types.js';
+import {
+  INERTIA_ASSET_VERSION,
+  INERTIA_MANIFEST,
+  INERTIA_MODULE_OPTIONS,
+  assertScopeNotReserved,
+  featureToken,
+} from './tokens.js';
+import type {
+  InertiaFeatureAsyncOptions,
+  InertiaFeatureOptions,
+  InertiaModuleAsyncOptions,
+  InertiaModuleOptions,
+  InertiaOptionsFactory,
+  RootViewFn,
+  ShellRenderCtx,
+} from './types.js';
 
 /** Minimal interface matching `Watcher` from `@dudousxd/nestjs-inertia-codegen`. */
 interface CodegenWatcher {
@@ -99,7 +129,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
     // Register inject tokens as providers so NestJS can resolve them within this module
     const injectProviders: Provider[] = (asyncOptions.inject ?? [])
       .filter((token): token is new (...args: unknown[]) => unknown => typeof token === 'function')
-      .map(token => token as unknown as Provider);
+      .map((token) => token as unknown as Provider);
 
     const shellProvider: Provider = {
       provide: 'INERTIA_SHELL_RENDERER',
@@ -182,8 +212,11 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
   static forFeatureAsync(asyncOptions: InertiaFeatureAsyncOptions): DynamicModule {
     assertScopeNotReserved(asyncOptions.scope);
 
-    const has = (k: 'useFactory' | 'useClass' | 'useExisting'): boolean => asyncOptions[k] !== undefined;
-    const declared = [has('useFactory'), has('useClass'), has('useExisting')].filter(Boolean).length;
+    const has = (k: 'useFactory' | 'useClass' | 'useExisting'): boolean =>
+      asyncOptions[k] !== undefined;
+    const declared = [has('useFactory'), has('useClass'), has('useExisting')].filter(
+      Boolean,
+    ).length;
     if (declared === 0) {
       throw new InvalidInertiaConfigException(
         'forFeatureAsync requires one of: useFactory, useClass, useExisting',
@@ -201,33 +234,43 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
     // Re-register inject tokens as providers within this module so NestJS can resolve them
     const injectProviders: Provider[] = (asyncOptions.inject ?? [])
       .filter((token): token is new (...args: unknown[]) => unknown => typeof token === 'function')
-      .map(token => token as unknown as Provider);
+      .map((token) => token as unknown as Provider);
 
     let optionsProviders: Provider[];
     if (asyncOptions.useFactory) {
-      optionsProviders = [{
-        provide: optionsToken,
-        useFactory: async (...args: unknown[]) => {
-          const opts = await asyncOptions.useFactory!(...args);
-          return { ...opts, scope };
+      optionsProviders = [
+        {
+          provide: optionsToken,
+          useFactory: async (...args: unknown[]) => {
+            const opts = await asyncOptions.useFactory!(...args);
+            return { ...opts, scope };
+          },
+          inject: (asyncOptions.inject ?? []) as never[],
         },
-        inject: (asyncOptions.inject ?? []) as never[],
-      }];
+      ];
     } else if (asyncOptions.useClass) {
       optionsProviders = [
         asyncOptions.useClass as unknown as Provider,
         {
           provide: optionsToken,
-          useFactory: async (factory: { createInertiaOptions: () => unknown }) => ({ ...(await factory.createInertiaOptions() as object), scope }),
+          useFactory: async (factory: { createInertiaOptions: () => unknown }) => ({
+            ...((await factory.createInertiaOptions()) as object),
+            scope,
+          }),
           inject: [asyncOptions.useClass] as never[],
         },
       ];
     } else if (asyncOptions.useExisting) {
-      optionsProviders = [{
-        provide: optionsToken,
-        useFactory: async (factory: { createInertiaOptions: () => unknown }) => ({ ...(await factory.createInertiaOptions() as object), scope }),
-        inject: [asyncOptions.useExisting] as never[],
-      }];
+      optionsProviders = [
+        {
+          provide: optionsToken,
+          useFactory: async (factory: { createInertiaOptions: () => unknown }) => ({
+            ...((await factory.createInertiaOptions()) as object),
+            scope,
+          }),
+          inject: [asyncOptions.useExisting] as never[],
+        },
+      ];
     } else {
       // unreachable — validation above ensures exactly one strategy
       optionsProviders = [];
@@ -237,7 +280,11 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       module: InertiaModule,
       global: true,
       imports: (asyncOptions.imports as DynamicModule['imports'] | undefined) ?? [],
-      providers: [...injectProviders, ...optionsProviders, ...InertiaModule.createFeatureProviders(scope)],
+      providers: [
+        ...injectProviders,
+        ...optionsProviders,
+        ...InertiaModule.createFeatureProviders(scope),
+      ],
       exports: [
         optionsToken,
         featureToken('MANIFEST', scope),
@@ -261,7 +308,10 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       {
         provide: featureToken('ASSET_VERSION', scope),
         inject: [featureToken('MANIFEST', scope), featureToken('OPTIONS', scope)],
-        useFactory: async (manifest: Manifest | null, opts: InertiaFeatureOptions): Promise<string> => {
+        useFactory: async (
+          manifest: Manifest | null,
+          opts: InertiaFeatureOptions,
+        ): Promise<string> => {
           if (opts.version !== undefined) {
             return typeof opts.version === 'function' ? await opts.version() : opts.version;
           }
@@ -293,7 +343,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
 
   private static validateAsyncOptions(asyncOptions: InertiaModuleAsyncOptions): void {
     const has = (k: keyof InertiaModuleAsyncOptions): boolean => asyncOptions[k] !== undefined;
-    const declared = [has('useFactory'), has('useClass'), has('useExisting')].filter(Boolean).length;
+    const declared = [has('useFactory'), has('useClass'), has('useExisting')].filter(
+      Boolean,
+    ).length;
     if (declared === 0) {
       throw new InvalidInertiaConfigException(
         'forRootAsync requires one of: useFactory, useClass, useExisting',
@@ -308,11 +360,13 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
 
   private static createAsyncOptionsProviders(asyncOptions: InertiaModuleAsyncOptions): Provider[] {
     if (asyncOptions.useFactory) {
-      return [{
-        provide: INERTIA_MODULE_OPTIONS,
-        useFactory: asyncOptions.useFactory,
-        inject: (asyncOptions.inject ?? []) as never[],
-      }];
+      return [
+        {
+          provide: INERTIA_MODULE_OPTIONS,
+          useFactory: asyncOptions.useFactory,
+          inject: (asyncOptions.inject ?? []) as never[],
+        },
+      ];
     }
     if (asyncOptions.useClass) {
       return [
@@ -356,7 +410,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
    */
   protected _resolveCodegenModule(): Promise<CodegenModule> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return import(/* @vite-ignore */ '@dudousxd/nestjs-inertia-codegen' as string) as Promise<CodegenModule>;
+    return import(
+      /* @vite-ignore */ '@dudousxd/nestjs-inertia-codegen' as string
+    ) as Promise<CodegenModule>;
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -365,7 +421,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
     if (adapter) {
       const platform = adapter.getType();
       if (platform === 'fastify') {
-        const fastifyApp = adapter.getInstance() as unknown as Parameters<typeof registerFastifyInertia>[0];
+        const fastifyApp = adapter.getInstance() as unknown as Parameters<
+          typeof registerFastifyInertia
+        >[0];
         registerFastifyInertia(fastifyApp, () => ({
           assetVersion: this.assetVersion,
           manifest: this.manifest,
@@ -377,8 +435,13 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
           flashStore: this.options.flashStore,
         }));
         // Phase 21: also register method spoof
-        const { registerFastifyMethodSpoof } = await import('./middleware/fastify-method-spoof.middleware.js');
-        registerFastifyMethodSpoof(fastifyApp as Parameters<typeof registerFastifyMethodSpoof>[0], this.options);
+        const { registerFastifyMethodSpoof } = await import(
+          './middleware/fastify-method-spoof.middleware.js'
+        );
+        registerFastifyMethodSpoof(
+          fastifyApp as Parameters<typeof registerFastifyMethodSpoof>[0],
+          this.options,
+        );
       }
     }
 
@@ -438,9 +501,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(
-        `Codegen auto-watch failed to start: ${message}. ` +
-        'Install @dudousxd/nestjs-inertia-codegen and add nestjs-inertia.config.ts to enable auto-watch, ' +
-        'or set codegen: { enabled: false } to suppress this warning.',
+        `Codegen auto-watch failed to start: ${message}. Install @dudousxd/nestjs-inertia-codegen and add nestjs-inertia.config.ts to enable auto-watch, or set codegen: { enabled: false } to suppress this warning.`,
       );
     }
   }
@@ -453,7 +514,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
   configure(consumer: MiddlewareConsumer): void {
     const adapter = this.httpAdapterHost.httpAdapter;
     if (!adapter || adapter.getType() === 'express') {
-      consumer.apply(MethodSpoofMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
+      consumer
+        .apply(MethodSpoofMiddleware)
+        .forRoutes({ path: '{*path}', method: RequestMethod.ALL });
       consumer.apply(InertiaMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
     }
     // Fastify wiring happens in onApplicationBootstrap

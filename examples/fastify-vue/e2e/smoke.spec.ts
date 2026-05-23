@@ -9,11 +9,9 @@ let app: INestApplication;
 let baseUrl: string;
 
 beforeAll(async () => {
-  app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter(),
-    { logger: false },
-  );
+  app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
+    logger: false,
+  });
   await app.listen(0);
   const url = await app.getUrl();
   baseUrl = url.replace('[::1]', '127.0.0.1');

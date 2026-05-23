@@ -1,4 +1,9 @@
-import { type ArgumentMetadata, BadRequestException, Injectable, type PipeTransform } from '@nestjs/common';
+import {
+  type ArgumentMetadata,
+  BadRequestException,
+  Injectable,
+  type PipeTransform,
+} from '@nestjs/common';
 import type { ContractDef } from './contract.js';
 
 /**
@@ -16,7 +21,15 @@ export class ContractValidationPipe<C extends ContractDef<string, unknown, unkno
   constructor(private readonly contract: C) {}
 
   transform(value: unknown, metadata: ArgumentMetadata): unknown {
-    let schema: { safeParse: (v: unknown) => { success: boolean; data: unknown; error: { issues: unknown[] } } } | undefined;
+    let schema:
+      | {
+          safeParse: (v: unknown) => {
+            success: boolean;
+            data: unknown;
+            error: { issues: unknown[] };
+          };
+        }
+      | undefined;
 
     if (metadata.type === 'body' && this.contract.body) {
       schema = this.contract.body as typeof schema;

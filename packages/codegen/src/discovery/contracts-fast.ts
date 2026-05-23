@@ -1,11 +1,11 @@
+import { join, resolve } from 'node:path';
+import fg from 'fast-glob';
 /**
  * Static AST-based contract discovery using ts-morph.
  * Replaces the heavy NestJS bootstrap path on the watch hot path.
  * Cold start drops from ~2-10 s to ~100-500 ms.
  */
-import { Project, Node, SyntaxKind, type SourceFile } from 'ts-morph';
-import { join, resolve } from 'node:path';
-import fg from 'fast-glob';
+import { Node, Project, type SourceFile, SyntaxKind } from 'ts-morph';
 import type { RouteDescriptor } from './routes.js';
 
 export interface FastDiscoveryOptions {
@@ -125,7 +125,9 @@ export function zodAstToTs(node: Node): string {
         if (!arrArg || !Node.isArrayLiteralExpression(arrArg)) return 'unknown';
         const members = arrArg
           .getElements()
-          .map((el) => (Node.isStringLiteral(el) ? JSON.stringify(el.getLiteralValue()) : 'unknown'));
+          .map((el) =>
+            Node.isStringLiteral(el) ? JSON.stringify(el.getLiteralValue()) : 'unknown',
+          );
         return members.join(' | ');
       }
 

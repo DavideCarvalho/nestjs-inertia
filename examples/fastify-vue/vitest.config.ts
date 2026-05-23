@@ -5,8 +5,6 @@ export default defineConfig({
     include: ['e2e/**/*.spec.ts'],
     pool: 'forks',
     testTimeout: 15000,
-    environmentMatchGlobs: [
-      ['e2e/**', 'node'],
-    ],
+    environmentMatchGlobs: [['e2e/**', 'node']],
   },
 });

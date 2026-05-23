@@ -91,9 +91,12 @@ describe('CsrfCookieInterceptor', () => {
       const req = { cookies: {} };
       const res = { cookie: cookieSet };
       const interceptor = new CsrfCookieInterceptor({ secret: 'shh' });
-      await lastValueFrom(interceptor.intercept(makeCtx(req, res), { handle: () => of(undefined) }), {
-        defaultValue: undefined,
-      });
+      await lastValueFrom(
+        interceptor.intercept(makeCtx(req, res), { handle: () => of(undefined) }),
+        {
+          defaultValue: undefined,
+        },
+      );
       expect(cookieSet).toHaveBeenCalledWith(
         'XSRF-TOKEN',
         expect.any(String),
@@ -112,9 +115,12 @@ describe('CsrfCookieInterceptor', () => {
       const req = { cookies: {} };
       const res = { cookie: cookieSet };
       const interceptor = new CsrfCookieInterceptor({ secret: 'shh' });
-      await lastValueFrom(interceptor.intercept(makeCtx(req, res), { handle: () => of(undefined) }), {
-        defaultValue: undefined,
-      });
+      await lastValueFrom(
+        interceptor.intercept(makeCtx(req, res), { handle: () => of(undefined) }),
+        {
+          defaultValue: undefined,
+        },
+      );
       expect(cookieSet).toHaveBeenCalledWith(
         'XSRF-TOKEN',
         expect.any(String),
@@ -148,7 +154,9 @@ describe('rotateCsrfToken', () => {
   it('uses a different token each call (rotation)', () => {
     const tokens: string[] = [];
     const res = {
-      cookie: (_name: string, value: string) => { tokens.push(value); },
+      cookie: (_name: string, value: string) => {
+        tokens.push(value);
+      },
     };
     rotateCsrfToken(res, { secret: 'shh' });
     rotateCsrfToken(res, { secret: 'shh' });
@@ -168,7 +176,11 @@ describe('timingSafeEqualSafe', () => {
   });
 
   it('returns false for buffers of different lengths without throwing', () => {
-    expect(() => timingSafeEqualSafe(Buffer.from('short'), Buffer.from('a-much-longer-string'))).not.toThrow();
-    expect(timingSafeEqualSafe(Buffer.from('short'), Buffer.from('a-much-longer-string'))).toBe(false);
+    expect(() =>
+      timingSafeEqualSafe(Buffer.from('short'), Buffer.from('a-much-longer-string')),
+    ).not.toThrow();
+    expect(timingSafeEqualSafe(Buffer.from('short'), Buffer.from('a-much-longer-string'))).toBe(
+      false,
+    );
   });
 });

@@ -1,8 +1,8 @@
+import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
 import { Link as InertiaLink } from '@inertiajs/vue3';
 import { defineComponent, h } from 'vue';
 import type { PropType } from 'vue';
 import { route as buildRoute } from '../routes-stub.js';
-import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
 
 type AnyRoutes = RegistryRoutes;
 
@@ -59,11 +59,11 @@ export const Link = defineComponent({
       };
 
       if (props.class) {
-        linkProps['class'] = props.class;
+        linkProps.class = props.class;
       }
 
       if (props.method) {
-        linkProps['method'] = props.method;
+        linkProps.method = props.method;
       }
 
       return h(InertiaLink, linkProps, slots);

@@ -66,7 +66,9 @@ export class FileBasedShellRenderer implements ShellRenderer {
       this.engineRenderer = adapter.compile(this.cachedTemplate, this.absPath);
     }
 
-    const inertiaHtml = ssrBody ?? `<div id="app"></div>\n<script id="inertia-page" type="application/json">${pageJson}</script>`;
+    const inertiaHtml =
+      ssrBody ??
+      `<div id="app"></div>\n<script id="inertia-page" type="application/json">${pageJson}</script>`;
     const directiveCtx = { pageJson, ssrHead, ssrBody, manifest, isDev };
     const locals: Record<string, unknown> = {
       page: ctx.page,

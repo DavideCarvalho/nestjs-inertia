@@ -23,7 +23,12 @@ async function waitForCondition(
   throw new Error(`Condition not met within ${timeoutMs}ms`);
 }
 
-function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string, useStaticDiscovery?: boolean): ResolvedConfig {
+function makeConfig(
+  pagesDir: string,
+  outDir: string,
+  contractsGlob?: string,
+  useStaticDiscovery?: boolean,
+): ResolvedConfig {
   return {
     pages: {
       glob: '**/*.tsx',
@@ -139,11 +144,7 @@ describe('watch', () => {
 
     // Seed a controller file that will be watched
     const controllerPath = join(srcDir, 'app.controller.ts');
-    await writeFile(
-      controllerPath,
-      '// initial controller\n',
-      'utf8',
-    );
+    await writeFile(controllerPath, '// initial controller\n', 'utf8');
 
     // Stub discoverRoutes to avoid spawning Nest — returns a deterministic route table
     const stubRoutes: RouteDescriptor[] = [
@@ -157,7 +158,13 @@ describe('watch', () => {
 
     const config = makeConfig(projectDir, outDir, 'src/**/*.controller.ts');
     let onChangeCalled = 0;
-    const watcher = await watch(config, () => { onChangeCalled++; }, stubDiscoverRoutes);
+    const watcher = await watch(
+      config,
+      () => {
+        onChangeCalled++;
+      },
+      stubDiscoverRoutes,
+    );
     watchers.push(watcher);
 
     // Give chokidar time to set up its internal watch
@@ -166,11 +173,7 @@ describe('watch', () => {
     const initialDiscoverCount = discoverCallCount;
 
     // Modify the controller file to trigger the contracts watcher
-    await writeFile(
-      controllerPath,
-      '// initial controller\n// modified\n',
-      'utf8',
-    );
+    await writeFile(controllerPath, '// initial controller\n// modified\n', 'utf8');
 
     // Wait for onChange to fire (500ms debounce + processing time, 3s timeout)
     await waitForCondition(() => onChangeCalled > 0, 3000);
@@ -211,7 +214,13 @@ describe('watch', () => {
     // Explicitly opt out of static discovery
     const config = makeConfig(projectDir, outDir, 'src/**/*.controller.ts', false);
     let onChangeCalled = 0;
-    const watcher = await watch(config, () => { onChangeCalled++; }, stubDiscoverRoutes);
+    const watcher = await watch(
+      config,
+      () => {
+        onChangeCalled++;
+      },
+      stubDiscoverRoutes,
+    );
     watchers.push(watcher);
 
     await new Promise((r) => setTimeout(r, 300));
@@ -241,7 +250,9 @@ describe('watch', () => {
 
     let onChangeCalled = 0;
     // Do NOT pass a discoverRoutesImpl stub — the watcher should use static discovery instead
-    const watcher = await watch(config, () => { onChangeCalled++; });
+    const watcher = await watch(config, () => {
+      onChangeCalled++;
+    });
     watchers.push(watcher);
 
     // Give chokidar time to set up
@@ -250,7 +261,7 @@ describe('watch', () => {
     // Touch the fixture controller to trigger the contracts watcher
     const controllerPath = join(fixturesDir, 'contract-users.controller.ts');
     const originalContent = await readFile(controllerPath, 'utf8');
-    await writeFile(controllerPath, originalContent + '\n// touched\n', 'utf8');
+    await writeFile(controllerPath, `${originalContent}\n// touched\n`, 'utf8');
 
     try {
       // Wait for onChange to fire

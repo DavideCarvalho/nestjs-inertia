@@ -1,6 +1,6 @@
+import starlight from '@astrojs/starlight';
 // website/astro.config.mjs
 import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://davidecarvalho.github.io',
@@ -14,8 +14,7 @@ export default defineConfig({
         github: 'https://github.com/DavideCarvalho/nestjs-inertia',
       },
       editLink: {
-        baseUrl:
-          'https://github.com/DavideCarvalho/nestjs-inertia/edit/main/website/',
+        baseUrl: 'https://github.com/DavideCarvalho/nestjs-inertia/edit/main/website/',
       },
       sidebar: [
         { label: 'Getting Started', slug: 'getting-started' },

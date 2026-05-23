@@ -1,5 +1,5 @@
-import type { SvelteComponent } from 'svelte';
 import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
+import type { SvelteComponent } from 'svelte';
 
 type Routes = RegistryRoutes;
 

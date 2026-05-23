@@ -3,7 +3,7 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": false,
-    "ignore": ["dist/**", "node_modules/**", ".turbo/**", "coverage/**"]
+    "ignore": ["dist/**", "node_modules/**", ".turbo/**", "coverage/**", "**/*.svelte"]
   },
   "formatter": {
     "enabled": true,
@@ -12,7 +12,8 @@
     "lineWidth": 100
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "semicolons": "always", "trailingCommas": "all" }
+    "formatter": { "quoteStyle": "single", "semicolons": "always", "trailingCommas": "all" },
+    "parser": { "unsafeParameterDecoratorsEnabled": true }
   },
   "linter": {
     "enabled": true,

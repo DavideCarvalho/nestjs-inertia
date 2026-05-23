@@ -41,7 +41,10 @@ function loadFrameworkPlugin(framework: 'react' | 'vue' | 'svelte'): Plugin {
   try {
     const mod = require(pkg) as { default?: () => Plugin; svelte?: () => Plugin };
     // @sveltejs/vite-plugin-svelte v3+ exports a named `svelte` export rather than default
-    const factory = mod.default ?? (framework === 'svelte' ? mod.svelte : undefined) ?? (mod as unknown as () => Plugin);
+    const factory =
+      mod.default ??
+      (framework === 'svelte' ? mod.svelte : undefined) ??
+      (mod as unknown as () => Plugin);
     return (factory as () => Plugin)();
   } catch {
     throw new InvalidViteConfigException(`Plugin "${pkg}" not installed. Run: pnpm add ${pkg}`);

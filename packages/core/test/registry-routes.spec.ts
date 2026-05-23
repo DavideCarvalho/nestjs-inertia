@@ -14,7 +14,10 @@ describe('RegistryRoutes', () => {
 // This uses a local declare module to simulate what the user's nestjs-inertia.d.ts does.
 declare module '../src/index.js' {
   interface InertiaRegistry {
-    routes: { 'UsersController.show': { id: string }; 'UsersController.list': Record<string, never> };
+    routes: {
+      'UsersController.show': { id: string };
+      'UsersController.list': Record<string, never>;
+    };
   }
 }
 

@@ -3,8 +3,12 @@ import { Controller, Get, Param } from '@nestjs/common';
 @Controller('users')
 export class UsersController {
   @Get()
-  list() { return []; }
+  list() {
+    return [];
+  }
 
   @Get(':id')
-  show(@Param('id') _id: string) { return {}; }
+  show(@Param('id') _id: string) {
+    return {};
+  }
 }

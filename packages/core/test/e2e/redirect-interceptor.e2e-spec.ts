@@ -23,7 +23,9 @@ describe('RedirectInterceptor — E2E', () => {
     app = moduleRef.createNestApplication();
     await app.init();
   });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('PUT redirect 302 is upgraded to 303 when X-Inertia header present', async () => {
     const res = await request(app.getHttpServer())
@@ -35,9 +37,7 @@ describe('RedirectInterceptor — E2E', () => {
   });
 
   it('PUT redirect 302 stays 302 when X-Inertia header absent', async () => {
-    const res = await request(app.getHttpServer())
-      .put('/items/1')
-      .redirects(0);
+    const res = await request(app.getHttpServer()).put('/items/1').redirects(0);
     expect(res.status).toBe(302);
   });
 });

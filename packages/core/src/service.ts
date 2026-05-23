@@ -23,7 +23,6 @@ function containsAlwaysMarker(value: unknown): boolean {
   return false;
 }
 
-
 /**
  * Recursively resolve a nested plain object, walking all keys and resolving markers.
  *
@@ -117,7 +116,7 @@ async function resolveMarker(
   if (kind === 'optional') {
     // subKeep === null: full reload — omit optional
     // subKeep !== null: partial reload — include only if relPath is listed
-    if (subKeep !== null && subKeep.includes(relPath)) {
+    if (subKeep?.includes(relPath)) {
       return getMarkerValue(marker)();
     }
     return OMIT;
