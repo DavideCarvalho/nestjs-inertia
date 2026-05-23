@@ -1,5 +1,5 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import type { InertiaModuleOptions, PageObject } from '../types.js';
@@ -25,7 +25,15 @@ export class SsrLoaderService {
         process.cwd(),
         this.opts.ssr.bundlePath ?? 'dist/inertia/ssr/ssr.mjs',
       );
-      const mod = (await import(pathToFileURL(bundlePath).href)) as {
+      // vitest 3's vite-node intercepts `await import(filePath)` even with
+      // @vite-ignore, masking real fs errors with "Cannot find module imported
+      // from <source>". Read the bundle off disk and import via a data: URL —
+      // the module is inlined so the resolver has nothing to look up.
+      // The bundle is loaded once then cached on `this.cached`, so the readFile
+      // cost is one-shot.
+      const code = readFileSync(bundlePath, 'utf8');
+      const dataUrl = `data:text/javascript;base64,${Buffer.from(code, 'utf8').toString('base64')}`;
+      const mod = (await import(/* @vite-ignore */ dataUrl)) as {
         default?: SsrModule;
         render?: SsrModule['render'];
       };
