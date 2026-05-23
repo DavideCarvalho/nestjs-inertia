@@ -247,7 +247,7 @@ async function bootstrap() {
 bootstrap();
 ```
 
-**After this step:** Running `pnpm start:dev` starts NestJS and Vite together. Asset requests (`/inertia/app.tsx`, `/@vite/client`) are handled by Vite's dev server middleware. No separate `vite` process is needed.
+**After this step:** Running `nest start --watch` starts NestJS and Vite together. Asset requests (`/inertia/app.tsx`, `/@vite/client`) are handled by Vite's dev server middleware. No separate `vite` process is needed.
 
 ---
 
@@ -424,7 +424,7 @@ export class AppModule {}
 Run the app:
 
 ```bash
-pnpm start:dev
+nest start --watch
 ```
 
 Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard). You should see the Dashboard page rendered with the props returned by the controller. Subsequent visits (after the first full-page load) navigate without a full reload.
@@ -495,7 +495,7 @@ export class PostsController {
 
 ## Step 8 — Set up codegen
 
-Codegen reads your controller decorators and generates three typed output files into `.nestjs-inertia/`. Run the initialiser once:
+Codegen reads your controller decorators and generates three typed output files into a `.nestjs-inertia/` directory **at the root of your project** (next to `package.json`). Run the initialiser once:
 
 ```bash
 pnpm exec nestjs-inertia init
@@ -536,14 +536,29 @@ InertiaModule.forRoot({
 }),
 ```
 
-Start the app with `pnpm start:dev`. The watcher fires immediately and emits:
+Start the app with the NestJS CLI:
+
+```bash
+nest start --watch
+```
+
+The codegen watcher fires on bootstrap and emits files into `.nestjs-inertia/` at the project root:
 
 ```
-.nestjs-inertia/
-  pages.ts     ← typed page component map (Page.Dashboard, Page.Posts.List, …)
-  routes.ts    ← Route.* and Path.* typed route constants
-  api.ts       ← @ApplyContract endpoints as a typed client surface
+your-project/
+├── package.json
+├── nestjs-inertia.config.ts
+├── .nestjs-inertia/              ← generated here (same level as package.json)
+│   ├── pages.d.ts                ← typed page component map
+│   ├── routes.ts                 ← Route.* and Path.* typed route constants
+│   ├── api.ts                    ← @ApplyContract endpoints as typed client surface
+│   └── index.d.ts                ← barrel re-export
+├── inertia/
+│   └── pages/
+└── src/
 ```
+
+The output directory is configurable via `codegen.outDir` in `nestjs-inertia.config.ts` (default: `.nestjs-inertia`).
 
 For CI or Docker builds, run codegen explicitly before the TypeScript compilation step:
 
