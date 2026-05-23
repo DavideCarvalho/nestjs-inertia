@@ -1,5 +1,14 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.0.2
+
+### Patch Changes
+
+- [`27e0bab`](https://github.com/DavideCarvalho/nestjs-inertia/commit/27e0bab4b7f8752a4dd179cc715b4e3d64161624) - Fix: @vite directive includes React Refresh preamble, watcher initial pass runs full route+contract discovery from DTOs
+
+- Updated dependencies [[`27e0bab`](https://github.com/DavideCarvalho/nestjs-inertia/commit/27e0bab4b7f8752a4dd179cc715b4e3d64161624)]:
+  - @dudousxd/nestjs-inertia@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes
