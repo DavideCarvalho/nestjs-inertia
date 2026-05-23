@@ -121,6 +121,42 @@ describe('watch', () => {
     warnSpy.mockRestore();
   });
 
+  it('initial pass generates routes.ts + api.ts from DTO controllers (not pages-only)', async () => {
+    const fixturesDir = resolve(__dirname, '../__fixtures__/app');
+    tmpBase = await mkdtemp(join(tmpdir(), 'watcher-initial-spec-'));
+    const pagesDir = join(tmpBase, 'pages');
+    const outDir = join(tmpBase, '.nestjs-inertia');
+    await mkdir(pagesDir, { recursive: true });
+
+    // Seed a page so pages discovery works
+    await writeFile(
+      join(pagesDir, 'Home.tsx'),
+      'export default function Home() { return null; }\n',
+      'utf8',
+    );
+
+    // Point at specific non-colliding fixtures (collision.controller.ts is a deliberate error fixture)
+    const config = makeConfig(pagesDir, outDir, 'dto-controller.controller.ts');
+    config.codegen = { outDir, cwd: fixturesDir };
+
+    const watcher = await watch(config);
+    watchers.push(watcher);
+
+    // Wait for routes.ts to appear (initial discovery + emit)
+    await waitForCondition(async () => {
+      try {
+        await readFile(join(outDir, 'routes.ts'), 'utf8');
+        return true;
+      } catch {
+        return false;
+      }
+    }, 5000);
+
+    const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
+    expect(routesContent).toContain('ROUTES');
+    expect(routesContent).toContain('RouteName');
+  });
+
   it('uses static discovery (discoverContractsFast) and regenerates routes.ts on controller change', async () => {
     const fixturesDir = resolve(__dirname, '../__fixtures__/app');
     tmpBase = await mkdtemp(join(tmpdir(), 'watcher-static-spec-'));

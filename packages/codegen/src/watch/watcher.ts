@@ -59,8 +59,9 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
       ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
     });
     await generate(config, initialRoutes);
-  } catch {
+  } catch (err) {
     // Best-effort; don't crash the watcher on initial generation failure
+    console.warn(`[nestjs-inertia-codegen] Initial route discovery failed, falling back to pages-only: ${err instanceof Error ? err.message : String(err)}`);
     try { await generate(config); } catch { /* fallback: pages only */ }
   }
 
