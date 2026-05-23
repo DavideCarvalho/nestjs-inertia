@@ -27,8 +27,8 @@ function writeCsrfCookie(
 
 /**
  * Force-issue a new CSRF token on the next response, discarding the existing
- * one. Call this on login, logout, and password-reset flows to prevent token
- * fixation attacks.
+ * one. Call this when the session principal changes (e.g. after issuing a new
+ * session) to prevent token fixation attacks.
  *
  * @example
  * ```ts
