@@ -27,6 +27,10 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'guides' } }],
         },
         {
+          label: 'Recipes',
+          items: [{ autogenerate: { directory: 'recipes' } }],
+        },
+        {
           label: 'Packages',
           items: [{ autogenerate: { directory: 'packages' } }],
         },

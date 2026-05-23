@@ -1,0 +1,357 @@
+---
+title: Not Found Filter
+description: A production-ready NestJS exception filter that renders an Inertia component on 404 for page requests and returns structured JSON for API routes.
+---
+
+import { Aside, Code, Steps } from '@astrojs/starlight/components';
+
+When a route or resource is not found, NestJS throws a `NotFoundException` (HTTP 404). The right response depends on who made the request: a browser navigating an Inertia app should receive a rendered "Not Found" page inside the existing layout; an API client should receive a structured JSON error.
+
+The library does **not** ship a built-in filter for this because the component name, the JSON error shape, and the logic for distinguishing API routes from page routes are all application concerns — and shipping an opinion there would force you to rename your components or structure your API a specific way.
+
+## The full filter
+
+The filter below is a configurable class: you construct it with a component name, an optional list of API prefixes, and an optional function to customise the JSON error shape.
+
+```ts
+// src/filters/inertia-not-found.filter.ts
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  NotFoundException,
+} from '@nestjs/common';
+import type { InertiaService } from '@dudousxd/nestjs-inertia';
+import type { Request, Response } from 'express';
+
+export interface NotFoundFilterOptions {
+  /**
+   * The Inertia component to render for 404 page responses.
+   * Must match a component registered in your frontend.
+   * @example 'Errors/NotFound'
+   * @example 'NotFound'
+   */
+  component: string;
+
+  /**
+   * URL prefixes that should always receive a JSON response, regardless
+   * of whether an X-Inertia header is present.
+   * @default ['/api']
+   */
+  apiPrefixes?: string[];
+
+  /**
+   * Customise the JSON body returned to API clients.
+   * Receives the request path and the original exception.
+   * @default (path, ex) => ({ statusCode: 404, path, message: ex.message })
+   */
+  errorShape?: (path: string, exception: NotFoundException) => unknown;
+}
+
+type InertiaRequest = Request & { inertia?: InertiaService };
+
+@Catch(NotFoundException)
+export class InertiaNotFoundFilter implements ExceptionFilter {
+  private readonly apiPrefixes: string[];
+  private readonly errorShape: (path: string, ex: NotFoundException) => unknown;
+
+  constructor(private readonly options: NotFoundFilterOptions) {
+    this.apiPrefixes = options.apiPrefixes ?? ['/api'];
+    this.errorShape =
+      options.errorShape ??
+      ((path, ex) => ({
+        statusCode: 404,
+        path,
+        message: ex.message,
+      }));
+  }
+
+  async catch(
+    exception: NotFoundException,
+    host: ArgumentsHost,
+  ): Promise<void> {
+    const req = host.switchToHttp().getRequest<InertiaRequest>();
+    const res = host.switchToHttp().getResponse<Response>();
+
+    const path =
+      (req as { originalUrl?: string }).originalUrl ?? req.url ?? '/';
+
+    // --- Guard: response already flushed (streaming routes, SSE, etc.) ---
+    if (res.headersSent) return;
+
+    // --- API routes: always return JSON ---
+    if (this.isApiPath(path) || !req.inertia) {
+      res
+        .status(404)
+        .json(this.errorShape(path, exception));
+      return;
+    }
+
+    // --- Inertia page request: render the configured 404 component ---
+    res.status(404);
+    await req.inertia.render(this.options.component, {
+      requestedPath: path,
+    });
+  }
+
+  private isApiPath(path: string): boolean {
+    return this.apiPrefixes.some(
+      (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+    );
+  }
+}
+```
+
+### Why `@Catch(NotFoundException)` instead of `@Catch()`?
+
+`@Catch()` with no argument catches every unhandled exception — including 500s, validation errors, and anything else. A 404 filter should only render the "not found" page, not swallow server errors. Keep your `InertiaNotFoundFilter` focused on `NotFoundException` and add a separate `AllExceptionsFilter` for error pages.
+
+### Why check both `isApiPath` and `!req.inertia`?
+
+- `isApiPath`: catches explicit API consumers that do **not** send `x-inertia` headers (curl, mobile apps, server-to-server calls to your API routes).
+- `!req.inertia`: catches edge cases where an Inertia-adjacent path triggers a 404 but the `InertiaService` was never attached (e.g. a middleware short-circuits before the Inertia middleware runs). Both checks together ensure no JSON leaks into page responses and no rendered HTML leaks into API responses.
+
+### How `req.inertia` gets there
+
+The `InertiaModule` attaches an `InertiaService` instance to `req.inertia` via NestJS middleware. It is present on every request that passes through the module. If a request is intercepted by a guard or middleware earlier in the pipeline, `req.inertia` may be `undefined`.
+
+## Registering the filter
+
+### Globally via `app.useGlobalFilters` (recommended for most apps)
+
+```ts
+// src/main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { InertiaNotFoundFilter } from './filters/inertia-not-found.filter';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.useGlobalFilters(
+    new InertiaNotFoundFilter({
+      component: 'Errors/NotFound',
+      apiPrefixes: ['/api', '/webhooks'],
+    }),
+  );
+
+  await app.listen(3000);
+}
+
+bootstrap();
+```
+
+### Globally via `APP_FILTER` (if you need DI inside the filter)
+
+If your `errorShape` function needs access to injected services (e.g. a logger), register through the module system instead:
+
+```ts
+// src/app.module.ts
+import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
+import { InertiaNotFoundFilter } from './filters/inertia-not-found.filter';
+
+@Module({
+  providers: [
+    {
+      provide: APP_FILTER,
+      useValue: new InertiaNotFoundFilter({
+        component: 'Errors/NotFound',
+        apiPrefixes: ['/api'],
+        errorShape: (path, ex) => ({
+          error: 'NOT_FOUND',
+          path,
+          detail: ex.message,
+          timestamp: new Date().toISOString(),
+        }),
+      }),
+    },
+  ],
+})
+export class AppModule {}
+```
+
+### At controller level
+
+When only specific controllers need the custom 404 behaviour:
+
+```ts
+@Controller('products')
+@UseFilters(new InertiaNotFoundFilter({ component: 'Products/NotFound' }))
+export class ProductsController {
+  @Get(':id')
+  @Inertia('Products/Show')
+  async show(@Param('id') id: string) {
+    const product = await this.productsService.findById(id);
+    if (!product) throw new NotFoundException(`Product ${id} not found`);
+    return product;
+  }
+}
+```
+
+<Aside type="tip">
+Filter scope: NestJS applies filters innermost-first. A controller-level filter handles exceptions before the global filter sees them, so you can override the behaviour for specific controllers without touching the global registration.
+</Aside>
+
+## Edge cases
+
+### `headersSent` — response already started
+
+Some routes (Server-Sent Events, file downloads) begin writing the response before throwing. The `if (res.headersSent) return;` guard at the top of `catch` prevents the filter from attempting to write headers on an already-flushed socket, which would throw a Node.js `ERR_HTTP_HEADERS_SENT` error.
+
+```ts
+// Guard at the top of catch():
+if (res.headersSent) return;
+```
+
+Without this, a 404 thrown inside an SSE event stream would crash the process rather than being silently ignored.
+
+### SSR mode
+
+When server-side rendering is enabled, `req.inertia.render(component, props)` executes the component's SSR entry point on the server and inlines the result into the HTML shell. The filter behaves identically in SSR mode — there is nothing special to handle. The 404 status code is set on the response before `render()` is called, so the SSR HTML is delivered with the correct HTTP status.
+
+<Aside type="caution">
+SSR only affects the render step. The `res.status(404)` call must happen **before** `req.inertia.render(...)`, otherwise search-engine crawlers may index your 404 page as a 200.
+</Aside>
+
+### Nested routes that 404 inside an Inertia layout
+
+If a sub-component fetches data that 404s (e.g. via a deferred prop), the exception is thrown inside NestJS's request pipeline and the filter catches it normally. The rendered component will be the 404 page configured in `options.component`, not the parent layout's component — which is the desired behaviour. If you want the parent layout to remain visible while showing an inline "not found" state, handle the missing data at the component level rather than throwing a `NotFoundException`.
+
+### Multiple API prefixes
+
+Supply an array to `apiPrefixes` to protect multiple namespace segments:
+
+```ts
+new InertiaNotFoundFilter({
+  component: 'Errors/NotFound',
+  apiPrefixes: ['/api', '/v1', '/v2', '/webhooks', '/internal'],
+})
+```
+
+### Custom error shape per environment
+
+You can vary the `errorShape` based on the runtime environment. This is useful for hiding internal details in production while keeping them in development:
+
+```ts
+const isDev = process.env.NODE_ENV !== 'production';
+
+new InertiaNotFoundFilter({
+  component: 'Errors/NotFound',
+  errorShape: (path, ex) => ({
+    statusCode: 404,
+    path,
+    message: isDev ? ex.message : 'Not Found',
+    ...(isDev && { stack: ex.stack }),
+  }),
+})
+```
+
+## Testing
+
+Unit-test the filter without an HTTP server by constructing the `ArgumentsHost` mock manually:
+
+```ts
+// src/filters/inertia-not-found.filter.spec.ts
+import { describe, it, expect, vi } from 'vitest';
+import { NotFoundException } from '@nestjs/common';
+import { InertiaNotFoundFilter } from './inertia-not-found.filter';
+import type { ArgumentsHost } from '@nestjs/common';
+import type { InertiaService } from '@dudousxd/nestjs-inertia';
+
+function makeHost(overrides: {
+  url?: string;
+  originalUrl?: string;
+  inertia?: InertiaService | null;
+  headersSent?: boolean;
+  headers?: Record<string, string>;
+}) {
+  const inertia = overrides.inertia !== undefined
+    ? overrides.inertia
+    : ({ render: vi.fn().mockResolvedValue(undefined) } as unknown as InertiaService);
+
+  const req = {
+    url: overrides.url ?? '/missing',
+    originalUrl: overrides.originalUrl ?? '/missing',
+    inertia: inertia ?? undefined,
+    headers: overrides.headers ?? {},
+  };
+
+  const res = {
+    headersSent: overrides.headersSent ?? false,
+    _status: 200,
+    _body: null as unknown,
+    status(code: number) { this._status = code; return this; },
+    json(body: unknown) { this._body = body; return this; },
+  };
+
+  return {
+    req,
+    res,
+    host: {
+      switchToHttp: () => ({
+        getRequest: () => req,
+        getResponse: () => res,
+      }),
+    } as unknown as ArgumentsHost,
+  };
+}
+
+const ex = new NotFoundException('Route /missing not found');
+
+describe('InertiaNotFoundFilter', () => {
+  const filter = new InertiaNotFoundFilter({ component: 'Errors/NotFound' });
+
+  it('renders Inertia component for page requests', async () => {
+    const { host, req } = makeHost({});
+    await filter.catch(ex, host);
+    expect((req.inertia as { render: ReturnType<typeof vi.fn> }).render).toHaveBeenCalledWith(
+      'Errors/NotFound',
+      { requestedPath: '/missing' },
+    );
+  });
+
+  it('returns JSON for API paths', async () => {
+    const { host, res } = makeHost({ url: '/api/users/99', originalUrl: '/api/users/99' });
+    await filter.catch(ex, host);
+    expect(res._status).toBe(404);
+    expect((res._body as { statusCode: number }).statusCode).toBe(404);
+    expect((res._body as { path: string }).path).toBe('/api/users/99');
+  });
+
+  it('returns JSON when req.inertia is absent', async () => {
+    const { host, res } = makeHost({ inertia: null });
+    await filter.catch(ex, host);
+    expect(res._status).toBe(404);
+    expect(res._body).toBeTruthy();
+  });
+
+  it('does nothing when headers are already sent', async () => {
+    const { host, req } = makeHost({ headersSent: true });
+    await filter.catch(ex, host);
+    expect((req.inertia as { render: ReturnType<typeof vi.fn> }).render).not.toHaveBeenCalled();
+  });
+
+  it('honours custom error shape', async () => {
+    const customFilter = new InertiaNotFoundFilter({
+      component: 'Errors/NotFound',
+      errorShape: (path) => ({ error: 'NOT_FOUND', path }),
+    });
+    const { host, res } = makeHost({ url: '/api/x', originalUrl: '/api/x' });
+    await customFilter.catch(ex, host);
+    expect(res._body).toEqual({ error: 'NOT_FOUND', path: '/api/x' });
+  });
+});
+```
+
+## Production considerations
+
+**Structured logging**: log every 404 at `info` level — they are not errors, but they are signals. Include the requested path, the user agent, and whether it was an Inertia request. Aggregate paths in your log sink to spot broken links, outdated bookmarks, or crawler probing.
+
+**Masking sensitive paths**: paths may contain user-provided data (e.g. `/admin/users/supersecret-id`). Sanitise or truncate paths before including them in external error reporting (Sentry, Datadog). A regex replace on UUIDs and numeric IDs is usually sufficient.
+
+**Telemetry**: emit a counter metric `http.not_found` tagged with `inertia: true/false` and `api: true/false` to track the mix of 404 sources. A sudden spike in API 404s often means a frontend deployment shipped with stale route constants.
+
+**Search-engine treatment**: ensure `res.status(404)` is called before `req.inertia.render(...)`. If the status is accidentally `200`, search engines index your 404 page as normal content, which pollutes your index and harms SEO.
+
+**Soft 404s**: some apps render a "not found" state inline (e.g. a product page that gracefully shows "Item unavailable") while returning `200`. This is a deliberate product decision. If you want that behaviour, catch `NotFoundException` at the controller level and return a normal component rather than using this filter.

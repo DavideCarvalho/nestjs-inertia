@@ -1,0 +1,397 @@
+---
+title: Auth Redirect Guard
+description: A production-ready NestJS guard that sends 302 for plain browser requests and 409 X-Inertia-Location for Inertia XHR — the two-response pattern required by the Inertia protocol.
+---
+
+import { Aside, Code, Steps } from '@astrojs/starlight/components';
+
+When an unauthenticated user reaches a protected route, a plain browser visit expects a `302 Found` redirect to the sign-in page. An Inertia XHR, however, already owns the history stack and cannot follow a 302 — the protocol instead demands a `409 Conflict` response with an `X-Inertia-Location` header so the client-side router can perform a hard navigation. Getting this wrong produces a blank page or a JSON response rendered inside your React/Vue/Svelte layout.
+
+The library does **not** ship a built-in guard for this because the auth UX — which URL is the sign-in page, what counts as an authenticated request, per-route allow lists, role checks — is fundamentally app-specific.
+
+## The full guard
+
+The implementation below is a configurable factory: you construct the guard with a `signInUrl` and supply an `isAuthorized` predicate that wraps whatever auth mechanism your app uses (Passport strategies, JWT verification, session middleware, etc.).
+
+```ts
+// src/guards/auth-redirect.guard.ts
+import {
+  type CanActivate,
+  type ExecutionContext,
+  Injectable,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+
+export interface AuthRedirectOptions {
+  /**
+   * The URL of your sign-in page.
+   * @example '/signin'
+   * @example 'https://auth.example.com/login'
+   */
+  signInUrl: string;
+
+  /**
+   * Return true when the current request is considered authenticated.
+   * Receives the raw Express request, so you can inspect `req.user`,
+   * `req.session`, a JWT in `Authorization`, or anything else.
+   */
+  isAuthorized: (req: Request) => boolean | Promise<boolean>;
+
+  /**
+   * Paths (exact strings or prefix patterns) that skip the guard entirely.
+   * Useful for static assets, health checks, or public routes registered
+   * inside a guarded controller.
+   *
+   * @example ['/health', '/public']
+   */
+  allowList?: string[];
+}
+
+@Injectable()
+export class AuthRedirectGuard implements CanActivate {
+  constructor(private readonly options: AuthRedirectOptions) {}
+
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    const req = ctx.switchToHttp().getRequest<Request>();
+    const res = ctx.switchToHttp().getResponse<Response>();
+
+    const rawUrl = (req as { originalUrl?: string }).originalUrl ?? req.url ?? '/';
+    const path = new URL(rawUrl, 'http://localhost').pathname;
+
+    // --- Allow-list: skip the guard for explicitly exempted paths ---
+    if (this.isAllowed(path)) return true;
+
+    // --- Authorization check: delegate to the app-supplied predicate ---
+    const authorized = await this.options.isAuthorized(req);
+    if (authorized) return true;
+
+    // --- Build the redirect target ---
+    // Avoid a redirect loop when the user is already on the sign-in page.
+    const signInPath = new URL(
+      this.options.signInUrl,
+      'http://localhost',
+    ).pathname;
+
+    const isOnSignIn = path === signInPath;
+    const target = isOnSignIn
+      ? this.options.signInUrl
+      : this.buildReturnToUrl(this.options.signInUrl, rawUrl);
+
+    // --- Dispatch based on whether this is an Inertia XHR ---
+    if (req.headers['x-inertia']) {
+      // Inertia client-side navigation: 409 + X-Inertia-Location
+      res.status(409).setHeader('X-Inertia-Location', target).end();
+    } else {
+      // Plain browser visit: standard redirect
+      res.redirect(302, target);
+    }
+
+    return false;
+  }
+
+  private isAllowed(path: string): boolean {
+    return (this.options.allowList ?? []).some(
+      (entry) => path === entry || path.startsWith(`${entry}/`),
+    );
+  }
+
+  private buildReturnToUrl(signInUrl: string, rawUrl: string): string {
+    // For absolute sign-in URLs (external OAuth, etc.) we append as a query
+    // parameter and rely on the IdP to honour it.
+    try {
+      const base = new URL(signInUrl); // throws for relative URLs
+      base.searchParams.set('return_to', rawUrl);
+      return base.toString();
+    } catch {
+      // Relative URL — append return_to directly
+      const sep = signInUrl.includes('?') ? '&' : '?';
+      return `${signInUrl}${sep}return_to=${encodeURIComponent(rawUrl)}`;
+    }
+  }
+}
+```
+
+### Why `isAuthorized` instead of injecting a service?
+
+Injecting an auth service directly would couple the guard to your auth module's provider tokens, which forces consumers to also provide those tokens in tests and in modules that don't use auth. Accepting a plain function keeps the guard zero-dependency and lets you swap auth backends without touching the guard.
+
+### Why `409` and not `401`?
+
+The [Inertia protocol docs](https://inertiajs.com/redirects#external-redirects) specify that external redirects (i.e. the server wants the browser to navigate away) must use HTTP 409. HTTP 401 would trigger browser pop-ups for `WWW-Authenticate` challenges, which is not what you want.
+
+### Why check `x-inertia` instead of `Accept: application/json`?
+
+An Inertia XHR sets `X-Inertia: true` and `X-Requested-With: XMLHttpRequest`. Checking `Accept` would also match normal API clients, which should not receive `X-Inertia-Location`.
+
+## Registering the guard
+
+### Per-route (most common)
+
+```ts
+// src/dashboard/dashboard.controller.ts
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Inertia } from '@dudousxd/nestjs-inertia';
+import { AuthRedirectGuard } from '../guards/auth-redirect.guard';
+import type { Request } from 'express';
+
+const authGuard = new AuthRedirectGuard({
+  signInUrl: '/signin',
+  isAuthorized: (req: Request) => Boolean((req as { user?: unknown }).user),
+});
+
+@Controller('dashboard')
+@UseGuards(authGuard)
+export class DashboardController {
+  @Get()
+  @Inertia('Dashboard/Index')
+  show() {
+    return {};
+  }
+}
+```
+
+### Globally via `APP_GUARD`
+
+If every route is protected by default and you use the `allowList` to carve out public paths:
+
+```ts
+// src/app.module.ts
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthRedirectGuard } from './guards/auth-redirect.guard';
+import type { Request } from 'express';
+
+@Module({
+  providers: [
+    {
+      provide: APP_GUARD,
+      useValue: new AuthRedirectGuard({
+        signInUrl: '/signin',
+        isAuthorized: (req: Request) => Boolean((req as { user?: unknown }).user),
+        allowList: ['/signin', '/signup', '/health', '/public'],
+      }),
+    },
+  ],
+})
+export class AppModule {}
+```
+
+<Aside type="caution">
+When applying the guard globally, make sure `/signin` itself is in the `allowList`, otherwise unauthenticated users will be redirected in a loop.
+</Aside>
+
+## Integrating with real auth
+
+The `isAuthorized` function receives the raw Express `Request`. Here are the three most common patterns:
+
+**Passport (session or JWT strategy)**
+
+```ts
+isAuthorized: (req) => req.isAuthenticated?.() ?? false,
+```
+
+**Custom JWT middleware** — middleware has already verified the token and attached `req.user`:
+
+```ts
+isAuthorized: (req) => Boolean((req as { user?: unknown }).user),
+```
+
+**Session-based auth** — check a known session key:
+
+```ts
+isAuthorized: (req) => {
+  const session = (req as { session?: { userId?: string } }).session;
+  return Boolean(session?.userId);
+},
+```
+
+## Edge cases
+
+### External sign-in (OAuth / SSO on another origin)
+
+When your `signInUrl` is an absolute URL on another origin (e.g. `https://auth.example.com/oauth/authorize`), the guard's `buildReturnToUrl` already handles it: it constructs a `URL` object, sets `return_to` via `searchParams`, and returns the full absolute URL. This works for both the `302` and `409` responses because browsers and the Inertia client both honour absolute `Location` / `X-Inertia-Location` values.
+
+```ts
+const authGuard = new AuthRedirectGuard({
+  signInUrl: 'https://auth.example.com/oauth/authorize?client_id=myapp',
+  isAuthorized: (req) => Boolean((req as { user?: unknown }).user),
+});
+```
+
+### Preserving `return_to` across the redirect
+
+The guard encodes the full `rawUrl` (including query string) in `return_to`. After the user signs in, your sign-in handler should read `req.query.return_to`, validate it is a relative path on your own origin (to prevent open-redirect attacks), and redirect there:
+
+```ts
+@Post('/signin')
+async signIn(@Req() req: Request, @Res() res: Response) {
+  // ... verify credentials ...
+  const returnTo = req.query['return_to'];
+  const safe =
+    typeof returnTo === 'string' && returnTo.startsWith('/')
+      ? returnTo
+      : '/dashboard';
+  res.redirect(302, safe);
+}
+```
+
+### `POST` requests and form submissions
+
+When a user submits a form to a protected endpoint while their session has expired, the guard fires before the request body is parsed. The response at this point is a redirect — the form body is lost.
+
+The conventional solution is to store the serialized body in a flash message (e.g. via `connect-flash` or your session store) before redirecting, then replay it on the next `GET`. In practice, most apps simply drop the body and show a "your session expired, please sign in and try again" message, which is the safer default.
+
+If you need to preserve the body, add it to the flash before redirecting:
+
+```ts
+isAuthorized: async (req) => {
+  if (req.user) return true;
+  // store body in flash for replay after sign-in
+  (req as { flash?: (k: string, v: string) => void }).flash?.(
+    'pendingBody',
+    JSON.stringify(req.body),
+  );
+  return false;
+},
+```
+
+### WebSocket and SSE routes
+
+The guard runs in NestJS's HTTP pipeline. WebSocket gateways use their own lifecycle and are unaffected. For Server-Sent Events (SSE) controllers — which are plain HTTP `GET` routes that send `text/event-stream` — the guard fires normally. An Inertia `x-inertia` header will not be present on SSE requests, so the guard issues a `302` redirect instead of a `409`. This is the correct behaviour.
+
+### Role-based variants
+
+To implement role-based access on top of the same pattern, compose multiple guards:
+
+```ts
+// src/guards/role.guard.ts
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class RoleGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(ctx: ExecutionContext): boolean {
+    const required = this.reflector.get<string[]>('roles', ctx.getHandler());
+    if (!required?.length) return true;
+    const req = ctx.switchToHttp().getRequest<{ user?: { roles?: string[] } }>();
+    return required.some((r) => req.user?.roles?.includes(r));
+  }
+}
+```
+
+Apply both guards together: `AuthRedirectGuard` fires first, then `RoleGuard` runs only for authenticated users.
+
+## Testing
+
+Unit-test the guard against Inertia and non-Inertia requests without spinning up an HTTP server:
+
+```ts
+// src/guards/auth-redirect.guard.spec.ts
+import { describe, it, expect, vi } from 'vitest';
+import { AuthRedirectGuard } from './auth-redirect.guard';
+import type { ExecutionContext } from '@nestjs/common';
+
+function makeCtx(
+  overrides: {
+    user?: unknown;
+    headers?: Record<string, string>;
+    url?: string;
+    originalUrl?: string;
+  } = {},
+) {
+  const req = {
+    user: overrides.user ?? null,
+    headers: overrides.headers ?? {},
+    url: overrides.url ?? '/dashboard',
+    originalUrl: overrides.originalUrl ?? '/dashboard',
+  };
+
+  const res = {
+    _status: 200,
+    _headers: {} as Record<string, string>,
+    _ended: false,
+    _redirect: null as string | null,
+    status(code: number) {
+      this._status = code;
+      return this;
+    },
+    setHeader(k: string, v: string) {
+      this._headers[k] = v;
+      return this;
+    },
+    end() {
+      this._ended = true;
+      return this;
+    },
+    redirect(_code: number, url: string) {
+      this._redirect = url;
+    },
+  };
+
+  return {
+    req,
+    res,
+    ctx: {
+      switchToHttp: () => ({
+        getRequest: () => req,
+        getResponse: () => res,
+      }),
+    } as unknown as ExecutionContext,
+  };
+}
+
+describe('AuthRedirectGuard', () => {
+  const guard = new AuthRedirectGuard({
+    signInUrl: '/signin',
+    isAuthorized: (req) => Boolean((req as { user?: unknown }).user),
+  });
+
+  it('allows authenticated requests through', async () => {
+    const { ctx } = makeCtx({ user: { id: 1 } });
+    expect(await guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('issues 302 for unauthenticated plain browser requests', async () => {
+    const { ctx, res } = makeCtx();
+    expect(await guard.canActivate(ctx)).toBe(false);
+    expect(res._redirect).toBe('/signin?return_to=%2Fdashboard');
+  });
+
+  it('issues 409 + X-Inertia-Location for Inertia XHR requests', async () => {
+    const { ctx, res } = makeCtx({ headers: { 'x-inertia': 'true' } });
+    expect(await guard.canActivate(ctx)).toBe(false);
+    expect(res._status).toBe(409);
+    expect(res._headers['X-Inertia-Location']).toBe(
+      '/signin?return_to=%2Fdashboard',
+    );
+  });
+
+  it('does not append return_to when already on the sign-in page', async () => {
+    const { ctx, res } = makeCtx({ url: '/signin', originalUrl: '/signin' });
+    await guard.canActivate(ctx);
+    expect(res._redirect).toBe('/signin');
+  });
+
+  it('skips allow-listed paths', async () => {
+    const guardWithList = new AuthRedirectGuard({
+      signInUrl: '/signin',
+      isAuthorized: () => false,
+      allowList: ['/public'],
+    });
+    const { ctx } = makeCtx({ url: '/public/file.txt', originalUrl: '/public/file.txt' });
+    expect(await guardWithList.canActivate(ctx)).toBe(true);
+  });
+});
+```
+
+## Production considerations
+
+**Logging**: log every redirect at `debug` level (not `warn` — these are not errors, just normal auth flow). Include the requested path and whether it was an Inertia request to make debugging session expiry easier.
+
+**Telemetry**: emit a counter metric `auth.redirect` tagged with `inertia: true/false` to track how often sessions expire mid-navigation versus on full page loads.
+
+**Redirect loop detection**: if your observability shows the same IP hitting `/signin?return_to=%2Fsignin` repeatedly, your allow-list is missing the sign-in page. Treat a `return_to` that equals the sign-in path as a no-op.
+
+**Timing**: `isAuthorized` is called on every request to a guarded route. Keep it fast: a synchronous token check is fine; a database lookup on every request will add measurable latency. If you need DB lookups, cache the result in the session.
