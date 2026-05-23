@@ -31,7 +31,25 @@ export const createUserContract = Contract.post('/users', {
 });
 ```
 
-### 2. Bind a Contract to a NestJS Handler with `@ApplyContract`
+### 2. Name your Contract
+
+The `name` field on the `Contract` definition controls how the generated `api.ts` exposes the endpoint — it is **not** derived from the controller or method name. Use dot-notation to nest under `api.*.*`:
+
+```ts
+Contract.get('/users', {
+  // ...
+  name: 'users.list',   // → api.users.list.queryOptions(...)
+});
+
+Contract.get('/health', {
+  // ...
+  name: 'health',       // → api.health.queryOptions(...)
+});
+```
+
+Best practice: align names with your resource hierarchy (`'users.list'`, `'users.show'`, `'users.create'`) so the generated `api` object mirrors your domain model.
+
+### 3. Bind a Contract to a NestJS Handler with `@ApplyContract`
 
 ```ts
 import { Controller, Get, Post } from '@nestjs/common';
@@ -52,7 +70,7 @@ export class UserController {
 
 `@ApplyContract` stores the contract definition under `CONTRACT_METADATA` so that `@dudousxd/nestjs-inertia-codegen` can discover it and emit a typed `api.ts` file.
 
-### 3. Create a Fetcher and Call Endpoints
+### 4. Create a Fetcher and Call Endpoints
 
 ```ts
 import { createFetcher } from '@dudousxd/nestjs-inertia-client';
@@ -75,7 +93,7 @@ const newUser = await fetcher.post<User>('/users', {
 
 The generated `api.ts` (emitted by `nestjs-inertia codegen`) wraps `createFetcher` with full request/response types derived from your contracts.
 
-### 4. Handle Errors
+### 5. Handle Errors
 
 ```ts
 import { ApiHttpError } from '@dudousxd/nestjs-inertia-client';

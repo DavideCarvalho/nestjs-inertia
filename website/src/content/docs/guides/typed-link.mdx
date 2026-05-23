@@ -90,6 +90,26 @@ Import from the `/vue` subpath. The component forwards all `@inertiajs/vue3` `Li
 
 Import from the `/svelte` subpath. The component wraps `@inertiajs/svelte`'s `Link`.
 
+## How the route name is chosen
+
+The route name passed to `<Link route="..." />` comes from the `name` field on the `Contract` definition — the same field that controls the `api.*` path in the generated `api.ts`. It is **not** derived from the controller class name or method name.
+
+```ts
+// Contract definition (server-side)
+const ShowUser = Contract.get('/users/:id', {
+  params: z.object({ id: z.string() }),
+  response: z.object({ id: z.string(), name: z.string() }),
+  name: 'users.show',  // ← this becomes the route name
+});
+```
+
+```tsx
+// Frontend usage — name comes directly from Contract.name
+<Link route="users.show" routeParams={{ id: user.id }}>View profile</Link>
+```
+
+**Best practice:** keep `Contract.name` aligned with your resource hierarchy so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
+
 ## Conditional `routeParams` behaviour
 
 `routeParams` is typed as a mapped type derived from `RouteParamsMap`:
