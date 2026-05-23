@@ -1,5 +1,14 @@
 # Changelog — @dudousxd/nestjs-inertia-testing
 
+## 1.0.6
+
+### Patch Changes
+
+- fix(codegen): resolve interfaces, type aliases, and enums — not just classes. Conditional @tanstack/query-core import.
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@1.0.6
+
 ## 1.0.5
 
 ### Patch Changes
