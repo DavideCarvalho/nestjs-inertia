@@ -41,7 +41,7 @@ Full documentation site: **https://davidecarvalho.github.io/nestjs-inertia/**
 
 | Document | Description |
 |---|---|
-| [Getting Started](https://davidecarvalho.github.io/nestjs-inertia/getting-started/) | Step-by-step installation and setup guide — packages, Vite config, first page, typed routes, codegen, testing, production build |
+| [Getting Started](https://davidecarvalho.github.io/nestjs-inertia/getting-started/) | Quickstart: install five packages, run `nestjs-inertia init`, wire two lines — done in under five minutes. Includes deep-dive on forRoot options, codegen, typed Link, testing, and production build. |
 | [Guides](https://davidecarvalho.github.io/nestjs-inertia/guides/installation/) | Installation, multi-app, testing, codegen, typed client |
 | [Recipes](https://davidecarvalho.github.io/nestjs-inertia/recipes/auth-redirect/) | Copy-paste solutions: auth redirect guard, not-found filter |
 | [Packages](https://davidecarvalho.github.io/nestjs-inertia/packages/core/) | Per-package API reference |

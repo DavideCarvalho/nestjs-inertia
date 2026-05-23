@@ -31,7 +31,14 @@ hero:
 ## Quick install
 
 ```bash
-pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
+pnpm add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
 ```
 
-See [Getting Started](/nestjs-inertia/getting-started/) for the full 5-minute walkthrough.
+Then run the scaffold command and wire two lines into your existing module:
+
+```bash
+pnpm exec nestjs-inertia init
+```
+
+See [Getting Started](/nestjs-inertia/getting-started/) for the full quickstart — install, `init`, and you're running in under five minutes.
