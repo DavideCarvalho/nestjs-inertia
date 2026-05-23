@@ -41,10 +41,9 @@ Full documentation site: **https://davidecarvalho.github.io/nestjs-inertia/**
 
 | Document | Description |
 |---|---|
-| [Getting Started](https://davidecarvalho.github.io/nestjs-inertia/getting-started/) | 5-minute walkthrough |
+| [Getting Started](https://davidecarvalho.github.io/nestjs-inertia/getting-started/) | Step-by-step installation and setup guide — packages, Vite config, first page, typed routes, codegen, testing, production build |
 | [Guides](https://davidecarvalho.github.io/nestjs-inertia/guides/installation/) | Installation, multi-app, testing, codegen, typed client |
 | [Recipes](https://davidecarvalho.github.io/nestjs-inertia/recipes/auth-redirect/) | Copy-paste solutions: auth redirect guard, not-found filter |
-| [Migration guide](https://davidecarvalho.github.io/nestjs-inertia/recipes/migrate-from-custom/) | Coming from a custom implementation? Step-by-step migration from a hand-rolled adapter |
 | [Packages](https://davidecarvalho.github.io/nestjs-inertia/packages/core/) | Per-package API reference |
 | [Architecture](https://davidecarvalho.github.io/nestjs-inertia/reference/architecture/) | Package responsibilities and request lifecycle |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, TDD discipline, commit style, Changesets flow |
