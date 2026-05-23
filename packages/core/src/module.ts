@@ -449,7 +449,9 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
       } catch (err: unknown) {
         // Package not installed — log warn so devs can debug unexpected import failures
         const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`Codegen auto-watch: failed to import @dudousxd/nestjs-inertia-codegen: ${message}`);
+        this.logger.warn(
+          `Codegen auto-watch: failed to import @dudousxd/nestjs-inertia-codegen: ${message}`,
+        );
         return;
       }
 

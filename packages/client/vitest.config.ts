@@ -34,11 +34,7 @@ export default defineConfig({
         // Node-based tests: fetcher, contract, errors, url-builder, etc.
         test: {
           name: 'node-tests',
-          include: [
-            'test/*.spec.ts',
-            'test/*.spec.tsx',
-            'test/ssr/**/*.spec.ts',
-          ],
+          include: ['test/*.spec.ts', 'test/*.spec.tsx', 'test/ssr/**/*.spec.ts'],
           environment: 'node',
           pool: 'forks',
         },

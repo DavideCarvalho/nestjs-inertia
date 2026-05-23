@@ -21,7 +21,9 @@ class LocalAuthGuard implements CanActivate {
   private readonly signInUrl = '/signin';
 
   canActivate(ctx: ExecutionContext): boolean {
-    const req = ctx.switchToHttp().getRequest<{ user?: unknown; url?: string; headers: Record<string, string | undefined> }>();
+    const req = ctx
+      .switchToHttp()
+      .getRequest<{ user?: unknown; url?: string; headers: Record<string, string | undefined> }>();
     const res = ctx.switchToHttp().getResponse<{
       status: (n: number) => { setHeader: (k: string, v: string) => { end: () => void } };
       redirect: (code: number, url: string) => void;
@@ -33,9 +35,10 @@ class LocalAuthGuard implements CanActivate {
 
     const rawUrl = (req as unknown as { originalUrl?: string }).originalUrl ?? req.url ?? '/';
     const path = new URL(rawUrl, 'http://localhost').pathname;
-    const target = path === this.signInUrl
-      ? this.signInUrl
-      : `${this.signInUrl}?return_to=${encodeURIComponent(path)}`;
+    const target =
+      path === this.signInUrl
+        ? this.signInUrl
+        : `${this.signInUrl}?return_to=${encodeURIComponent(path)}`;
 
     const isInertia = req.headers['x-inertia'] === 'true' || req.headers['x-inertia'] !== undefined;
     if (isInertia) {

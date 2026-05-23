@@ -29,7 +29,6 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 // Import AFTER mocking
-// biome-ignore lint: dynamic import after mock
 const { Link } = await import('../../src/vue/index.js');
 
 function makeResolver(): (

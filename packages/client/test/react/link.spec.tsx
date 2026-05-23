@@ -22,7 +22,6 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 // Import AFTER mocking
-// biome-ignore lint: dynamic import after mock
 const { Link } = await import('../../src/react/index.js');
 
 describe('Link component', () => {

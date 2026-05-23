@@ -43,7 +43,8 @@ export class CsrfGuard implements CanActivate {
       throw new InvalidCsrfTokenException();
     }
     const context = this.options.tokenContext ? this.options.tokenContext(req) : undefined;
-    if (!verifyCsrfToken(cookieToken, this.options.secret, context)) throw new InvalidCsrfTokenException();
+    if (!verifyCsrfToken(cookieToken, this.options.secret, context))
+      throw new InvalidCsrfTokenException();
 
     return true;
   }

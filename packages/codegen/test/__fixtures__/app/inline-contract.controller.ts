@@ -5,10 +5,12 @@ import { z } from 'zod';
 
 @Controller()
 export class InlineContractController {
-  @ApplyContract(Contract.get('/api/foo', {
-    response: z.array(z.object({ id: z.string() })),
-    name: 'foo.list',
-  }))
+  @ApplyContract(
+    Contract.get('/api/foo', {
+      response: z.array(z.object({ id: z.string() })),
+      name: 'foo.list',
+    }),
+  )
   list() {
     return [];
   }

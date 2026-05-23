@@ -76,16 +76,16 @@ describe('FlashStore integration', () => {
     const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
 
     const store: FlashStore = {
-      read: () => { throw new Error('flash-read-error'); },
+      read: () => {
+        throw new Error('flash-read-error');
+      },
     };
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
     await svc.render('Form');
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('flash-read-error'),
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('flash-read-error'));
     warnSpy.mockRestore();
   });
 });

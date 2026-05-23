@@ -96,7 +96,7 @@ function buildRoutesFile(routes: RouteDescriptor[]): string {
     '    }',
     '    const qStr = qs.toString();',
     '    if (qStr) {',
-    '      const sep = path.includes(\'?\') ? \'&\' : \'?\';',
+    "      const sep = path.includes('?') ? '&' : '?';",
     '      path = `${path}${sep}${qStr}`;',
     '    }',
     '  }',

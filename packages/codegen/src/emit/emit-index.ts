@@ -3,10 +3,7 @@ import { join } from 'node:path';
 
 export async function emitIndex(outDir: string, hasContracts = false): Promise<void> {
   await mkdir(outDir, { recursive: true });
-  const exports = [
-    "export * from './pages.js';",
-    "export * from './routes.js';",
-  ];
+  const exports = ["export * from './pages.js';", "export * from './routes.js';"];
   if (hasContracts) {
     exports.push("export * from './api.js';");
   }

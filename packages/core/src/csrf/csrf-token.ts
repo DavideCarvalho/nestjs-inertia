@@ -59,7 +59,9 @@ export function verifyCsrfToken(token: string, secret: string, context?: string)
     if (context !== undefined && context !== '' && storedContext !== context) return false;
     // If no context supplied by caller, we still verify using the stored context
     const expectedContext = context !== undefined && context !== '' ? context : storedContext;
-    const expected = createHmac('sha256', secret).update(`${raw}:${expectedContext}`).digest('base64url');
+    const expected = createHmac('sha256', secret)
+      .update(`${raw}:${expectedContext}`)
+      .digest('base64url');
     return timingSafeEqualSafe(Buffer.from(sig), Buffer.from(expected));
   }
 

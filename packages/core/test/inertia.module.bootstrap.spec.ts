@@ -83,6 +83,7 @@ describe('InertiaModule — codegen auto-bootstrap', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // biome-ignore lint/performance/noDelete: env var removal needs delete; assigning undefined leaves string "undefined"
     delete process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
   });
 
@@ -91,6 +92,7 @@ describe('InertiaModule — codegen auto-bootstrap', () => {
     if (originalDisableEnv !== undefined) {
       process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN = originalDisableEnv;
     } else {
+      // biome-ignore lint/performance/noDelete: env var removal needs delete; assigning undefined leaves string "undefined"
       delete process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
     }
   });
@@ -214,10 +216,13 @@ describe('InertiaModule — codegen auto-bootstrap', () => {
   it('S-5: codegen import failure → warn logged with error message', async () => {
     process.env.NODE_ENV = 'development';
 
-    const warnSpy = vi.spyOn(
-      (InertiaModule as unknown as { prototype: { logger: { warn: (...a: unknown[]) => void } } }).prototype.logger ?? { warn: vi.fn() },
-      'warn',
-    ).mockImplementation(() => {});
+    const warnSpy = vi
+      .spyOn(
+        (InertiaModule as unknown as { prototype: { logger: { warn: (...a: unknown[]) => void } } })
+          .prototype.logger ?? { warn: vi.fn() },
+        'warn',
+      )
+      .mockImplementation(() => {});
 
     const importErr = new Error('Cannot find module @dudousxd/nestjs-inertia-codegen');
     const stubFn = vi.fn().mockRejectedValue(importErr);
@@ -231,9 +236,7 @@ describe('InertiaModule — codegen auto-bootstrap', () => {
 
     await mod.onApplicationBootstrap();
 
-    expect(loggerWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Cannot find module'),
-    );
+    expect(loggerWarn).toHaveBeenCalledWith(expect.stringContaining('Cannot find module'));
     warnSpy.mockRestore();
   });
 
