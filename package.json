@@ -31,6 +31,6 @@
     "@changesets/cli": "^2.27.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0",
-    "vitest": "^4.1.7"
+    "vitest": "^3.0.0"
   }
 }
