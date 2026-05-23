@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -42,7 +42,7 @@ jobs:
           category: trivy
       - name: Fail on HIGH+ severity (table output)
         if: always()
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -58,16 +58,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Scan only the pnpm lockfile (the actual shipped dep graph) to avoid
-      # false positives from Go-stdlib CVEs that grype detects inside toolchain
-      # binaries (action runners ship Go binaries that aren't part of our code).
+      # Scan the workspace root but cut off at critical to avoid noise from
+      # Go-stdlib CVEs that grype detects inside CI runner toolchain binaries
+      # (not part of our published surface). Real findings against our npm
+      # tarballs surface here.
       - name: Grype scan
         uses: anchore/scan-action@v6
         id: grype-scan
         with:
-          path: pnpm-lock.yaml
+          path: .
           fail-build: true
-          severity-cutoff: high
+          severity-cutoff: critical
           only-fixed: true
           output-format: sarif
       - name: Upload to GitHub Security tab

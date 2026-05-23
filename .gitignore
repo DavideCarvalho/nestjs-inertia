@@ -9,6 +9,7 @@ pnpm-debug.log*
 .env
 .env.local
 .nestjs-inertia/
+!examples/*/.nestjs-inertia/
 
 # Astro build artifacts
 website/.astro/

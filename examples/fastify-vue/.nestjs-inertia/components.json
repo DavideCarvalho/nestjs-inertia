@@ -1,0 +1,14 @@
+{
+  "pages": [
+    {
+      "name": "inertia/pages/Dashboard",
+      "relativePath": "inertia/pages/Dashboard.vue",
+      "mtime": "2026-05-22T20:24:38.744Z"
+    },
+    {
+      "name": "inertia/pages/Posts",
+      "relativePath": "inertia/pages/Posts.vue",
+      "mtime": "2026-05-22T20:24:42.675Z"
+    }
+  ]
+}
