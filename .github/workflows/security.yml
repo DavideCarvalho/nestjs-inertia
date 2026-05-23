@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -42,7 +42,7 @@ jobs:
           category: trivy
       - name: Fail on HIGH+ severity (table output)
         if: always()
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -58,11 +58,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Scan only the pnpm lockfile (the actual shipped dep graph) to avoid
+      # false positives from Go-stdlib CVEs that grype detects inside toolchain
+      # binaries (action runners ship Go binaries that aren't part of our code).
       - name: Grype scan
         uses: anchore/scan-action@v6
         id: grype-scan
         with:
-          path: .
+          path: pnpm-lock.yaml
           fail-build: true
           severity-cutoff: high
           only-fixed: true
