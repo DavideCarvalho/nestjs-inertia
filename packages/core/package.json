@@ -26,6 +26,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
+    "@dudousxd/nestjs-inertia-codegen": "workspace:*",
     "@fastify/cookie": ">=9.0.0",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
@@ -42,6 +43,9 @@
     "rxjs": ">=7.0.0"
   },
   "peerDependenciesMeta": {
+    "@dudousxd/nestjs-inertia-codegen": {
+      "optional": true
+    },
     "@fastify/cookie": {
       "optional": true
     },
