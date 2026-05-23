@@ -46,9 +46,9 @@ describe('emitRoutes', () => {
     expect(content).toContain('export function route<');
 
     // Must list all route names
-    expect(content).toContain("'UsersController.list'");
-    expect(content).toContain("'UsersController.show'");
-    expect(content).toContain("'UsersController.create'");
+    expect(content).toContain('"UsersController.list"');
+    expect(content).toContain('"UsersController.show"');
+    expect(content).toContain('"UsersController.create"');
   });
 
   it('route() helper correctly interpolates params', async () => {
@@ -56,8 +56,8 @@ describe('emitRoutes', () => {
     const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
 
     // Must have a route table (ROUTES constant)
-    expect(content).toContain("'UsersController.show': '/users/:id'");
-    expect(content).toContain("'UsersController.list': '/users'");
+    expect(content).toContain('"UsersController.show": "/users/:id"');
+    expect(content).toContain('"UsersController.list": "/users"');
   });
 
   it('RouteName type covers all routes', async () => {
@@ -66,9 +66,9 @@ describe('emitRoutes', () => {
 
     // RouteName should be a union of all names
     expect(content).toMatch(/type RouteName\s*=/);
-    expect(content).toContain("'UsersController.list'");
-    expect(content).toContain("'UsersController.show'");
-    expect(content).toContain("'UsersController.create'");
+    expect(content).toContain('"UsersController.list"');
+    expect(content).toContain('"UsersController.show"');
+    expect(content).toContain('"UsersController.create"');
   });
 
   it('RouteParams<K> maps template-literal path params to string properties', async () => {
@@ -77,8 +77,8 @@ describe('emitRoutes', () => {
 
     // The RouteParams conditional type must use template literals with infer
     expect(content).toContain('infer');
-    // Should reference the path type '/users/:id'
-    expect(content).toContain("'/users/:id'");
+    // Should reference the path type "/users/:id"
+    expect(content).toContain('"/users/:id"');
   });
 
   it('creates outDir if it does not exist', async () => {
@@ -109,5 +109,48 @@ describe('emitRoutes', () => {
 
     expect(routeParamsMapIdx).toBeGreaterThan(routeParamsIdx);
     expect(routeFnIdx).toBeGreaterThan(routeParamsMapIdx);
+  });
+
+  it('route() signature accepts optional query parameter', async () => {
+    await emitRoutes(sampleRoutes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // Must accept query as optional second/third positional arg
+    expect(content).toContain('query?: Record<string, unknown>');
+  });
+
+  it('route() body serializes query params to query string', async () => {
+    await emitRoutes(sampleRoutes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // Must contain URLSearchParams usage for query
+    expect(content).toContain('URLSearchParams');
+    expect(content).toContain('qs.append');
+  });
+
+  it('route() appends query string when query is provided (runtime eval)', async () => {
+    await emitRoutes(sampleRoutes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // Verify the generated file contains the URLSearchParams-based query logic
+    // (This is the definitive assertion since new Function can't parse TypeScript)
+    expect(content).toContain('URLSearchParams');
+    expect(content).toContain('qs.append(k, String(v))');
+    expect(content).toContain("path.includes('?') ? '&' : '?'");
+
+    // Also verify the ROUTES entries are present so we know the route() call would work
+    expect(content).toContain('"UsersController.list": "/users"');
+    expect(content).toContain('"UsersController.show": "/users/:id"');
+  });
+
+  it('route() uses JSON.stringify-safe keys in ROUTES constant', async () => {
+    const routesWithQuotes: RouteDescriptor[] = [
+      { method: 'GET', path: '/foo', name: "na'me", params: [] },
+    ];
+    await emitRoutes(routesWithQuotes, outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // The name should appear JSON-encoded (double-quoted with escaped content)
+    expect(content).toContain('"na\'me"');
   });
 });

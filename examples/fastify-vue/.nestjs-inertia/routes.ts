@@ -2,12 +2,12 @@
 
 /** Map of route name → path pattern. */
 export const ROUTES = {
-  'DashboardController.index': '/dashboard',
-  'posts.list': '/api/posts',
+  "DashboardController.index": "/dashboard",
+  "posts.list": "/api/posts",
 } as const;
 
 /** Union of all known route names. */
-export type RouteName = 'DashboardController.index' | 'posts.list';
+export type RouteName = "DashboardController.index" | "posts.list";
 
 /**
  * Extracts path-parameter names from a route path string.
@@ -37,26 +37,38 @@ export type RouteParams<K extends RouteName> =
 export type RouteParamsMap = { [K in RouteName]: RouteParams<K> };
 
 /**
- * Build a URL from a named route, interpolating path params.
+ * Build a URL from a named route, interpolating path params and appending query string.
  *
  * @example
  * route('DashboardController.index')   // → '/dashboard'
  * route('posts.list')                  // → '/api/posts'
+ * route('posts.list', undefined, { page: 2 }) // → '/api/posts?page=2'
  */
 export function route<K extends RouteName>(
   name: K,
   ...args: ExtractParams<(typeof ROUTES)[K]> extends never
-    ? []
-    : [params: RouteParams<K>]
+    ? [params?: undefined, query?: Record<string, unknown>]
+    : [params: RouteParams<K>, query?: Record<string, unknown>]
 ): string {
+  const [params, query] = args as [Record<string, string> | undefined, Record<string, unknown> | undefined];
   let path: string = ROUTES[name];
-  const params = args[0] as Record<string, string> | undefined;
   if (params) {
     path = path.replace(/:([^/]+)/g, (_, key) => {
       const val = params[key];
       if (val === undefined) throw new Error(`Missing route param: ${key}`);
       return encodeURIComponent(val);
     });
+  }
+  if (query && Object.keys(query).length > 0) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) {
+      if (v !== undefined && v !== null) qs.append(k, String(v));
+    }
+    const qStr = qs.toString();
+    if (qStr) {
+      const sep = path.includes('?') ? '&' : '?';
+      path = `${path}${sep}${qStr}`;
+    }
   }
   return path;
 }
