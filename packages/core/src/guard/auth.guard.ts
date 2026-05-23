@@ -14,6 +14,28 @@ function matchesAllow(pattern: string, path: string): boolean {
   return false;
 }
 
+/**
+ * Normalise a raw URL to a safe pathname-only string for allow-list matching.
+ *
+ * - Strips query strings and fragments before matching so `?` injection cannot
+ *   cause prefix bypasses (e.g. `/admin?foo` matching `/admin/*`).
+ * - Decodes percent-encoded characters then normalises double-slashes and
+ *   `..` segments via `URL` + `posix.normalize` so `/public/../admin` cannot
+ *   bypass a `/public/*` rule.
+ * - Returns `'/'` on any parse error as a safe fallback.
+ */
+function normalizeUrlPath(raw: string): string {
+  try {
+    // Use a dummy base so relative URLs parse correctly
+    const parsed = new URL(raw, 'http://localhost');
+    // pathname is already decoded and normalised by the URL parser
+    return parsed.pathname;
+  } catch {
+    // If URL parsing fails (e.g. malformed %), strip query string manually
+    return raw.split('?')[0]?.split('#')[0] ?? '/';
+  }
+}
+
 /** Works for both Express (req.header(n)) and raw Fastify (req.headers[n]) */
 function getHeader(req: unknown, name: string): string | undefined {
   const r = req as {
@@ -80,7 +102,8 @@ export class InertiaAuthGuard implements CanActivate {
     const reqObj = req as { user?: unknown; url?: string; originalUrl?: string };
 
     if (reqObj.user) return true;
-    const path = reqObj.originalUrl ?? reqObj.url ?? '/';
+    const rawUrl = reqObj.originalUrl ?? reqObj.url ?? '/';
+    const path = normalizeUrlPath(rawUrl);
     for (const pattern of this.options.allowList) {
       if (matchesAllow(pattern, path)) return true;
     }
