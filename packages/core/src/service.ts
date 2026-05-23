@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
 
 /**
@@ -203,6 +204,7 @@ export interface InertiaServiceDeps {
 }
 
 export class InertiaService {
+  private readonly logger = new Logger(InertiaService.name);
   private shared: SharedInput[] = [];
   private encryptHistoryFlag: boolean | undefined;
   private clearHistoryFlag = false;
@@ -282,8 +284,12 @@ export class InertiaService {
         if (flashed && Object.keys(flashed).length > 0) {
           this.share({ errors: flashed });
         }
-      } catch {
-        // Silent — errors stay {}
+      } catch (err) {
+        // Log the failure so developers can debug flash store issues,
+        // but don't crash the request — errors stay {}
+        this.logger.warn(
+          `FlashStore.read() threw: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 

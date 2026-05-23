@@ -68,4 +68,24 @@ describe('FlashStore integration', () => {
       (res._captured.body as { props: { errors: Record<string, unknown> } }).props.errors,
     ).toEqual({});
   });
+
+  // L-2: flash store errors are logged (not swallowed silently)
+  it('L-2: store throwing read() logs a warning (does not swallow silently)', async () => {
+    const { vi } = await import('vitest');
+    const { Logger } = await import('@nestjs/common');
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+    const store: FlashStore = {
+      read: () => { throw new Error('flash-read-error'); },
+    };
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, { ...baseDeps(), flashStore: store });
+    await svc.render('Form');
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('flash-read-error'),
+    );
+    warnSpy.mockRestore();
+  });
 });
