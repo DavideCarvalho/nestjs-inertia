@@ -11,7 +11,11 @@ export default defineConfig({
       description:
         'Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/DavideCarvalho/nestjs-inertia' },
+        {
+          icon: 'github',
+          label: 'GitHub',
+          href: 'https://github.com/DavideCarvalho/nestjs-inertia',
+        },
       ],
       editLink: {
         baseUrl: 'https://github.com/DavideCarvalho/nestjs-inertia/edit/main/website/',
