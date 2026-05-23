@@ -1,11 +1,11 @@
 ---
 title: Getting Started
-description: Add Inertia.js to an existing NestJS project in minutes — install, run nestjs-inertia init, wire two lines, and you're done.
+description: Add Inertia.js to an existing NestJS project in minutes — install the packages, run nestjs-inertia init, and you're done.
 ---
 
 import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
 
-The fastest way to get Inertia.js running in NestJS is three steps: install the packages, run `nestjs-inertia init`, then wire two lines into your existing `app.module.ts` and `main.ts`. Most projects are done in under five minutes.
+The fastest way to get Inertia.js running in NestJS is two steps: install the packages, then run `nestjs-inertia init`. The init command scaffolds all files **and** auto-patches your existing `app.module.ts` and `main.ts` — no manual wiring needed. Most projects are done in under three minutes.
 
 ---
 
@@ -61,13 +61,15 @@ This command scaffolds your entire Inertia setup in one shot. It:
 |---|---|
 | `nestjs-inertia.config.ts` | Codegen config with a framework-specific page glob |
 | `nestjs-inertia.d.ts` | TypeScript module augmentation for generated types |
-| `views/shell.html` (or `.hbs`/`.ejs`/`.pug`) | HTML shell with `@inertia`, `@inertiaHead`, `@vite` directives |
+| `inertia/index.html` (or `.hbs`/`.ejs`/`.pug`) | HTML shell with the Inertia page script tag |
 | `vite.config.ts` | Vite config with the correct framework plugin |
 | `inertia/app.tsx` (or `.ts`) | Frontend entry point bootstrapping `createInertiaApp` |
 | `inertia/pages/Home.tsx` (or `.vue`/`.svelte`) | Sample page component |
 | `src/home.controller.ts` | Sample NestJS controller with `@Inertia('Home')` |
 
-It also patches `.gitignore` with `.nestjs-inertia/`, adds `build:client` and `build:ssr` scripts to `package.json`, and installs any missing framework dependencies.
+- **Auto-patches `src/app.module.ts`** — adds `InertiaModule.forRoot(...)` to the `imports` array and `HomeController` to `controllers`. Idempotent: skips if already present.
+- **Auto-patches `src/main.ts`** — inserts the `setupInertiaVite(app, {...})` call right after `NestFactory.create`. Idempotent: skips if already present.
+- Patches `.gitignore` with `.nestjs-inertia/`, adds `build:client` and `build:ssr` scripts to `package.json`, and installs any missing framework dependencies.
 
 **Expected output:**
 
@@ -75,28 +77,30 @@ It also patches `.gitignore` with `.nestjs-inertia/`, adds `build:client` and `b
 [nestjs-inertia] Framework: react
 + nestjs-inertia.config.ts
 + nestjs-inertia.d.ts
-+ views/shell.html
++ inertia/index.html
 + vite.config.ts
 + inertia/app.tsx
 + inertia/pages/Home.tsx
 + src/home.controller.ts
 + .gitignore (patched)
++ src/app.module.ts (added InertiaModule.forRoot + HomeController)
++ src/main.ts (added setupInertiaVite)
 + package.json (added build scripts)
 
-✓ Scaffolding complete!
+✓ Setup complete! Run: nest start --watch
 ```
+
+**Done.** Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-### Step 3 — Wire two lines into your app
+### Manual setup (if auto-patching fails)
 
-`init` creates all the files but deliberately does not modify your existing `app.module.ts` or `main.ts` — auto-patching those files is too risky. You add two things manually.
+If `init` cannot find or parse your `app.module.ts` or `main.ts` (e.g. non-standard structure), it prints a warning with the exact snippet to add manually.
 
-**3a. Register `InertiaModule` in your AppModule:**
+**`src/app.module.ts`** — register `InertiaModule` and `HomeController`:
 
 ```ts
-// src/app.module.ts
-import { Module } from '@nestjs/common';
 import { InertiaModule } from '@dudousxd/nestjs-inertia';
 import { HomeController } from './home.controller.js';
 
@@ -104,7 +108,7 @@ import { HomeController } from './home.controller.js';
   imports: [
     InertiaModule.forRoot({
       version: '1',
-      rootView: 'views/shell.html',
+      rootView: 'inertia/index.html',
     }),
   ],
   controllers: [HomeController],
@@ -112,31 +116,21 @@ import { HomeController } from './home.controller.js';
 export class AppModule {}
 ```
 
-**3b. Wire Vite in `main.ts`:**
+**`src/main.ts`** — wire Vite after `NestFactory.create`:
 
 ```ts
-// src/main.ts
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { setupInertiaVite } from '@dudousxd/nestjs-inertia-vite';
-import { AppModule } from './app.module.js';
+const app = await NestFactory.create(AppModule);
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+const { setupInertiaVite } = await import('@dudousxd/nestjs-inertia-vite');
+await setupInertiaVite(app, {
+  mode: process.env.NODE_ENV ?? 'development',
+  root: 'inertia',
+  publicDir: 'dist/inertia/client',
+  outDir: 'dist/inertia',
+});
 
-  await setupInertiaVite(app, {
-    mode: process.env.NODE_ENV ?? 'development',
-    root: 'inertia',
-    publicDir: 'dist/inertia/client',
-    outDir: 'dist/inertia',
-  });
-
-  await app.listen(3000);
-}
-bootstrap();
+await app.listen(3000);
 ```
-
-**Done.** Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000).
 
 ---
 
@@ -446,15 +440,14 @@ In production `setupInertiaVite` switches from dev-server middleware to static-f
 ```
 my-nestjs-app/
 ├── src/
-│   ├── main.ts                   ← NestJS bootstrap + setupInertiaVite
-│   ├── app.module.ts             ← InertiaModule.forRoot(...)
+│   ├── main.ts                   ← NestJS bootstrap + setupInertiaVite (patched by init)
+│   ├── app.module.ts             ← InertiaModule.forRoot(...) (patched by init)
 │   └── home.controller.ts        ← @Inertia('Home') handler (created by init)
 ├── inertia/
 │   ├── app.tsx                   ← createInertiaApp entry (created by init)
+│   ├── index.html                ← HTML shell with Inertia page script (created by init)
 │   └── pages/
 │       └── Home.tsx              ← sample page (created by init)
-├── views/
-│   └── shell.html                ← HTML shell with @inertia directives (created by init)
 ├── .nestjs-inertia/              ← generated (gitignored)
 │   ├── pages.d.ts
 │   ├── routes.ts
