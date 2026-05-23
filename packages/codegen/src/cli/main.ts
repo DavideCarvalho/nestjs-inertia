@@ -1,4 +1,5 @@
 import { cac } from 'cac';
+import { VERSION } from '../index.js';
 import { runCodegen } from './codegen.js';
 import { runInit } from './init.js';
 
@@ -26,7 +27,7 @@ export async function run(argv: string[]): Promise<number> {
     });
 
   cli.help();
-  cli.version('0.4.0-alpha.0');
+  cli.version(VERSION);
 
   try {
     // cac needs the first two argv entries to be 'node' and the binary name
