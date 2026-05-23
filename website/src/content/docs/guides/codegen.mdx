@@ -105,7 +105,6 @@ import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
 import { z } from 'zod';
 
 const ListUsers = defineContract({
-  name: 'users.list',
   query: z.object({ active: z.boolean().optional() }),
   response: z.array(z.object({ id: z.string(), name: z.string() })),
 });
@@ -126,30 +125,46 @@ export class UsersController {
 Use standard NestJS decorators (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) as the routing source-of-truth.
 `@ApplyContract` only attaches the contract metadata — it no longer sets the HTTP method or path.
 
-After running `pnpm codegen`, the `users.list` contract appears in `api.ts`.
+After running `pnpm codegen`, the auto-derived `users.list` contract appears in `api.ts`.
 
 ## How the API name is chosen
 
-The `name` field on the `defineContract` definition is the API key — it is **not** derived from the controller class name or method name. You control it entirely.
+The API name is **derived automatically** from `<ControllerClass>.<method>` by stripping the `Controller` suffix and lowercasing the first letter.
 
-Use dot-notation in `name` to produce a nested path under `api.*.*`:
+| Controller class | Method | Derived name |
+|------------------|--------|--------------|
+| `UsersController` | `list` | `users.list` |
+| `UsersController` | `show` | `users.show` |
+| `AdminUsersController` | `create` | `adminUsers.create` |
 
-| Contract `name`    | Generated accessor            |
+Use dot-notation in the derived name to produce a nested path under `api.*.*`:
+
+| Derived name       | Generated accessor            |
 |--------------------|-------------------------------|
-| `'health'`         | `api.health`                  |
 | `'users.list'`     | `api.users.list`              |
 | `'users.show'`     | `api.users.show`              |
-| `'admin.users.list'` | `api.admin.users.list`      |
+| `'adminUsers.create'` | `api.adminUsers.create`    |
 
 ```ts
-// name: 'users.list' → api.users.list.queryOptions(...)
+// UsersController.list → api.users.list.queryOptions(...)
 const { data } = useQuery(api.users.list.queryOptions({ active: true }));
-
-// name: 'health' → api.health.queryOptions(...)
-const { data } = useQuery(api.health.queryOptions());
 ```
 
-**Best practice:** align names with your resource hierarchy — `'users.list'`, `'users.show'`, `'users.create'`. This keeps IDE autocompletion logical and makes the generated `api` object easy to navigate.
+### Overriding the name with `@As`
+
+When the auto-derived name isn't what you want, use `@As('custom.name')` at the method level:
+
+```ts
+import { As } from '@dudousxd/nestjs-inertia-client';
+
+@Controller('/api/v1/crew')
+class CrewController {
+  @Get()
+  @ApplyContract(ListCrew)
+  @As('crew.directory.fetch')   // overrides auto-derived 'crew.list'
+  list() { ... }
+}
+```
 
 ### Valid name format
 

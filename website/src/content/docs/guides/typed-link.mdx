@@ -92,31 +92,40 @@ Import from the `/svelte` subpath. The component wraps `@inertiajs/svelte`'s `Li
 
 ## How the route name is chosen
 
-The route name passed to `<Link route="..." />` comes from the `name` field on the `Contract` definition — the same field that controls the `api.*` path in the generated `api.ts`. It is **not** derived from the controller class name or method name.
+The route name passed to `<Link route="..." />` is **auto-derived** from `<ControllerClass>.<method>` by stripping the `Controller` suffix and lowercasing the first letter. For example, `UsersController.show` → `users.show`.
 
 ```ts
-// Contract definition (server-side)
+// Contract definition (server-side) — no name field needed
 import { defineContract } from '@dudousxd/nestjs-inertia-client';
-import { Put } from '@nestjs/common';
 
 const ShowUser = defineContract({
-  name: 'users.show',  // ← this becomes the route name
   params: z.object({ id: z.string() }),
   response: z.object({ id: z.string(), name: z.string() }),
 });
 
-// In the controller — routing comes from @Get, not from the contract
+// In the controller — name is derived from UsersController.show → 'users.show'
 @Get('/users/:id')
 @ApplyContract(ShowUser)
 show() { ... }
 ```
 
 ```tsx
-// Frontend usage — name comes directly from defineContract's name field
+// Frontend usage — name comes from auto-derivation
 <Link route="users.show" routeParams={{ id: user.id }}>View profile</Link>
 ```
 
-**Best practice:** keep the contract `name` aligned with your resource hierarchy so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
+Use `@As('custom.name')` to override the auto-derived name when needed:
+
+```ts
+import { As } from '@dudousxd/nestjs-inertia-client';
+
+@Get('/users/:id')
+@ApplyContract(ShowUser)
+@As('user.profile')   // overrides auto-derived 'users.show'
+show() { ... }
+```
+
+**Best practice:** use the auto-derived name convention (`usersController.show` → `users.show`) so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
 
 ## Conditional `routeParams` behaviour
 
