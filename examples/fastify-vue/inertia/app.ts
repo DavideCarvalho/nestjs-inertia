@@ -1,12 +1,9 @@
 // Client-side entry point: boot Inertia.js with Vue 3
 import 'reflect-metadata';
-import { setRouteResolver } from '@dudousxd/nestjs-inertia-client/vue';
+import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { createApp } from 'vue';
 import { route } from '../.nestjs-inertia/routes.js';
-
-// Wire the typed route helper so <Link :href="route(...)" /> works
-setRouteResolver(route);
 
 createInertiaApp({
   resolve: (name: string) => {
@@ -15,6 +12,9 @@ createInertiaApp({
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setup({ el, App, props }: any) {
-    createApp(App, props).mount(el);
+    const app = createApp(App, props);
+    // Provide the route resolver at the app level so all components can inject it
+    app.provide(INERTIA_ROUTES_KEY, route);
+    app.mount(el);
   },
 });

@@ -1,12 +1,11 @@
 // Client-side entry point: boot Inertia.js with Svelte 5
 import 'reflect-metadata';
-import { setRouteResolver } from '@dudousxd/nestjs-inertia-client/svelte';
 import { createInertiaApp } from '@inertiajs/svelte';
 import { mount } from 'svelte';
 import { route } from '../.nestjs-inertia/routes.js';
 
-// Wire the typed route helper so <Link href={route(...)} /> works
-setRouteResolver(route);
+// Pass the route resolver as Svelte context so all descendants (including <Link>) can inject it
+const appContext = new Map([['inertia-routes', route]]);
 
 createInertiaApp({
   resolve: (name: string) => {
@@ -16,6 +15,6 @@ createInertiaApp({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setup({ el, App, props }: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    mount(App, { target: el, props });
+    mount(App, { target: el, props, context: appContext });
   },
 });
