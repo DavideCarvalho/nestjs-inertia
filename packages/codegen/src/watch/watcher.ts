@@ -124,6 +124,12 @@ export async function watch(
           // Use the injected stub unconditionally (test seam), or only discover
           // when app config is present (production path).
           const hasCustomImpl = discoverRoutesImpl !== undefined;
+          if (!hasCustomImpl) {
+            console.warn(
+              '⚠ [nestjs-inertia-codegen] Heavy probe path (useStaticDiscovery: false) is deprecated and will be removed in v1.0. ' +
+                'See https://github.com/DavideCarvalho/nestjs-inertia for details.',
+            );
+          }
           if (hasCustomImpl || config.app) {
             routes = await resolvedDiscoverRoutes({
               moduleEntry: config.app?.moduleEntry ?? '',
