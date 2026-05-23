@@ -253,62 +253,6 @@ function parseDefineContractCall(callExpr: Node): {
   return { name, query, body, response };
 }
 
-/**
- * Parse a legacy Contract.get/post/etc(...) call expression.
- * Returns { method, path, name, query, body, response } or null if unrecognised.
- */
-function parseLegacyContractCall(callExpr: Node): {
-  method: string;
-  path: string;
-  name: string | undefined;
-  query: string | null;
-  body: string | null;
-  response: string;
-} | null {
-  if (!Node.isCallExpression(callExpr)) return null;
-
-  const calleeExpr = callExpr.getExpression();
-  if (!Node.isPropertyAccessExpression(calleeExpr)) return null;
-
-  const httpMethodRaw = calleeExpr.getName(); // 'get', 'post', etc.
-  const validMethods = ['get', 'post', 'put', 'patch', 'delete'];
-  if (!validMethods.includes(httpMethodRaw)) return null;
-
-  const method = httpMethodRaw.toUpperCase();
-
-  const args = callExpr.getArguments();
-  const pathArg = args[0];
-  if (!pathArg || !Node.isStringLiteral(pathArg)) return null;
-  const path = pathArg.getLiteralValue();
-
-  const optsArg = args[1];
-  let name: string | undefined = undefined;
-  let query: string | null = null;
-  let body: string | null = null;
-  let response = 'unknown';
-
-  if (optsArg && Node.isObjectLiteralExpression(optsArg)) {
-    for (const prop of optsArg.getProperties()) {
-      if (!Node.isPropertyAssignment(prop)) continue;
-      const propName = prop.getName();
-      const val = prop.getInitializer();
-      if (!val) continue;
-
-      if (propName === 'name' && Node.isStringLiteral(val)) {
-        name = val.getLiteralValue();
-      } else if (propName === 'query') {
-        query = zodAstToTs(val);
-      } else if (propName === 'body') {
-        body = zodAstToTs(val);
-      } else if (propName === 'response') {
-        response = zodAstToTs(val);
-      }
-    }
-  }
-
-  return { method, path, name, query, body, response };
-}
-
 /** Join two URL path segments, normalising duplicate slashes. */
 export function joinPaths(prefix: string, suffix: string): string {
   if (!prefix && !suffix) return '/';
@@ -394,29 +338,10 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
           query: string | null;
           body: string | null;
           response: string;
-          legacyMethod?: string;
-          legacyPath?: string;
         } | null = null;
 
         if (Node.isCallExpression(firstDecoratorArg)) {
-          // Try new defineContract({...}) call first
-          const parsed = parseDefineContractCall(firstDecoratorArg);
-          if (parsed) {
-            contractDef = parsed;
-          } else {
-            // Fall back to legacy Contract.get('/path', {...})
-            const legacy = parseLegacyContractCall(firstDecoratorArg);
-            if (legacy) {
-              contractDef = {
-                name: legacy.name,
-                query: legacy.query,
-                body: legacy.body,
-                response: legacy.response,
-                legacyMethod: legacy.method,
-                legacyPath: legacy.path,
-              };
-            }
-          }
+          contractDef = parseDefineContractCall(firstDecoratorArg);
         } else if (Node.isIdentifier(firstDecoratorArg)) {
           const identName = firstDecoratorArg.getText();
           const varDecl = sourceFile.getVariableDeclaration(identName);
@@ -430,24 +355,7 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
           const initializer = varDecl.getInitializer();
           if (!initializer) continue;
 
-          // Try defineContract first
-          const parsed = parseDefineContractCall(initializer);
-          if (parsed) {
-            contractDef = parsed;
-          } else {
-            // Fall back to legacy Contract.get(...)
-            const legacy = parseLegacyContractCall(initializer);
-            if (legacy) {
-              contractDef = {
-                name: legacy.name,
-                query: legacy.query,
-                body: legacy.body,
-                response: legacy.response,
-                legacyMethod: legacy.method,
-                legacyPath: legacy.path,
-              };
-            }
-          }
+          contractDef = parseDefineContractCall(initializer);
         } else {
           console.warn(
             `[nestjs-inertia-codegen/fast] @ApplyContract arg is not an identifier or call expression in ${sourceFile.getFilePath()} — skipping`,
@@ -457,23 +365,10 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
 
         if (!contractDef) continue;
 
-        // For new-style contracts, method+path come from NestJS decorators.
-        // For legacy contracts (Contract.get), fall back to the embedded path/method
-        // if no NestJS HTTP decorator is present on the method.
-        let resolvedMethod = httpMethod;
-        let resolvedPath: string;
-
-        if (resolvedMethod) {
-          // NestJS decorator present: use it
-          resolvedPath = joinPaths(prefix, handlerPath);
-        } else if (contractDef.legacyMethod && contractDef.legacyPath !== undefined) {
-          // Legacy fallback: method+path from Contract.get(...)
-          resolvedMethod = contractDef.legacyMethod;
-          resolvedPath = joinPaths(prefix, contractDef.legacyPath);
-        } else {
-          // No routing info available — skip
-          continue;
-        }
+        // Method + path always come from NestJS decorators — skip if absent
+        if (!httpMethod) continue;
+        const resolvedMethod = httpMethod;
+        const resolvedPath = joinPaths(prefix, handlerPath);
 
         const combined = resolvedPath;
         const params = extractParams(combined);
