@@ -6,11 +6,13 @@
  */
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Project } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
 import {
   deriveClassSegment,
   deriveRouteName,
   discoverContractsFast,
+  extractDtoContract,
   resolveRouteName,
 } from '../../src/discovery/contracts-fast.js';
 
@@ -451,5 +453,194 @@ describe('discoverContractsFast — class-level @As', () => {
     expect(name).toBe('Crew.list');
     // Segment 'Crew' starts with uppercase, which emit-api validateNameSegment will reject.
     expect(name).toMatch(/^[A-Z]/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DTO-based contract extraction (standard NestJS patterns — no defineContract)
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — DTO-based contract extraction', () => {
+  it('extracts body type from @Body() DTO-decorated parameter', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'dto-controller.controller.ts',
+    });
+    const route = routes.find((r) => r.name === 'DtoController.create');
+    expect(route).toBeDefined();
+    expect(route?.contract).toBeDefined();
+    const cs = route?.contract?.contractSource;
+    expect(cs?.body).toBe('{ title: string; content: string }');
+    expect(cs?.query).toBeNull();
+  });
+
+  it('extracts query type from @Query() DTO-decorated parameter', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'dto-controller.controller.ts',
+    });
+    const route = routes.find((r) => r.name === 'DtoController.list');
+    expect(route).toBeDefined();
+    const cs = route?.contract?.contractSource;
+    expect(cs?.query).toBe('{ page?: number }');
+    expect(cs?.body).toBeNull();
+  });
+
+  it('extracts array response type from @ApiResponse({ type: [PostDto] })', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'dto-controller.controller.ts',
+    });
+    const route = routes.find((r) => r.name === 'DtoController.list');
+    expect(route).toBeDefined();
+    const cs = route?.contract?.contractSource;
+    expect(cs?.response).toBe('Array<{ id: string; title: string }>');
+  });
+
+  it('extracts single object response type from @ApiResponse({ type: PostDto })', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'dto-controller.controller.ts',
+    });
+    const route = routes.find((r) => r.name === 'DtoController.create');
+    expect(route).toBeDefined();
+    const cs = route?.contract?.contractSource;
+    expect(cs?.response).toBe('{ id: string; title: string }');
+  });
+
+  it("extracts @Param params from @Param('id') decorated parameter", async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'dto-controller.controller.ts',
+    });
+    const route = routes.find((r) => r.name === 'DtoController.show');
+    expect(route).toBeDefined();
+    // The show method has @ApiResponse({ type: PostDto }) so it gets a contract
+    expect(route?.contract).toBeDefined();
+    expect(route?.contract?.contractSource.response).toBe('{ id: string; title: string }');
+  });
+
+  it('falls back to return type annotation when no @ApiResponse is present', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'dto-return-type.controller.ts',
+    });
+    const listRoute = routes.find((r) => r.name === 'DtoReturnTypeController.list');
+    expect(listRoute).toBeDefined();
+    expect(listRoute?.contract?.contractSource.response).toBe(
+      'Array<{ slug: string; body: string }>',
+    );
+
+    const singleRoute = routes.find((r) => r.name === 'DtoReturnTypeController.single');
+    expect(singleRoute).toBeDefined();
+    expect(singleRoute?.contract?.contractSource.response).toBe('{ slug: string; body: string }');
+  });
+
+  it('Zod @ApplyContract wins when both @ApplyContract and @Body DTO are present', async () => {
+    // The mixed.controller.ts has @ApplyContract on list — it should use Zod, not DTO
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'mixed.controller.ts',
+    });
+    const contractRoute = routes.find((r) => r.contract !== undefined);
+    expect(contractRoute).toBeDefined();
+    // The Zod contract has response containing 'id' and 'title' from z.object schema
+    const cs = contractRoute?.contract?.contractSource;
+    expect(cs?.response).toContain('id');
+    // The name uses auto-derived name for the contracted route
+    expect(contractRoute?.name).toBe('mixed.list');
+  });
+
+  it('no contract attached when method has no @Body/@Query/@ApiResponse and no return type class', async () => {
+    // inertia-dashboard.controller.ts has @Get() with no DTO info and returns void implicitly
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'inertia-dashboard.controller.ts',
+    });
+    expect(routes).toHaveLength(1);
+    expect(routes[0].contract).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractDtoContract unit tests (direct function tests)
+// ---------------------------------------------------------------------------
+
+describe('extractDtoContract', () => {
+  function makeSourceFileFromCode(code: string) {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      skipLoadingLibFiles: true,
+      skipFileDependencyResolution: true,
+      compilerOptions: { strict: false },
+    });
+    return project.createSourceFile('test.ts', code);
+  }
+
+  it('returns null when method has no decorators, no return type', () => {
+    const sf = makeSourceFileFromCode(`
+      class TestController {
+        doSomething() {}
+      }
+    `);
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('doSomething');
+    const result = extractDtoContract(method, sf);
+    expect(result).toBeNull();
+  });
+
+  it('extracts body from @Body() and returns it', () => {
+    const sf = makeSourceFileFromCode(`
+      class BodyDto { name: string; age: number; }
+      class TestController {
+        create(@Body() body: BodyDto) {}
+      }
+    `);
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('create');
+    const result = extractDtoContract(method, sf);
+    expect(result).not.toBeNull();
+    expect(result?.body).toBe('{ name: string; age: number }');
+    expect(result?.query).toBeNull();
+  });
+
+  it('extracts query from @Query() and returns it', () => {
+    const sf = makeSourceFileFromCode(`
+      class QueryDto { page?: number; }
+      class TestController {
+        list(@Query() query: QueryDto) {}
+      }
+    `);
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('list');
+    const result = extractDtoContract(method, sf);
+    expect(result).not.toBeNull();
+    expect(result?.query).toBe('{ page?: number }');
+    expect(result?.body).toBeNull();
+  });
+
+  it('skips @Query("key") single-param decorators', () => {
+    const sf = makeSourceFileFromCode(`
+      class TestController {
+        get(@Query('page') page: string) {}
+      }
+    `);
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('get');
+    const result = extractDtoContract(method, sf);
+    expect(result).toBeNull();
+  });
+
+  it('resolves optional properties correctly', () => {
+    const sf = makeSourceFileFromCode(`
+      class MyDto { required: string; optional?: boolean; }
+      class TestController {
+        action(@Body() body: MyDto) {}
+      }
+    `);
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('action');
+    const result = extractDtoContract(method, sf);
+    expect(result?.body).toBe('{ required: string; optional?: boolean }');
   });
 });
