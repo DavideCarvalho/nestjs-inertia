@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.0.5
+
+### Patch Changes
+
+- fix(codegen): consistent camelCase route names for all routes (not just @ApplyContract)
+
 ## 1.0.4
 
 ### Patch Changes

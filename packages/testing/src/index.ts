@@ -1,4 +1,4 @@
-export const VERSION = '1.0.4';
+export const VERSION = '1.0.5';
 
 export { expectInertia, InertiaAssertion } from './expect.js';
 export type { PageObject } from './expect.js';
