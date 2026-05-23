@@ -10,7 +10,8 @@ export function registerFastifyMethodSpoof(
   app: FastifyHookApp,
   options: InertiaModuleOptions,
 ): void {
-  if (options.methodSpoofing === false) return;
+  // methodSpoofing defaults to false (opt-in); skip unless explicitly enabled
+  if (options.methodSpoofing !== true) return;
   app.addHook('preHandler', async (req: unknown) => {
     const r = req as {
       method: string;

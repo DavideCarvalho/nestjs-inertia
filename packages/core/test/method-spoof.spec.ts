@@ -58,4 +58,13 @@ describe('MethodSpoofMiddleware', () => {
     expect(req.method).toBe('POST');
     expect(req.body).toEqual({ _method: 'PUT' });
   });
+
+  // M-5: default is false (opt-in)
+  it('does NOTHING when methodSpoofing is undefined (default false)', () => {
+    const req = makeReq('POST', 'multipart/form-data', { _method: 'DELETE' });
+    const next = vi.fn();
+    new MethodSpoofMiddleware({}).use(req as never, {} as never, next);
+    expect(req.method).toBe('POST');
+    expect(req.body).toEqual({ _method: 'DELETE' });
+  });
 });

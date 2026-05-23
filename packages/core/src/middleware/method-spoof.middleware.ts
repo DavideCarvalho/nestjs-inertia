@@ -10,8 +10,9 @@ export class MethodSpoofMiddleware implements NestMiddleware {
   constructor(@Inject(INERTIA_MODULE_OPTIONS) private readonly options: InertiaModuleOptions) {}
 
   use(req: Request & { body?: Record<string, unknown> }, _res: Response, next: NextFunction): void {
+    // methodSpoofing defaults to false (opt-in); skip unless explicitly enabled
     // biome-ignore lint/correctness/noVoidTypeReturn: NextFunction() returns void; early-return guard pattern
-    if (this.options.methodSpoofing === false) return next();
+    if (this.options.methodSpoofing !== true) return next();
     // biome-ignore lint/correctness/noVoidTypeReturn: NextFunction() returns void; early-return guard pattern
     if (req.method !== 'POST') return next();
     const contentType = (req.headers['content-type'] ?? '').toString().toLowerCase();
