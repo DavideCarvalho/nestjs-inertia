@@ -574,23 +574,24 @@ describe('extractDtoContract', () => {
       skipFileDependencyResolution: true,
       compilerOptions: { strict: false },
     });
-    return project.createSourceFile('test.ts', code);
+    const sf = project.createSourceFile('test.ts', code);
+    return { sf, project };
   }
 
   it('returns null when method has no decorators, no return type', () => {
-    const sf = makeSourceFileFromCode(`
+    const { sf, project } = makeSourceFileFromCode(`
       class TestController {
         doSomething() {}
       }
     `);
     const cls = sf.getClassOrThrow('TestController');
     const method = cls.getMethodOrThrow('doSomething');
-    const result = extractDtoContract(method, sf);
+    const result = extractDtoContract(method, sf, project);
     expect(result).toBeNull();
   });
 
   it('extracts body from @Body() and returns it', () => {
-    const sf = makeSourceFileFromCode(`
+    const { sf, project } = makeSourceFileFromCode(`
       class BodyDto { name: string; age: number; }
       class TestController {
         create(@Body() body: BodyDto) {}
@@ -598,14 +599,14 @@ describe('extractDtoContract', () => {
     `);
     const cls = sf.getClassOrThrow('TestController');
     const method = cls.getMethodOrThrow('create');
-    const result = extractDtoContract(method, sf);
+    const result = extractDtoContract(method, sf, project);
     expect(result).not.toBeNull();
     expect(result?.body).toBe('{ name: string; age: number }');
     expect(result?.query).toBeNull();
   });
 
   it('extracts query from @Query() and returns it', () => {
-    const sf = makeSourceFileFromCode(`
+    const { sf, project } = makeSourceFileFromCode(`
       class QueryDto { page?: number; }
       class TestController {
         list(@Query() query: QueryDto) {}
@@ -613,26 +614,26 @@ describe('extractDtoContract', () => {
     `);
     const cls = sf.getClassOrThrow('TestController');
     const method = cls.getMethodOrThrow('list');
-    const result = extractDtoContract(method, sf);
+    const result = extractDtoContract(method, sf, project);
     expect(result).not.toBeNull();
     expect(result?.query).toBe('{ page?: number }');
     expect(result?.body).toBeNull();
   });
 
   it('skips @Query("key") single-param decorators', () => {
-    const sf = makeSourceFileFromCode(`
+    const { sf, project } = makeSourceFileFromCode(`
       class TestController {
         get(@Query('page') page: string) {}
       }
     `);
     const cls = sf.getClassOrThrow('TestController');
     const method = cls.getMethodOrThrow('get');
-    const result = extractDtoContract(method, sf);
+    const result = extractDtoContract(method, sf, project);
     expect(result).toBeNull();
   });
 
   it('resolves optional properties correctly', () => {
-    const sf = makeSourceFileFromCode(`
+    const { sf, project } = makeSourceFileFromCode(`
       class MyDto { required: string; optional?: boolean; }
       class TestController {
         action(@Body() body: MyDto) {}
@@ -640,7 +641,56 @@ describe('extractDtoContract', () => {
     `);
     const cls = sf.getClassOrThrow('TestController');
     const method = cls.getMethodOrThrow('action');
-    const result = extractDtoContract(method, sf);
+    const result = extractDtoContract(method, sf, project);
     expect(result?.body).toBe('{ required: string; optional?: boolean }');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cross-file DTO resolution integration tests
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — cross-file DTO resolution', () => {
+  it('resolves DTOs imported from a separate file', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'cross-file.controller.ts',
+    });
+
+    expect(routes.length).toBeGreaterThanOrEqual(2);
+
+    const listRoute = routes.find((r) => r.name === 'CrossFileController.list');
+    expect(listRoute).toBeDefined();
+    const listCs = listRoute?.contract?.contractSource;
+    expect(listCs?.response).toBe('Array<{ id: string; title: string; content: string; createdAt: string }>');
+    expect(listCs?.query).toBe('{ page?: number; limit?: number }');
+
+    const createRoute = routes.find((r) => r.name === 'CrossFileController.create');
+    expect(createRoute).toBeDefined();
+    const createCs = createRoute?.contract?.contractSource;
+    expect(createCs?.body).toBe('{ title: string; content: string }');
+    expect(createCs?.response).toBe('{ id: string; title: string; content: string; createdAt: string }');
+  });
+
+  it('resolves nested cross-file DTOs (DTO imports another DTO)', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'cross-file-nested.controller.ts',
+    });
+
+    expect(routes.length).toBeGreaterThanOrEqual(2);
+
+    const listRoute = routes.find((r) => r.name === 'CrossFileNestedController.list');
+    expect(listRoute).toBeDefined();
+    const listCs = listRoute?.contract?.contractSource;
+    // CommentDto has a `post: PostResponseDto` field — PostResponseDto is in a different file
+    expect(listCs?.response).toContain('id: string');
+    expect(listCs?.response).toContain('text: string');
+    expect(listCs?.response).toContain('post: { id: string; title: string; content: string; createdAt: string }');
+
+    const createRoute = routes.find((r) => r.name === 'CrossFileNestedController.create');
+    expect(createRoute).toBeDefined();
+    const createCs = createRoute?.contract?.contractSource;
+    expect(createCs?.body).toBe('{ text: string; postId: string }');
   });
 });

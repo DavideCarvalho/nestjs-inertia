@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import fg from 'fast-glob';
 /**
  * Static AST-based contract discovery using ts-morph.
@@ -68,7 +68,7 @@ export async function discoverContractsFast(
   const routes: RouteDescriptor[] = [];
 
   for (const sourceFile of project.getSourceFiles()) {
-    routes.push(...extractFromSourceFile(sourceFile));
+    routes.push(...extractFromSourceFile(sourceFile, project));
   }
 
   return routes;
@@ -330,14 +330,66 @@ function extractParams(
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a TypeNode to a TypeScript type-source string by inspecting the
- * referenced class declaration in the same source file.
- * Falls back to the raw text of the typeNode when the class cannot be resolved.
+ * Follow an import declaration to find a class in another file.
+ * Returns the ClassDeclaration + its SourceFile, or null.
+ */
+function resolveImportedClass(
+  name: string,
+  sourceFile: SourceFile,
+  project: Project,
+): { cls: ClassDeclaration; file: SourceFile } | null {
+  for (const importDecl of sourceFile.getImportDeclarations()) {
+    const namedImport = importDecl.getNamedImports().find((n) => n.getName() === name);
+    if (!namedImport) continue;
+
+    const moduleSpecifier = importDecl.getModuleSpecifierValue();
+    // Skip non-relative imports (node_modules)
+    if (!moduleSpecifier.startsWith('.')) return null;
+
+    const dir = dirname(sourceFile.getFilePath());
+    const candidates = [
+      resolve(dir, `${moduleSpecifier}.ts`),
+      resolve(dir, moduleSpecifier, 'index.ts'),
+    ];
+
+    for (const candidate of candidates) {
+      let importedFile = project.getSourceFile(candidate);
+      if (!importedFile) {
+        try {
+          importedFile = project.addSourceFileAtPath(candidate);
+        } catch {
+          continue;
+        }
+      }
+      const cls = importedFile.getClass(name);
+      if (cls) return { cls, file: importedFile };
+    }
+  }
+  return null;
+}
+
+/**
+ * Find a class declaration by name: first in the current file, then by following imports.
+ */
+function findClass(
+  name: string,
+  sourceFile: SourceFile,
+  project: Project,
+): { cls: ClassDeclaration; file: SourceFile } | null {
+  const local = sourceFile.getClass(name);
+  if (local) return { cls: local, file: sourceFile };
+  return resolveImportedClass(name, sourceFile, project);
+}
+
+/**
+ * Resolve a TypeNode to a TypeScript type-source string.
+ * Follows imports across files via the ts-morph Project.
  * `depth` limits recursive expansion (guards against circular references).
  */
 function resolveTypeNodeToString(
   typeNode: TypeNode,
   sourceFile: SourceFile,
+  project: Project,
   depth: number,
 ): string {
   if (depth <= 0) return 'unknown';
@@ -345,7 +397,7 @@ function resolveTypeNodeToString(
   // Array<T> or T[] — unwrap and wrap
   if (Node.isArrayTypeNode(typeNode)) {
     const elementType = typeNode.getElementTypeNode();
-    return `Array<${resolveTypeNodeToString(elementType, sourceFile, depth)}>`;
+    return `Array<${resolveTypeNodeToString(elementType, sourceFile, project, depth)}>`;
   }
 
   // TypeReference: Foo, Foo[], Array<Foo>, Promise<Foo>, etc.
@@ -363,7 +415,7 @@ function resolveTypeNodeToString(
       const typeArgs = typeNode.getTypeArguments();
       const firstTypeArg = typeArgs[0];
       if (typeArgs.length > 0 && firstTypeArg !== undefined) {
-        return `Array<${resolveTypeNodeToString(firstTypeArg, sourceFile, depth)}>`;
+        return `Array<${resolveTypeNodeToString(firstTypeArg, sourceFile, project, depth)}>`;
       }
       return 'Array<unknown>';
     }
@@ -373,18 +425,18 @@ function resolveTypeNodeToString(
       const typeArgs = typeNode.getTypeArguments();
       const firstTypeArg = typeArgs[0];
       if (typeArgs.length > 0 && firstTypeArg !== undefined) {
-        return resolveTypeNodeToString(firstTypeArg, sourceFile, depth);
+        return resolveTypeNodeToString(firstTypeArg, sourceFile, project, depth);
       }
       return 'unknown';
     }
 
-    // Try to find a class declaration with that name in the same file
-    const classDec = sourceFile.getClass(name);
-    if (classDec) {
-      return resolveClassDeclaration(classDec, sourceFile, depth - 1);
+    // Try same file first, then follow imports
+    const resolved = findClass(name, sourceFile, project);
+    if (resolved) {
+      return resolveClassDeclaration(resolved.cls, resolved.file, project, depth - 1);
     }
 
-    // Fall back: use the name as-is (could be an imported type we can't resolve)
+    // Fall back: use the name as-is
     return name;
   }
 
@@ -407,6 +459,7 @@ function resolveTypeNodeToString(
 function resolveClassDeclaration(
   cls: ClassDeclaration,
   sourceFile: SourceFile,
+  project: Project,
   depth: number,
 ): string {
   if (depth < 0) return 'unknown';
@@ -418,7 +471,7 @@ function resolveClassDeclaration(
     const propTypeNode = prop.getTypeNode();
     let propType = 'unknown';
     if (propTypeNode) {
-      propType = resolveTypeNodeToString(propTypeNode, sourceFile, depth);
+      propType = resolveTypeNodeToString(propTypeNode, sourceFile, project, depth);
     }
     lines.push(`${propName}${isOptional ? '?' : ''}: ${propType}`);
   }
@@ -429,16 +482,15 @@ function resolveClassDeclaration(
  * Extract the body type from a `@Body()` (no-arg) decorated parameter.
  * Returns a TS type string or null.
  */
-function extractBodyType(method: MethodDeclaration, sourceFile: SourceFile): string | null {
+function extractBodyType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string | null {
   for (const param of method.getParameters()) {
     const bodyDecorator = param.getDecorators().find((d) => d.getName() === 'Body');
     if (!bodyDecorator) continue;
-    // Only handle @Body() with no arguments (DTO mode)
     const bodyArgs = bodyDecorator.getArguments();
     if (bodyArgs.length > 0) continue;
     const typeNode = param.getTypeNode();
     if (typeNode) {
-      return resolveTypeNodeToString(typeNode, sourceFile, 3);
+      return resolveTypeNodeToString(typeNode, sourceFile, project, 3);
     }
   }
   return null;
@@ -448,16 +500,15 @@ function extractBodyType(method: MethodDeclaration, sourceFile: SourceFile): str
  * Extract the query type from a `@Query()` (no-arg) decorated parameter.
  * Returns a TS type string or null.
  */
-function extractQueryType(method: MethodDeclaration, sourceFile: SourceFile): string | null {
+function extractQueryType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string | null {
   for (const param of method.getParameters()) {
     const queryDecorator = param.getDecorators().find((d) => d.getName() === 'Query');
     if (!queryDecorator) continue;
-    // Only handle @Query() with no arguments (DTO mode) — @Query('key') for individual params is skipped
     const queryArgs = queryDecorator.getArguments();
     if (queryArgs.length > 0) continue;
     const typeNode = param.getTypeNode();
     if (typeNode) {
-      return resolveTypeNodeToString(typeNode, sourceFile, 3);
+      return resolveTypeNodeToString(typeNode, sourceFile, project, 3);
     }
   }
   return null;
@@ -467,19 +518,18 @@ function extractQueryType(method: MethodDeclaration, sourceFile: SourceFile): st
  * Collect `@Param('name')` decorated parameters into a `{ name: type; ... }` string.
  * Returns a TS type string or null when no @Param decorators are present.
  */
-function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile): string | null {
+function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string | null {
   const entries: string[] = [];
   for (const param of method.getParameters()) {
     const paramDecorator = param.getDecorators().find((d) => d.getName() === 'Param');
     if (!paramDecorator) continue;
-    // @Param('name') — must have a string arg
     const paramArgs = paramDecorator.getArguments();
     if (paramArgs.length === 0) continue;
     const nameArg = paramArgs[0];
     if (!Node.isStringLiteral(nameArg)) continue;
     const paramName = nameArg.getLiteralValue();
     const typeNode = param.getTypeNode();
-    const paramType = typeNode ? resolveTypeNodeToString(typeNode, sourceFile, 3) : 'string';
+    const paramType = typeNode ? resolveTypeNodeToString(typeNode, sourceFile, project, 3) : 'string';
     entries.push(`${paramName}: ${paramType}`);
   }
   return entries.length > 0 ? `{ ${entries.join('; ')} }` : null;
@@ -490,7 +540,7 @@ function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile): s
  * Falls back to the method return type annotation (unwrapping `Promise<>`).
  * Returns a TS type string (never null — falls back to 'unknown').
  */
-function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile): string {
+function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string {
   // 1. Try @ApiResponse
   const apiResponseDecorator = method.getDecorator('ApiResponse');
   if (apiResponseDecorator) {
@@ -508,14 +558,14 @@ function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile):
           const elements = val.getElements();
           const firstEl = elements[0];
           if (elements.length > 0 && firstEl !== undefined) {
-            const innerType = resolveIdentifierToClassType(firstEl, sourceFile, 3);
+            const innerType = resolveIdentifierToClassType(firstEl, sourceFile, project, 3);
             return `Array<${innerType}>`;
           }
           return 'Array<unknown>';
         }
 
         // type: PostDto — single class reference
-        return resolveIdentifierToClassType(val, sourceFile, 3);
+        return resolveIdentifierToClassType(val, sourceFile, project, 3);
       }
     }
   }
@@ -523,7 +573,7 @@ function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile):
   // 2. Fall back to return type annotation
   const returnTypeNode = method.getReturnTypeNode();
   if (returnTypeNode) {
-    return resolveTypeNodeToString(returnTypeNode, sourceFile, 3);
+    return resolveTypeNodeToString(returnTypeNode, sourceFile, project, 3);
   }
 
   return 'unknown';
@@ -533,12 +583,12 @@ function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile):
  * Resolve an expression (expected to be a class identifier) to its expanded type string.
  * E.g. the `PostDto` identifier in `@ApiResponse({ type: PostDto })`.
  */
-function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, depth: number): string {
+function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, project: Project, depth: number): string {
   if (!Node.isIdentifier(node)) return 'unknown';
   const name = node.getText();
-  const classDec = sourceFile.getClass(name);
-  if (classDec) {
-    return resolveClassDeclaration(classDec, sourceFile, depth - 1);
+  const resolved = findClass(name, sourceFile, project);
+  if (resolved) {
+    return resolveClassDeclaration(resolved.cls, resolved.file, project, depth - 1);
   }
   return name;
 }
@@ -551,11 +601,12 @@ function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, depth:
 export function extractDtoContract(
   method: MethodDeclaration,
   sourceFile: SourceFile,
+  project: Project,
 ): { query: string | null; body: string | null; response: string; params: string | null } | null {
-  const body = extractBodyType(method, sourceFile);
-  const query = extractQueryType(method, sourceFile);
-  const paramsType = extractParamsType(method, sourceFile);
-  const response = extractResponseType(method, sourceFile);
+  const body = extractBodyType(method, sourceFile, project);
+  const query = extractQueryType(method, sourceFile, project);
+  const paramsType = extractParamsType(method, sourceFile, project);
+  const response = extractResponseType(method, sourceFile, project);
 
   // Only emit a contract if there is at least something useful
   if (body === null && query === null && paramsType === null && response === 'unknown') {
@@ -584,7 +635,7 @@ const HTTP_METHOD_DECORATORS: Record<string, string> = {
 // Per-file extraction
 // ---------------------------------------------------------------------------
 
-function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
+function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteDescriptor[] {
   const routes: RouteDescriptor[] = [];
   // Track derived/assigned names to detect collisions: name → fully-qualified method ref
   const seenNames = new Map<string, string>();
@@ -735,7 +786,7 @@ function extractFromSourceFile(sourceFile: SourceFile): RouteDescriptor[] {
         const routeName = `${className}.${methodName}`;
 
         // ── DTO-based contract extraction ──────────────────────────────────
-        const dtoContract = extractDtoContract(method, sourceFile);
+        const dtoContract = extractDtoContract(method, sourceFile, project);
 
         routes.push({
           method: httpMethod,
