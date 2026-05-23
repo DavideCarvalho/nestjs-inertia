@@ -10,9 +10,9 @@ export default defineConfig({
       title: 'nestjs-inertia',
       description:
         'Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.',
-      social: {
-        github: 'https://github.com/DavideCarvalho/nestjs-inertia',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/DavideCarvalho/nestjs-inertia' },
+      ],
       editLink: {
         baseUrl: 'https://github.com/DavideCarvalho/nestjs-inertia/edit/main/website/',
       },
@@ -20,15 +20,15 @@ export default defineConfig({
         { label: 'Getting Started', slug: 'getting-started' },
         {
           label: 'Guides',
-          autogenerate: { directory: 'guides' },
+          items: [{ autogenerate: { directory: 'guides' } }],
         },
         {
           label: 'Packages',
-          autogenerate: { directory: 'packages' },
+          items: [{ autogenerate: { directory: 'packages' } }],
         },
         {
           label: 'Reference',
-          autogenerate: { directory: 'reference' },
+          items: [{ autogenerate: { directory: 'reference' } }],
         },
       ],
     }),
