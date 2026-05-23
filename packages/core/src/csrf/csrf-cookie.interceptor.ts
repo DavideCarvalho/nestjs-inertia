@@ -30,6 +30,10 @@ function writeCsrfCookie(
  * one. Call this when the session principal changes (e.g. after issuing a new
  * session) to prevent token fixation attacks.
  *
+ * If you need to invalidate prior tokens (e.g., after session principal change),
+ * configure `tokenContext` to return a session-bound value (session ID, nonce) —
+ * old tokens fail verification when that value changes.
+ *
  * @example
  * ```ts
  * rotateCsrfToken(res, { secret: this.csrfSecret });
@@ -38,9 +42,10 @@ function writeCsrfCookie(
 export function rotateCsrfToken(
   res: CookieResponse,
   options: Pick<CsrfCookieOptions, 'secret' | 'cookieName' | 'httpOnly' | 'sameSite' | 'secure'>,
+  context?: string,
 ): void {
   const cookieName = options.cookieName ?? 'XSRF-TOKEN';
-  const token = generateCsrfToken(options.secret);
+  const token = generateCsrfToken(options.secret, context);
   const cookieOpts = {
     httpOnly: options.httpOnly ?? false,
     sameSite: options.sameSite ?? 'lax',
@@ -57,6 +62,18 @@ export interface CsrfCookieOptions {
   sameSite?: 'lax' | 'strict' | 'none';
   httpOnly?: boolean;
   secure?: boolean;
+  /**
+   * Optional function to extract a session-bound context value from the request.
+   * When provided, the HMAC payload includes this value so that tokens become
+   * invalid when the context changes (e.g. after a session principal change).
+   * Typical values: session ID, session nonce.
+   *
+   * @example
+   * ```ts
+   * tokenContext: (req) => req.session?.id ?? ''
+   * ```
+   */
+  tokenContext?: (req: unknown) => string;
 }
 
 @Injectable()
@@ -71,9 +88,10 @@ export class CsrfCookieInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest<{ cookies?: Record<string, string> }>();
     const res = context.switchToHttp().getResponse<CookieResponse>();
 
+    const ctx = this.options.tokenContext ? this.options.tokenContext(req) : undefined;
     const existing = req.cookies?.[this.cookieName];
-    if (!existing || !verifyCsrfToken(existing, this.options.secret)) {
-      rotateCsrfToken(res, this.options);
+    if (!existing || !verifyCsrfToken(existing, this.options.secret, ctx)) {
+      rotateCsrfToken(res, this.options, ctx);
     }
     return next.handle();
   }

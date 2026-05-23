@@ -6,6 +6,11 @@ export interface CsrfGuardOptions {
   secret: string;
   cookieName?: string;
   headerName?: string;
+  /**
+   * Optional function to extract a session-bound context value from the request.
+   * Must match the `tokenContext` used in `CsrfCookieInterceptor` for the same app.
+   */
+  tokenContext?: (req: unknown) => string;
 }
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -37,7 +42,8 @@ export class CsrfGuard implements CanActivate {
     if (!timingSafeEqualSafe(Buffer.from(cookieToken), Buffer.from(headerToken))) {
       throw new InvalidCsrfTokenException();
     }
-    if (!verifyCsrfToken(cookieToken, this.options.secret)) throw new InvalidCsrfTokenException();
+    const context = this.options.tokenContext ? this.options.tokenContext(req) : undefined;
+    if (!verifyCsrfToken(cookieToken, this.options.secret, context)) throw new InvalidCsrfTokenException();
 
     return true;
   }

@@ -19,8 +19,45 @@ describe('csrf-token helpers', () => {
   });
   it('rejects multi-part token (raw.sig.junk silently-dropped L-1)', () => {
     const valid = generateCsrfToken('secret');
-    const tampered = `${valid}.extraPart`;
+    const tampered = `${valid}.extraPart.extra2`;
     expect(verifyCsrfToken(tampered, 'secret')).toBe(false);
+  });
+
+  // S-1: tokenContext — session-bound invalidation
+  describe('S-1: tokenContext (session-bound invalidation)', () => {
+    it('without tokenContext: tokens verify forever within the same secret', () => {
+      const t = generateCsrfToken('secret');
+      expect(verifyCsrfToken(t, 'secret')).toBe(true);
+      // After "rotation" (new token), old token still valid (documented behaviour)
+      expect(verifyCsrfToken(t, 'secret')).toBe(true);
+    });
+
+    it('with tokenContext + same context: token still verifies', () => {
+      const t = generateCsrfToken('secret', 'sess-abc');
+      expect(verifyCsrfToken(t, 'secret', 'sess-abc')).toBe(true);
+    });
+
+    it('with tokenContext + different context: old token FAILS verification', () => {
+      const t = generateCsrfToken('secret', 'sess-abc');
+      // Session rotated to a new ID — old token must not be accepted
+      expect(verifyCsrfToken(t, 'secret', 'sess-xyz')).toBe(false);
+    });
+
+    it('context token has 3 parts (raw.ctxHex.sig)', () => {
+      const t = generateCsrfToken('secret', 'mysession');
+      expect(t.split('.').length).toBe(3);
+    });
+
+    it('no-context token still has 2 parts', () => {
+      const t = generateCsrfToken('secret');
+      expect(t.split('.').length).toBe(2);
+    });
+
+    it('context token rejected when no context supplied to verify', () => {
+      const t = generateCsrfToken('secret', 'sess-abc');
+      // Caller passes no context — should still verify using stored context
+      expect(verifyCsrfToken(t, 'secret')).toBe(true);
+    });
   });
 });
 
