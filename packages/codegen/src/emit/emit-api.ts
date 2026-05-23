@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { RouteDescriptor } from '../discovery/routes.js';
+import type { RouteDescriptor } from '../discovery/types.js';
 
 /**
  * Emits `api.ts` into `outDir` for all routes that carry a `.contract`.

@@ -2,11 +2,10 @@ import { join, resolve } from 'node:path';
 import fg from 'fast-glob';
 /**
  * Static AST-based contract discovery using ts-morph.
- * Replaces the heavy NestJS bootstrap path on the watch hot path.
- * Cold start drops from ~2-10 s to ~100-500 ms.
+ * Cold start ~100-500 ms.
  */
 import { Node, Project, type SourceFile, SyntaxKind } from 'ts-morph';
-import type { RouteDescriptor } from './routes.js';
+import type { RouteDescriptor } from './types.js';
 
 export interface FastDiscoveryOptions {
   /** Absolute path to the project root. */

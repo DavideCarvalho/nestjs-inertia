@@ -1,6 +1,6 @@
 import type { ResolvedConfig } from './config/types.js';
 import { discoverPages } from './discovery/pages.js';
-import type { RouteDescriptor } from './discovery/routes.js';
+import type { RouteDescriptor } from './discovery/types.js';
 import { emitApi } from './emit/emit-api.js';
 import { emitCache } from './emit/emit-cache.js';
 import { emitIndex } from './emit/emit-index.js';

@@ -4,7 +4,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ResolvedConfig } from '../../src/config/types.js';
-import type { RouteDescriptor } from '../../src/discovery/routes.js';
 import { watch } from '../../src/watch/watcher.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -23,12 +22,7 @@ async function waitForCondition(
   throw new Error(`Condition not met within ${timeoutMs}ms`);
 }
 
-function makeConfig(
-  pagesDir: string,
-  outDir: string,
-  contractsGlob?: string,
-  useStaticDiscovery?: boolean,
-): ResolvedConfig {
+function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string): ResolvedConfig {
   return {
     pages: {
       glob: '**/*.tsx',
@@ -38,7 +32,6 @@ function makeConfig(
     contracts: {
       glob: contractsGlob ?? 'src/**/*.controller.ts',
       debounceMs: 500,
-      useStaticDiscovery: useStaticDiscovery ?? true,
     },
     scopes: {},
     codegen: { outDir, cwd: pagesDir },
@@ -128,128 +121,17 @@ describe('watch', () => {
     warnSpy.mockRestore();
   });
 
-  it('re-emits routes.ts and calls onChange when a controller file changes', async () => {
-    tmpBase = await mkdtemp(join(tmpdir(), 'watcher-contracts-spec-'));
-    const projectDir = join(tmpBase, 'project');
-    const srcDir = join(projectDir, 'src');
-    const outDir = join(tmpBase, '.nestjs-inertia');
-    await mkdir(srcDir, { recursive: true });
-
-    // Seed a page file
-    await writeFile(
-      join(projectDir, 'Home.tsx'),
-      'export type ComponentProps = { title: string };\nexport default function Home() { return null; }\n',
-      'utf8',
-    );
-
-    // Seed a controller file that will be watched
-    const controllerPath = join(srcDir, 'app.controller.ts');
-    await writeFile(controllerPath, '// initial controller\n', 'utf8');
-
-    // Stub discoverRoutes to avoid spawning Nest — returns a deterministic route table
-    const stubRoutes: RouteDescriptor[] = [
-      { method: 'GET', path: '/stub', name: 'StubController.index', params: [] },
-    ];
-    let discoverCallCount = 0;
-    const stubDiscoverRoutes = async () => {
-      discoverCallCount++;
-      return stubRoutes;
-    };
-
-    const config = makeConfig(projectDir, outDir, 'src/**/*.controller.ts');
-    let onChangeCalled = 0;
-    const watcher = await watch(
-      config,
-      () => {
-        onChangeCalled++;
-      },
-      stubDiscoverRoutes,
-    );
-    watchers.push(watcher);
-
-    // Give chokidar time to set up its internal watch
-    await new Promise((r) => setTimeout(r, 300));
-
-    const initialDiscoverCount = discoverCallCount;
-
-    // Modify the controller file to trigger the contracts watcher
-    await writeFile(controllerPath, '// initial controller\n// modified\n', 'utf8');
-
-    // Wait for onChange to fire (500ms debounce + processing time, 3s timeout)
-    await waitForCondition(() => onChangeCalled > 0, 3000);
-
-    // discoverRoutes should have been called at least once after the change
-    expect(discoverCallCount).toBeGreaterThan(initialDiscoverCount);
-
-    // routes.ts should have been regenerated with stub route
-    const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
-    expect(routesContent).toContain('StubController.index');
-  });
-
-  it('uses heavy discovery (discoverRoutesImpl seam) when useStaticDiscovery is false', async () => {
-    tmpBase = await mkdtemp(join(tmpdir(), 'watcher-heavy-spec-'));
-    const projectDir = join(tmpBase, 'project');
-    const srcDir = join(projectDir, 'src');
-    const outDir = join(tmpBase, '.nestjs-inertia');
-    await mkdir(srcDir, { recursive: true });
-
-    await writeFile(
-      join(projectDir, 'Home.tsx'),
-      'export type ComponentProps = { title: string };\nexport default function Home() { return null; }\n',
-      'utf8',
-    );
-
-    const controllerPath = join(srcDir, 'app.controller.ts');
-    await writeFile(controllerPath, '// controller\n', 'utf8');
-
-    const stubRoutes: RouteDescriptor[] = [
-      { method: 'GET', path: '/heavy', name: 'HeavyController.index', params: [] },
-    ];
-    let heavyCallCount = 0;
-    const stubDiscoverRoutes = async () => {
-      heavyCallCount++;
-      return stubRoutes;
-    };
-
-    // Explicitly opt out of static discovery
-    const config = makeConfig(projectDir, outDir, 'src/**/*.controller.ts', false);
-    let onChangeCalled = 0;
-    const watcher = await watch(
-      config,
-      () => {
-        onChangeCalled++;
-      },
-      stubDiscoverRoutes,
-    );
-    watchers.push(watcher);
-
-    await new Promise((r) => setTimeout(r, 300));
-
-    const countBefore = heavyCallCount;
-
-    await writeFile(controllerPath, '// controller\n// modified\n', 'utf8');
-
-    await waitForCondition(() => onChangeCalled > 0, 3000);
-
-    // Heavy path (injected stub) must have been called at least once
-    expect(heavyCallCount).toBeGreaterThan(countBefore);
-
-    const routesContent = await readFile(join(outDir, 'routes.ts'), 'utf8');
-    expect(routesContent).toContain('HeavyController.index');
-  });
-
-  it('uses static discovery (discoverContractsFast) when useStaticDiscovery is true', async () => {
+  it('uses static discovery (discoverContractsFast) and regenerates routes.ts on controller change', async () => {
     const fixturesDir = resolve(__dirname, '../__fixtures__/app');
     tmpBase = await mkdtemp(join(tmpdir(), 'watcher-static-spec-'));
     const outDir = join(tmpBase, '.nestjs-inertia');
     await mkdir(outDir, { recursive: true });
 
     // The fixture dir has contract-users.controller.ts, which the fast path should discover
-    const config = makeConfig(fixturesDir, outDir, 'contract-users.controller.ts', true);
+    const config = makeConfig(fixturesDir, outDir, 'contract-users.controller.ts');
     config.codegen = { outDir, cwd: fixturesDir };
 
     let onChangeCalled = 0;
-    // Do NOT pass a discoverRoutesImpl stub — the watcher should use static discovery instead
     const watcher = await watch(config, () => {
       onChangeCalled++;
     });

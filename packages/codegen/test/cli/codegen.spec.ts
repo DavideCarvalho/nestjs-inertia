@@ -67,7 +67,7 @@ describe('runCodegen one-shot route discovery', () => {
       join(tmpBase, 'nestjs-inertia.config.ts'),
       `export default {
   pages: { glob: 'inertia/pages/**/*.tsx' },
-  contracts: { glob: 'src/**/*.controller.ts', useStaticDiscovery: true },
+  contracts: { glob: 'src/**/*.controller.ts' },
 };\n`,
       'utf8',
     );

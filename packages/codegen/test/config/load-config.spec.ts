@@ -69,7 +69,6 @@ export default config;
     // contracts defaults
     expect(config.contracts.glob).toBe('src/**/*.controller.ts');
     expect(config.contracts.debounceMs).toBe(500);
-    expect(config.contracts.useStaticDiscovery).toBe(true);
   });
 
   it('respects user-supplied contracts config', async () => {
@@ -85,20 +84,6 @@ export default config;
 
     expect(config.contracts.glob).toBe('app/**/*.controller.ts');
     expect(config.contracts.debounceMs).toBe(1000);
-  });
-
-  it('allows user to opt out of static discovery by setting useStaticDiscovery: false', async () => {
-    await writeFile(
-      join(tmpDir, 'nestjs-inertia.config.ts'),
-      `export default {
-  pages: { glob: 'src/pages/**/*.vue' },
-  contracts: { useStaticDiscovery: false },
-};`,
-    );
-
-    const config = await loadConfig(tmpDir);
-
-    expect(config.contracts.useStaticDiscovery).toBe(false);
   });
 
   // S-2: tsconfig path jail (closes H-4 escape)

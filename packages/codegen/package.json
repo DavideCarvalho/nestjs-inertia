@@ -21,7 +21,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "bin", "tsconfig.probe.json", "README.md", "CHANGELOG.md"],
+  "files": ["dist", "bin", "README.md", "CHANGELOG.md"],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
     "test": "vitest run",

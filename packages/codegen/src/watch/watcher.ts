@@ -2,8 +2,7 @@ import { join } from 'node:path';
 import chokidar from 'chokidar';
 import type { ResolvedConfig } from '../config/types.js';
 import { discoverContractsFast } from '../discovery/contracts-fast.js';
-import type { RouteDescriptor } from '../discovery/routes.js';
-import { discoverRoutes as defaultDiscoverRoutes } from '../discovery/routes.js';
+import type { RouteDescriptor } from '../discovery/types.js';
 import { emitApi } from '../emit/emit-api.js';
 import { emitIndex } from '../emit/emit-index.js';
 import { emitRoutes } from '../emit/emit-routes.js';
@@ -26,23 +25,13 @@ const NO_OP_WATCHER: Watcher = { close: async () => {} };
  *    any page file change, regenerating `pages.d.ts` and the cache manifest.
  *
  * 2. **Contracts watcher** (`config.contracts.glob`, configurable debounce — default 500 ms) —
- *    re-runs route discovery, then re-emits `routes.ts` and (when contracts are present)
- *    `api.ts` + `index.d.ts`.
+ *    re-runs static AST route discovery via ts-morph, then re-emits `routes.ts` and (when
+ *    contracts are present) `api.ts` + `index.d.ts`.
  *
  * Both watchers share a single lock file in `config.codegen.outDir`. If another live process
  * already holds the lock, logs a warning and returns a no-op watcher.
- *
- * The optional `discoverRoutesImpl` parameter exists as a test seam: pass a stub to avoid
- * spawning a real NestJS app in unit tests.
  */
-export async function watch(
-  config: ResolvedConfig,
-  onChange?: () => void,
-  discoverRoutesImpl?: (opts: {
-    moduleEntry: string;
-    tsconfig?: string | undefined;
-  }) => Promise<RouteDescriptor[]>,
-): Promise<Watcher> {
+export async function watch(config: ResolvedConfig, onChange?: () => void): Promise<Watcher> {
   const lock = await acquireLock(config.codegen.outDir);
 
   if (lock === null) {
@@ -87,7 +76,7 @@ export async function watch(
   pagesWatcher.on('change', schedulePagesRegenerate);
   pagesWatcher.on('unlink', schedulePagesRegenerate);
 
-  // ── Contracts watcher (slow path — runs route discovery) ─────────────────────
+  // ── Contracts watcher (static AST discovery via ts-morph) ────────────────────
   let contractsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   const contractsWatcher = chokidar.watch(join(config.codegen.cwd, config.contracts.glob), {
@@ -96,14 +85,6 @@ export async function watch(
     awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 },
   });
 
-  const resolvedDiscoverRoutes = discoverRoutesImpl ?? defaultDiscoverRoutes;
-
-  // Static discovery is active by default (useStaticDiscovery defaults to true in resolved config).
-  // It is bypassed when the user sets useStaticDiscovery: false, or when a custom discoverRoutesImpl
-  // test seam is injected (the seam implies the caller controls discovery).
-  const useStatic =
-    config.contracts.useStaticDiscovery !== false && discoverRoutesImpl === undefined;
-
   function scheduleContractsRegenerate(): void {
     if (contractsDebounceTimer !== undefined) {
       clearTimeout(contractsDebounceTimer);
@@ -111,33 +92,11 @@ export async function watch(
     contractsDebounceTimer = setTimeout(async () => {
       contractsDebounceTimer = undefined;
       try {
-        let routes: RouteDescriptor[] = [];
-
-        if (useStatic) {
-          // Fast path: static AST discovery via ts-morph — no NestJS bootstrap
-          routes = await discoverContractsFast({
-            cwd: config.codegen.cwd,
-            glob: config.contracts.glob,
-            ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
-          });
-        } else {
-          // Use the injected stub unconditionally (test seam), or only discover
-          // when app config is present (production path).
-          const hasCustomImpl = discoverRoutesImpl !== undefined;
-          if (!hasCustomImpl) {
-            console.warn(
-              '⚠ [nestjs-inertia-codegen] Heavy probe path (useStaticDiscovery: false) is deprecated and will be removed in v1.0. ' +
-                'See https://github.com/DavideCarvalho/nestjs-inertia for details.',
-            );
-          }
-          if (hasCustomImpl || config.app) {
-            routes = await resolvedDiscoverRoutes({
-              moduleEntry: config.app?.moduleEntry ?? '',
-              ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
-            });
-          }
-          // else: no app config and no injected impl — re-emit empty routes below
-        }
+        const routes: RouteDescriptor[] = await discoverContractsFast({
+          cwd: config.codegen.cwd,
+          glob: config.contracts.glob,
+          ...(config.app?.tsconfig ? { tsconfig: config.app.tsconfig } : {}),
+        });
 
         await emitRoutes(routes, config.codegen.outDir);
 
