@@ -147,6 +147,13 @@ const { data } = useQuery(api.health.queryOptions());
 
 **Best practice:** align names with your resource hierarchy — `'users.list'`, `'users.show'`, `'users.create'`. This keeps IDE autocompletion logical and makes the generated `api` object easy to navigate.
 
+### Valid name format
+
+Each dot-separated segment must be a **camelCase identifier**: it must start with a lowercase letter and contain only letters and digits (no hyphens, underscores, spaces, or uppercase first letters). Codegen validates this at emit time and throws a descriptive error with a suggested fix.
+
+- Valid: `'users.list'`, `'admin.userActions.create'`, `'health'`
+- Invalid (throws): `'user-post.list'` → suggest `'userPost.list'`, `'user_post.list'` → suggest `'userPost.list'`, `'User.list'` → suggest `'user.list'`
+
 ## Auto-watch via `InertiaModule` (recommended)
 
 When the codegen package is installed, `InertiaModule` automatically starts the codegen watcher in dev mode — **no extra terminal or script needed**.

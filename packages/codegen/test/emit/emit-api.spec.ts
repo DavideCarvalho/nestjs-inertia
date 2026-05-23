@@ -327,4 +327,73 @@ describe('emitApi', () => {
     expect(content).toContain('safe:');
     expect(content).toContain('name:');
   });
+
+  // ---------------------------------------------------------------------------
+  // Q2: Segment validation — camelCase only
+  // ---------------------------------------------------------------------------
+
+  describe('name segment validation', () => {
+    function makeRoute(name: string): RouteDescriptor[] {
+      return [
+        {
+          method: 'GET',
+          path: '/test',
+          name,
+          params: [],
+          contract: {
+            name,
+            method: 'GET',
+            path: '/test',
+            contractSource: { query: null, body: null, response: 'unknown' },
+          },
+        },
+      ];
+    }
+
+    it('accepts a valid camelCase name (users.list)', async () => {
+      await expect(emitApi(makeRoute('users.list'), outDir)).resolves.not.toThrow();
+    });
+
+    it('accepts a three-level valid name (admin.userActions.create)', async () => {
+      await expect(emitApi(makeRoute('admin.userActions.create'), outDir)).resolves.not.toThrow();
+    });
+
+    it('rejects a name with a hyphenated segment and mentions suggested fix', async () => {
+      await expect(emitApi(makeRoute('user-post.list'), outDir)).rejects.toThrow(
+        /user-post.*userPost/,
+      );
+    });
+
+    it('rejects a name with an underscore segment and mentions suggested fix', async () => {
+      await expect(emitApi(makeRoute('user_post.list'), outDir)).rejects.toThrow(
+        /user_post.*userPost/,
+      );
+    });
+
+    it('rejects a name with a space in a segment and mentions suggested fix', async () => {
+      await expect(emitApi(makeRoute('user post.list'), outDir)).rejects.toThrow(
+        /user post.*userPost/,
+      );
+    });
+
+    it('rejects a PascalCase segment (User.list) and suggests user.list', async () => {
+      await expect(emitApi(makeRoute('User.list'), outDir)).rejects.toThrow(/User.*user/);
+    });
+
+    it('rejects a segment starting with a digit (1users.list)', async () => {
+      await expect(emitApi(makeRoute('1users.list'), outDir)).rejects.toThrow(/1users/);
+    });
+
+    it('error message includes the full contract name', async () => {
+      await expect(emitApi(makeRoute('user-post.list'), outDir)).rejects.toThrow(
+        /Contract name "user-post\.list"/,
+      );
+    });
+
+    it('error message includes the invalid segment', async () => {
+      await expect(emitApi(makeRoute('user-post.list'), outDir)).rejects.toThrow(
+        /invalid segment "user-post"/,
+      );
+    });
+  });
 });

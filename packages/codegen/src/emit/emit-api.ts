@@ -33,6 +33,36 @@ function toObjectKey(segment: string): string {
   return JSON.stringify(segment);
 }
 
+/**
+ * Convert an arbitrary string segment to camelCase by splitting on non-alphanumeric chars.
+ */
+function toCamelCase(s: string): string {
+  return s
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((word, i) =>
+      i === 0
+        ? word.charAt(0).toLowerCase() + word.slice(1)
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+    )
+    .join('');
+}
+
+/**
+ * Validate that a single name segment matches camelCase: starts with a lowercase letter,
+ * followed only by alphanumeric chars. Throws a descriptive error on invalid segments.
+ */
+function validateNameSegment(seg: string, fullName: string): void {
+  if (!/^[a-z][a-zA-Z0-9]*$/.test(seg)) {
+    const suggested = toCamelCase(seg);
+    throw new Error(
+      `Contract name "${fullName}" has invalid segment "${seg}". ` +
+        `Use camelCase identifiers only (lowercase letter then alphanumeric). ` +
+        `Suggested: "${suggested}"`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Nested tree helpers
 // ---------------------------------------------------------------------------
@@ -240,6 +270,10 @@ function buildApiFile(routes: RouteDescriptor[]): string {
     if (!c.name) continue; // skip contracts without a name
     const name: string = c.name;
     const segments = splitName(name);
+    // Validate each segment is a valid camelCase identifier
+    for (const seg of segments) {
+      validateNameSegment(seg, name);
+    }
     const leaf: LeafEntry = {
       kind: 'leaf',
       method: c.method,
