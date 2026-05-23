@@ -97,8 +97,9 @@ describe('emitIndex', () => {
     await emitIndex(outDir);
     const content = await readFile(join(outDir, 'index.d.ts'), 'utf8');
     expect(content).toContain("export * from './pages.js'");
-    expect(content).toContain("export * from './shared-props.js'");
     expect(content).toContain("export * from './routes.js'");
+    // shared-props.js is never generated — must NOT appear to avoid ENOENT
+    expect(content).not.toContain('shared-props');
   });
 
   it('creates outDir if it does not exist', async () => {

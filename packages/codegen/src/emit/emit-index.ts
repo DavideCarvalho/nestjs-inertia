@@ -5,7 +5,6 @@ export async function emitIndex(outDir: string, hasContracts = false): Promise<v
   await mkdir(outDir, { recursive: true });
   const exports = [
     "export * from './pages.js';",
-    "export * from './shared-props.js';",
     "export * from './routes.js';",
   ];
   if (hasContracts) {
