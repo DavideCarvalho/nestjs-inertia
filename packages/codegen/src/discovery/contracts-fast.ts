@@ -6,6 +6,7 @@ import fg from 'fast-glob';
  */
 import {
   type ClassDeclaration,
+  type InterfaceDeclaration,
   type MethodDeclaration,
   Node,
   Project,
@@ -329,21 +330,53 @@ function extractParams(
 // DTO-based contract extraction (standard NestJS patterns — no defineContract)
 // ---------------------------------------------------------------------------
 
+type TypeDeclResult =
+  | { kind: 'class'; decl: ClassDeclaration; file: SourceFile }
+  | { kind: 'interface'; decl: InterfaceDeclaration; file: SourceFile }
+  | { kind: 'typeAlias'; text: string }
+  | { kind: 'enum'; members: string[] };
+
 /**
- * Follow an import declaration to find a class in another file.
- * Returns the ClassDeclaration + its SourceFile, or null.
+ * Try to find a type declaration (class, interface, type alias, enum) in a source file.
  */
-function resolveImportedClass(
+function findTypeInFile(name: string, file: SourceFile): TypeDeclResult | null {
+  const cls = file.getClass(name);
+  if (cls) return { kind: 'class', decl: cls, file };
+
+  const iface = file.getInterface(name);
+  if (iface) return { kind: 'interface', decl: iface, file };
+
+  const alias = file.getTypeAlias(name);
+  if (alias) {
+    const typeNode = alias.getTypeNode();
+    return { kind: 'typeAlias', text: typeNode ? typeNode.getText() : 'unknown' };
+  }
+
+  const enumDecl = file.getEnum(name);
+  if (enumDecl) {
+    const members = enumDecl.getMembers().map((m) => {
+      const val = m.getValue();
+      return typeof val === 'string' ? JSON.stringify(val) : JSON.stringify(m.getName());
+    });
+    return { kind: 'enum', members };
+  }
+
+  return null;
+}
+
+/**
+ * Follow import declarations to find a type in another file.
+ */
+function resolveImportedType(
   name: string,
   sourceFile: SourceFile,
   project: Project,
-): { cls: ClassDeclaration; file: SourceFile } | null {
+): TypeDeclResult | null {
   for (const importDecl of sourceFile.getImportDeclarations()) {
     const namedImport = importDecl.getNamedImports().find((n) => n.getName() === name);
     if (!namedImport) continue;
 
     const moduleSpecifier = importDecl.getModuleSpecifierValue();
-    // Skip non-relative imports (node_modules)
     if (!moduleSpecifier.startsWith('.')) return null;
 
     const dir = dirname(sourceFile.getFilePath());
@@ -361,24 +394,24 @@ function resolveImportedClass(
           continue;
         }
       }
-      const cls = importedFile.getClass(name);
-      if (cls) return { cls, file: importedFile };
+      const result = findTypeInFile(name, importedFile);
+      if (result) return result;
     }
   }
   return null;
 }
 
 /**
- * Find a class declaration by name: first in the current file, then by following imports.
+ * Find a type declaration by name: first in the current file, then by following imports.
  */
-function findClass(
+function findType(
   name: string,
   sourceFile: SourceFile,
   project: Project,
-): { cls: ClassDeclaration; file: SourceFile } | null {
-  const local = sourceFile.getClass(name);
-  if (local) return { cls: local, file: sourceFile };
-  return resolveImportedClass(name, sourceFile, project);
+): TypeDeclResult | null {
+  const local = findTypeInFile(name, sourceFile);
+  if (local) return local;
+  return resolveImportedType(name, sourceFile, project);
 }
 
 /**
@@ -430,10 +463,10 @@ function resolveTypeNodeToString(
       return 'unknown';
     }
 
-    // Try same file first, then follow imports
-    const resolved = findClass(name, sourceFile, project);
+    // Try same file first, then follow imports (class, interface, type alias, enum)
+    const resolved = findType(name, sourceFile, project);
     if (resolved) {
-      return resolveClassDeclaration(resolved.cls, resolved.file, project, depth - 1);
+      return expandTypeDecl(resolved, project, depth - 1);
     }
 
     // Fall back: use the name as-is
@@ -453,11 +486,28 @@ function resolveTypeNodeToString(
 }
 
 /**
- * Turn a class declaration's properties into a TS object type string like
+ * Expand a TypeDeclResult into an inline TS type string.
+ */
+function expandTypeDecl(result: TypeDeclResult, project: Project, depth: number): string {
+  if (depth < 0) return 'unknown';
+  switch (result.kind) {
+    case 'class':
+      return resolvePropertied(result.decl, result.file, project, depth);
+    case 'interface':
+      return resolvePropertied(result.decl, result.file, project, depth);
+    case 'typeAlias':
+      return result.text;
+    case 'enum':
+      return result.members.join(' | ');
+  }
+}
+
+/**
+ * Turn a class or interface declaration's properties into a TS object type string like
  * `{ id: string; title: string; page?: number }`.
  */
-function resolveClassDeclaration(
-  cls: ClassDeclaration,
+function resolvePropertied(
+  decl: ClassDeclaration | InterfaceDeclaration,
   sourceFile: SourceFile,
   project: Project,
   depth: number,
@@ -465,7 +515,7 @@ function resolveClassDeclaration(
   if (depth < 0) return 'unknown';
 
   const lines: string[] = [];
-  for (const prop of cls.getProperties()) {
+  for (const prop of decl.getProperties()) {
     const propName = prop.getName();
     const isOptional = prop.hasQuestionToken();
     const propTypeNode = prop.getTypeNode();
@@ -586,9 +636,9 @@ function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile, 
 function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, project: Project, depth: number): string {
   if (!Node.isIdentifier(node)) return 'unknown';
   const name = node.getText();
-  const resolved = findClass(name, sourceFile, project);
+  const resolved = findType(name, sourceFile, project);
   if (resolved) {
-    return resolveClassDeclaration(resolved.cls, resolved.file, project, depth - 1);
+    return expandTypeDecl(resolved, project, depth - 1);
   }
   return name;
 }

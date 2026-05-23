@@ -693,4 +693,37 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
     const createCs = createRoute?.contract?.contractSource;
     expect(createCs?.body).toBe('{ text: string; postId: string }');
   });
+
+  it('resolves interfaces, type aliases, and enums from separate files', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'cross-file-interface.controller.ts',
+    });
+
+    expect(routes.length).toBeGreaterThanOrEqual(4);
+
+    // Interface resolution — FleetResponse should be expanded inline
+    const listRoute = routes.find((r) => r.name === 'crossFileInterface.list');
+    expect(listRoute).toBeDefined();
+    const listCs = listRoute?.contract?.contractSource;
+    expect(listCs?.response).toContain('vessels');
+    expect(listCs?.response).toContain('total: number');
+
+    // Interface as @Body — TelemetryBody should be expanded inline
+    const createRoute = routes.find((r) => r.name === 'crossFileInterface.create');
+    expect(createRoute).toBeDefined();
+    expect(createRoute?.contract?.contractSource.body).toBe('{ lat: number; lng: number; timestamp: string }');
+
+    // Type alias — VesselStatus should be the raw union string
+    const statusRoute = routes.find((r) => r.name === 'crossFileInterface.status');
+    expect(statusRoute).toBeDefined();
+    expect(statusRoute?.contract?.contractSource.response).toContain("'active'");
+    expect(statusRoute?.contract?.contractSource.response).toContain("'docked'");
+
+    // Enum — VesselType should expand to union of string values
+    const typesRoute = routes.find((r) => r.name === 'crossFileInterface.types');
+    expect(typesRoute).toBeDefined();
+    expect(typesRoute?.contract?.contractSource.response).toContain('"cargo"');
+    expect(typesRoute?.contract?.contractSource.response).toContain('"tanker"');
+  });
 });
