@@ -117,7 +117,7 @@ describe('watch', () => {
     const watcher2 = await watch(config);
     watchers.push(watcher2);
 
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('already watching'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('auto-watch skipped'));
     warnSpy.mockRestore();
   });
 

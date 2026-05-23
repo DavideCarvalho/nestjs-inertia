@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import chokidar from 'chokidar';
 import type { ResolvedConfig } from '../config/types.js';
@@ -35,8 +36,17 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
   const lock = await acquireLock(config.codegen.outDir);
 
   if (lock === null) {
+    // Read the lock file to include the PID in the warning message
+    let holderPid = 'unknown';
+    try {
+      const raw = await readFile(join(config.codegen.outDir, '.watcher.lock'), 'utf8');
+      const data = JSON.parse(raw) as { pid?: number };
+      if (data.pid !== undefined) holderPid = String(data.pid);
+    } catch {
+      // Lock file unreadable — fall back to generic warning
+    }
     console.warn(
-      `[nestjs-inertia-codegen] already watching ${config.codegen.outDir} (another process holds the lock). Skipping.`,
+      `[nestjs-inertia-codegen] auto-watch skipped — another process (PID ${holderPid}) is already running the watcher in ${config.codegen.outDir}. Files will continue to regenerate from that process. To take over, stop the other watcher.`,
     );
     return NO_OP_WATCHER;
   }

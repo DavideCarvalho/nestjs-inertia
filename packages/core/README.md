@@ -269,15 +269,17 @@ Bundle must export `default { render(page) }` or named `render(page)` returning 
 
 ## Codegen auto-watch (dev mode)
 
-When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` config file is present, `InertiaModule` automatically starts the codegen file watcher inside `onApplicationBootstrap` — so `nest start --watch` is the only command you need in dev mode.
+When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` config file is present, `InertiaModule` automatically starts the codegen file watcher when your app bootstraps — so `nest start --watch` is the only command you need in dev mode. Generated files appear under `.nestjs-inertia/` and update on every controller or page save. **No extra command, no extra terminal.**
 
-**Default behaviour (`enabled: 'auto'`):**
-1. `NODE_ENV === 'production'` → always skipped.
-2. Codegen package not installed → silent skip (no error).
-3. No `nestjs-inertia.config.ts` found → silent skip.
-4. Lock file already held by another watcher (e.g. the CLI `--watch` flag in a separate terminal) → the codegen package returns a no-op watcher; no conflict.
+**Auto-watch starts when all of these are true:**
+1. `NODE_ENV !== 'production'`
+2. `@dudousxd/nestjs-inertia-codegen` is installed (peer-optional — silently skipped if absent)
+3. `nestjs-inertia.config.ts` is present at the project root
+4. `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` is not set to `'1'`
 
-**Disable auto-watch** (run the CLI watcher manually, or in CI):
+**Running the CLI watcher manually:** `pnpm nestjs-inertia codegen --watch` in a separate terminal gives you explicit control. When both the auto-watcher and the CLI watcher run at the same time, only one holds the lock and generates files; the other logs a warning and becomes a no-op. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically.
+
+**Disable auto-watch** (CI or explicit control):
 
 ```ts
 InertiaModule.forRoot({

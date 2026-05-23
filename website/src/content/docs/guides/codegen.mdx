@@ -190,16 +190,19 @@ All helpers: `Path.Response<M, U>`, `Path.Body<M, U>`, `Path.Query<M, U>`, `Path
 
 ## Auto-watch (recommended)
 
-When the codegen package is installed, `InertiaModule` automatically starts the codegen watcher in dev mode — **no extra terminal or script needed**.
+When the codegen package is installed in your project, `InertiaModule` automatically starts the codegen watcher when your app bootstraps in dev mode. Just run your usual `nest start --watch` — the generated files appear under `.nestjs-inertia/` and update on every controller/page save. **No extra command, no extra terminal.**
 
-Rules (all must be true for the watcher to start):
+Auto-watch starts when all of these are true:
 - `NODE_ENV !== 'production'`
 - `@dudousxd/nestjs-inertia-codegen` is installed
 - `nestjs-inertia.config.ts` is present at the project root
+- The kill-switch env `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` is not set to `'1'`
 
-If another process already holds the watcher lock (e.g. you ran `--watch` in a separate terminal), the auto-started watcher becomes a no-op — no conflicts.
+### Running the CLI watcher manually
 
-### Disable auto-watch
+You can also run `pnpm nestjs-inertia codegen --watch` in a separate terminal if you prefer explicit control. When both the auto-watcher AND the CLI watcher are running, only one will hold the lock and generate files; the other becomes a no-op and logs a warning. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically — so a crash never leaves you stuck without codegen.
+
+### Disabling auto-watch
 
 ```ts
 InertiaModule.forRoot({
@@ -207,7 +210,7 @@ InertiaModule.forRoot({
 });
 ```
 
-Use this when you prefer to manage the CLI watcher manually, in CI environments, or any time you want explicit control.
+Or set `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1` in your shell.
 
 ### Optional `nest-cli.json` snippet
 
