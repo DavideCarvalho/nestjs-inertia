@@ -99,12 +99,12 @@ describe('end-to-end: pages + routes + api', () => {
 
   // --- api.ts ---
   it('api.ts exists and contains the users.list block', () => {
-    expect(apiContent).toContain("'users.list'");
+    expect(apiContent).toContain('"users.list"');
   });
 
   it('api.ts GET contract has queryOptions', () => {
     expect(apiContent).toContain('queryOptions');
-    expect(apiContent).toContain("queryKey: ['users.list'");
+    expect(apiContent).toContain('queryKey: ["users.list"');
   });
 
   it('api.ts imports from @tanstack/query-core and @dudousxd/nestjs-inertia-client', () => {
@@ -114,11 +114,11 @@ describe('end-to-end: pages + routes + api', () => {
 
   it('api.ts exports ApiRouter type with users.list entry', () => {
     expect(apiContent).toContain('export type ApiRouter');
-    expect(apiContent).toContain("'users.list'");
+    expect(apiContent).toContain('"users.list"');
     // body should be never for a GET
     const listTypeLine = apiContent
       .split('\n')
-      .find((l) => l.includes("'users.list'") && l.includes('method:'));
+      .find((l) => l.includes('"users.list"') && l.includes('method:'));
     expect(listTypeLine).toBeDefined();
     expect(listTypeLine).toMatch(/body:\s*never/);
   });
