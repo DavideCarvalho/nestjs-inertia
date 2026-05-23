@@ -12,13 +12,37 @@ export default defineConfig({
   },
   test: {
     globals: false,
-    include: ['test/**/*.spec.ts', 'test/**/*.spec.tsx'],
-    pool: 'forks',
-    environment: 'jsdom',
-    environmentMatchGlobs: [
-      ['test/react/**', 'jsdom'],
-      ['test/vue/**', 'jsdom'],
-      ['test/svelte/**', 'jsdom'],
+    projects: [
+      {
+        // jsdom-based tests: React, Vue, Svelte component tests
+        plugins: [react(), vue(), svelte()],
+        resolve: {
+          conditions: ['browser', 'module', 'import', 'default'],
+        },
+        test: {
+          name: 'jsdom-tests',
+          include: [
+            'test/react/**/*.spec.{ts,tsx}',
+            'test/vue/**/*.spec.{ts,tsx}',
+            'test/svelte/**/*.spec.{ts,tsx}',
+          ],
+          environment: 'jsdom',
+          pool: 'forks',
+        },
+      },
+      {
+        // Node-based tests: fetcher, contract, errors, url-builder, etc.
+        test: {
+          name: 'node-tests',
+          include: [
+            'test/*.spec.ts',
+            'test/*.spec.tsx',
+            'test/ssr/**/*.spec.ts',
+          ],
+          environment: 'node',
+          pool: 'forks',
+        },
+      },
     ],
   },
 });
