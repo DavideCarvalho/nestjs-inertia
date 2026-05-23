@@ -1,0 +1,502 @@
+---
+title: Migrate from a Hand-Rolled Inertia Integration
+description: A step-by-step migration recipe for NestJS apps moving from a custom in-tree Inertia adapter to @dudousxd/nestjs-inertia, based on a real-world migration.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This recipe is for teams who already have Inertia working in their NestJS app via a hand-rolled adapter — a `src/inertia/` folder that owns the service, middleware, shell renderer, SSR loader, and asset-version logic — and want to swap it for the `@dudousxd/nestjs-inertia` library.
+
+It is based on a real-world migration of a production app (squid-nestjs / navy-nestjs) and covers the exact shape of that migration: what was deleted, what was moved, what the new `InertiaModule.forRoot(...)` call looks like, and the gotchas that surfaced along the way.
+
+**What this guide covers:**
+- Auditing your in-tree code before touching anything
+- Moving app-specific files (auth guard, shared-props middleware) to safe locations with `git mv`
+- Replacing the custom module, service, middleware, shell renderer, and SSR loader with a single `InertiaModule.forRoot(...)` call
+- Updating imports across all controllers
+- Common gotchas — SSR bundle paths, double-registered middleware, token consolidation, SharedFactory signature
+
+**What this guide does not cover:**
+- Net-new NestJS + Inertia projects — see the [Getting Started](/getting-started/) guide
+- Migrating the Inertia client-side setup (page components, `createInertiaApp`) — those are unchanged by the server migration
+- Framework-specific React/Vue/Svelte wiring
+
+If you are starting a brand-new project, see the [Getting Started](/getting-started/) guide instead.
+
+---
+
+## Before you start — audit your existing code
+
+Most hand-rolled integrations contain roughly the same set of files. Run through this table and mark which category each file in your `src/inertia/` folder falls into before touching anything.
+
+| Category | Typical filename(s) | Where it goes |
+|---|---|---|
+| Module wiring | `inertia.module.ts` | **Replaced** by `InertiaModule.forRoot(...)` |
+| Service | `inertia.service.ts` | **Replaced** by the lib's `InertiaService` (attached to `req.inertia` by `InertiaMiddleware`) |
+| Types | `inertia.types.ts` — `PageObject`, `SsrResult`, `SharedFactory` | **Replaced** — import from `@dudousxd/nestjs-inertia` |
+| DI tokens | `inertia.tokens.ts` — `INERTIA_ASSET_VERSION`, `INERTIA_MANIFEST` | **Replaced** — the lib uses `INERTIA_MODULE_OPTIONS` |
+| Shell renderer | `shell.ts` | **Replaced** — pass a `rootView` function or a static HTML file path to `forRoot` |
+| SSR loader | `ssr-loader.service.ts` | **Replaced** — pass `ssr.bundlePath` to `forRoot` |
+| Asset version provider | `asset-version.provider.ts` — reads Vite manifest, computes hash | **Replaced** — pass a `version` string or factory to `forRoot`; compute the hash yourself once at startup |
+| Inertia core middleware | `inertia.middleware.ts` — attaches `req.inertia`, patches `suppressPostSendWrites` | **Replaced** — `InertiaModule.forRoot` auto-wires `InertiaMiddleware` and `MethodSpoofMiddleware` |
+| Auth guard | `inertia-auth.guard.ts` | **Kept** — auth UX is an app concern. Move out of `src/inertia/` before deleting the folder. See the [Auth Redirect](/recipes/auth-redirect/) recipe for the idiomatic pattern. |
+| HTTP error filters | `inertia-not-found.filter.ts`, `inertia-forbidden.filter.ts`, etc. | **Kept** — the lib does not ship these. See the [Not Found Filter](/recipes/not-found/) recipe. |
+| App-specific middleware | e.g. `squid-inertia.middleware.ts` — injects shared props like the current user | **Kept** — this is application logic. Move out of `src/inertia/` and re-register in `app.module.ts`. |
+
+Once you have completed this audit you should have a clear picture of what survives and what is redundant.
+
+---
+
+## Step-by-step migration
+
+### 1. Install the library packages
+
+Add the runtime packages and the optional dev tooling:
+
+```bash
+pnpm add @dudousxd/nestjs-inertia \
+         @dudousxd/nestjs-inertia-vite \
+         @dudousxd/nestjs-inertia-client
+
+pnpm add -D @dudousxd/nestjs-inertia-codegen \
+            @dudousxd/nestjs-inertia-testing
+```
+
+`nestjs-inertia` is the core; `nestjs-inertia-vite` provides the Vite plugin; `nestjs-inertia-client` ships the typed `<Link route="...">` component for React/Vue/Svelte; `nestjs-inertia-codegen` generates page/route types from your controllers; `nestjs-inertia-testing` provides a module harness for unit tests.
+
+**Verify:** `pnpm list @dudousxd/nestjs-inertia` shows the expected version.
+
+<Aside type="note">
+If you use a private registry or internal tarball (e.g. a `.tgz` from a monorepo build), replace the package names with your registry URLs. The migration steps are otherwise identical.
+</Aside>
+
+### 2. Move app-specific code out of `src/inertia/`
+
+Before deleting anything, relocate the files you intend to keep. Do this with `git mv` so history is preserved and `git blame` remains useful after the migration.
+
+```bash
+# Auth guard → lives next to other auth concerns
+git mv src/inertia/inertia-auth.guard.ts src/auth/inertia-auth.guard.ts
+git mv src/inertia/inertia-auth.guard.spec.ts src/auth/inertia-auth.guard.spec.ts
+
+# App-specific shared-props middleware → lives with common middleware
+git mv src/inertia/squid-inertia.middleware.ts \
+       src/common/middleware/squid-inertia.middleware.ts
+git mv src/inertia/squid-inertia.middleware.spec.ts \
+       src/common/middleware/squid-inertia.middleware.spec.ts
+
+# Any exception filters you want to keep
+git mv src/inertia/inertia-not-found.filter.ts \
+       src/filters/inertia-not-found.filter.ts
+```
+
+After moving, update every `import` in callers. The only change is the path:
+
+```ts
+// Before
+import { InertiaAuthGuard } from '@/inertia/inertia-auth.guard';
+// After
+import { InertiaAuthGuard } from '@/auth/inertia-auth.guard';
+```
+
+If your old `InertiaModule` also exported the auth guard or middleware so other modules could import them, update those `imports` arrays too — the files now live in different modules and need to be provided from there.
+
+**Verify:** `pnpm exec tsc --noEmit` should still pass (modulo the missing in-tree module, which you will fix in the next steps).
+
+### 3. Configure `InertiaModule.forRoot(...)` in `app.module.ts`
+
+Replace the bare `InertiaModule` import with a `forRoot` call. This is the main wiring step — it replaces the module, the service, the middleware, the SSR loader, the asset-version provider, and the shell renderer in one shot.
+
+**Before:**
+
+```ts
+// src/app.module.ts
+import { InertiaModule } from './inertia/inertia.module';
+
+@Module({
+  imports: [
+    // ...
+    InertiaModule,
+  ],
+})
+export class AppModule {}
+```
+
+**After:**
+
+```ts
+// src/app.module.ts
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { InertiaModule } from '@dudousxd/nestjs-inertia';
+
+function computeAssetVersion(): string {
+  try {
+    const path = resolve(
+      process.cwd(),
+      'dist/inertia/client/.vite/manifest.json',
+    );
+    const raw = readFileSync(path, 'utf8');
+    return createHash('sha1')
+      .update(raw)
+      .digest('hex')
+      .slice(0, 12);
+  } catch {
+    // In dev the manifest doesn't exist yet — use a random UUID so the
+    // version changes each restart and forces a client reload.
+    return randomUUID().replace(/-/g, '').slice(0, 12);
+  }
+}
+
+@Module({
+  imports: [
+    // ...
+    InertiaModule.forRoot({
+      version: computeAssetVersion,
+      rootView: 'dist/inertia/root.html', // OR pass a function — see note below
+      ssr: {
+        enabled: process.env.NODE_ENV === 'production',
+        bundlePath: resolve(process.cwd(), 'dist/inertia/ssr/ssr.mjs'),
+      },
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+<Aside type="note">
+**`version` accepts a factory.** If you pass a function, the lib calls it once at module init time — the same as calling `computeAssetVersion()` inline, but slightly cleaner because the lib owns the call site.
+</Aside>
+
+**`rootView` — file path vs. function:**
+
+The simplest option is a path to a static HTML file that contains the Inertia mount point (`<div id="app">`). The lib reads and serves it as the shell. If your shell has dynamic logic (dev vs. prod asset URLs, conditional HMR scripts, font links), pass a function instead:
+
+```ts
+rootView: (ctx) => {
+  const { page, ssr, manifest, assetVersion } = ctx;
+
+  // Escape page data for inline JSON attribute
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  const pageJson = escapeHtml(JSON.stringify(page));
+  const head = ssr?.head.join('\n') ?? '';
+  const body = ssr?.body ?? '';
+
+  const entry = (manifest as Record<string, { file: string; css?: string[] }> | null)?.['app/client.tsx'];
+  const jsHref = entry ? `/${entry.file}` : '/app/client.tsx';
+  const cssHref = entry?.css?.[0] ? `/${entry.css[0]}` : null;
+
+  // In dev: inject Vite HMR client + React refresh preamble
+  const viteScripts = entry ? '' : `
+    <script type="module" src="/@vite/client"></script>
+    <script type="module">
+      import RefreshRuntime from "/@react-refresh"
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>`;
+
+  const appDiv = ssr
+    ? body
+    : `<div id="app" data-page="${pageJson}"></div>`;
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${head}
+    ${cssHref ? `<link rel="stylesheet" href="${cssHref}" />` : ''}
+    ${viteScripts}
+  </head>
+  <body>
+    ${appDiv}
+    <script type="module" src="${jsHref}"></script>
+  </body>
+</html>`;
+},
+```
+
+**Verify:** The module should compile. `InertiaModule` is importable from `@dudousxd/nestjs-inertia`.
+
+<Aside type="tip">
+**Codegen in development:** Add `codegen: { enabled: process.env.NODE_ENV !== 'production' }` to `forRoot` to enable the file watcher that auto-generates typed page maps, route constants, and the `api.*` surface as you add controllers. In production it is disabled automatically. See the [Codegen guide](/guides/codegen/) for full configuration.
+</Aside>
+
+### 4. Translate your shared-props middleware
+
+If you had a middleware that called `req.inertia.share(...)` to inject per-request data (e.g. the current user), it still works — just move the file (step 2) and re-register it in `app.module.ts`.
+
+The key difference is the `SharedFactory` signature. Your old factory closed over scope and took no arguments:
+
+```ts
+// Old shape — no access to the request at factory call time
+type SharedFactory = () => Promise<Record<string, unknown>>;
+
+req.inertia.share(async () => ({
+  auth: await buildAuthPayload(req.user), // `req` captured in closure
+}));
+```
+
+The lib's `InertiaService.share()` still accepts this shape — extra arguments are ignored at runtime, so an old zero-argument factory will work without changes. However, the lib also supports a request-aware factory via the `share` option on `forRoot`:
+
+```ts
+// forRoot option — factory receives the request directly
+InertiaModule.forRoot({
+  version: computeAssetVersion,
+  share: async (req) => ({
+    auth: await buildAuthPayload((req as { user?: unknown }).user),
+  }),
+})
+```
+
+Using `forRoot`'s `share` option removes the need for a dedicated middleware entirely for simple shared-props cases. Keep the middleware form when your shared-props logic is complex, needs DI, or has side effects.
+
+After moving the middleware, register it in `app.module.ts`:
+
+```ts
+// src/app.module.ts
+import { SquidInertiaMiddleware } from './common/middleware/squid-inertia.middleware';
+
+@Module({
+  providers: [
+    // ...
+    SquidInertiaMiddleware,
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // ... other middleware ...
+    consumer.apply(SquidInertiaMiddleware).forRoutes('{*splat}');
+  }
+}
+```
+
+<Aside type="caution">
+Do **not** also register `InertiaMiddleware` manually — `InertiaModule.forRoot` wires it automatically. Registering it twice attaches `req.inertia` twice and patches `suppressPostSendWrites` a second time, which can produce subtle double-header bugs.
+</Aside>
+
+**Verify:** Start the app in dev mode and open a page. Check that `req.inertia` is populated and that shared props (e.g. `auth`) appear in the Inertia page object.
+
+### 5. Delete the now-replaced files
+
+Once step 3 compiles and step 4's middleware is wired, delete the in-tree files that are now owned by the library. These 11 files (15 counting specs) should go:
+
+```bash
+git rm src/inertia/inertia.module.ts
+git rm src/inertia/inertia.service.ts
+git rm src/inertia/inertia.service.spec.ts
+git rm src/inertia/inertia.middleware.ts
+git rm src/inertia/inertia.tokens.ts
+git rm src/inertia/inertia.types.ts
+git rm src/inertia/asset-version.provider.ts
+git rm src/inertia/shell.ts
+git rm src/inertia/shell.spec.ts
+git rm src/inertia/ssr-loader.service.ts
+git rm src/inertia/ssr-loader.service.spec.ts
+```
+
+If you already moved everything else out, the directory should now be empty and can be removed:
+
+```bash
+git rm -r src/inertia/
+```
+
+**Verify:** `ls src/inertia/` returns "No such file or directory".
+
+### 6. Update imports across controllers and modules
+
+Every controller that imported `InertiaService` from the old path now needs to import it from the library. The pattern is mechanical — run a find-and-replace across the project:
+
+```bash
+# InertiaService import
+grep -rn "from.*inertia/inertia.service" src/ --include="*.ts"
+# Replace with:
+# import { InertiaService } from '@dudousxd/nestjs-inertia';
+
+# InertiaAuthGuard import (if not yet updated)
+grep -rn "from.*inertia/inertia-auth.guard" src/ --include="*.ts"
+# Replace with:
+# import { InertiaAuthGuard } from '@/auth/inertia-auth.guard';
+```
+
+Typical before/after for a controller:
+
+```ts
+// Before
+import { InertiaService } from '@/inertia/inertia.service';
+
+// After
+import type { InertiaService } from '@dudousxd/nestjs-inertia';
+```
+
+If you used `PageObject`, `SsrResult`, or `SharedFactory` types, update those too:
+
+```ts
+// Before
+import type { PageObject, SsrResult } from '@/inertia/inertia.types';
+
+// After
+import type { PageObject, SsrResult } from '@dudousxd/nestjs-inertia';
+```
+
+There is no mechanical rename tool that knows about your path aliases, but the grep approach above produces a list you can fix manually. In most apps this is 10-20 controllers, each a one-line change.
+
+**Verify:** `grep -rn "from.*inertia/inertia" src/ --include="*.ts"` returns no results.
+
+### 7. Typecheck and run tests
+
+```bash
+pnpm exec tsc --noEmit -p tsconfig.json
+```
+
+If TypeScript is clean, run your test suite:
+
+```bash
+pnpm test
+```
+
+If any tests reference deleted internal modules (e.g. `inertia.service.spec.ts`, `shell.spec.ts`, `ssr-loader.service.spec.ts`) and you already deleted them in step 5, they are gone — that is correct. Those tests covered the in-tree implementation; the library ships its own tests. Do not recreate them.
+
+If remaining tests import from the old paths, update the import paths (step 6) and re-run.
+
+**Verify:** `pnpm exec tsc --noEmit` exits 0. `pnpm test` passes.
+
+### 8. Commit in logical chunks
+
+Split the migration across two or three commits so the diff is reviewable:
+
+```bash
+# Commit 1 — the module config (core of the migration)
+git add src/app.module.ts package.json pnpm-lock.yaml
+git commit -m "feat: migrate InertiaModule config to @dudousxd/nestjs-inertia.forRoot"
+
+# Commit 2 — files relocated, not deleted
+git add src/auth/ src/common/middleware/ src/filters/
+git commit -m "refactor: relocate app-specific guard and middleware out of src/inertia/"
+
+# Commit 3 — the cleanup
+git add src/inertia/
+git commit -m "chore: delete src/inertia files now provided by @dudousxd/nestjs-inertia"
+```
+
+---
+
+## Common gotchas
+
+### `SharedFactory` signature change
+
+The old hand-rolled `SharedFactory` was typed as `() => Promise<Record<string, unknown>>` — a zero-argument async function. The lib's `InertiaService.share()` accepts a factory that receives the current `Request` as its first argument:
+
+```ts
+// Old shape
+req.inertia.share(async () => ({ user: req.user })); // req captured in closure
+
+// New shape — request passed in explicitly
+req.inertia.share(async (req) => ({ user: req.user }));
+```
+
+At runtime, old zero-argument factories continue to work because JavaScript silently ignores extra arguments. TypeScript may complain about the signature mismatch — update the type annotation to `(req: unknown) => Promise<Record<string, unknown>>` or use the `share` option on `forRoot` directly.
+
+### Asset version — you compute it, you own it
+
+The library does **not** auto-discover or hash your Vite manifest. You pass either a plain string or a factory function to the `version` option. In dev the manifest does not exist, so your factory should catch the file-read error and return a fallback (e.g. a random UUID). In production the factory reads the real manifest and returns a short hash so the client detects when a deployment has happened.
+
+```ts
+function computeAssetVersion(): string {
+  try {
+    const raw = readFileSync(
+      resolve(process.cwd(), 'dist/inertia/client/.vite/manifest.json'),
+      'utf8',
+    );
+    return createHash('sha1').update(raw).digest('hex').slice(0, 12);
+  } catch {
+    return randomUUID().replace(/-/g, '').slice(0, 12);
+  }
+}
+```
+
+### Auto-registered middleware — do not double-register
+
+`InertiaModule.forRoot` automatically registers two middleware globally:
+
+- `InertiaMiddleware` — attaches `req.inertia` and patches `suppressPostSendWrites`
+- `MethodSpoofMiddleware` — translates `_method` overrides for HTML form submissions
+
+If your old `InertiaModule` registered these in its own `configure(consumer)`, remove those registrations. Registering the same middleware twice causes the response patches to stack, which silently ignores double-write suppression on the first flush.
+
+### Token consolidation
+
+Hand-rolled setups often use multiple separate tokens:
+
+```ts
+// Old tokens
+export const INERTIA_ASSET_VERSION = Symbol('INERTIA_ASSET_VERSION');
+export const INERTIA_MANIFEST = Symbol('INERTIA_MANIFEST');
+```
+
+The library consolidates all config into a single `INERTIA_MODULE_OPTIONS` token. If you have providers that `@Inject(INERTIA_ASSET_VERSION)` or `@Inject(INERTIA_MANIFEST)`, switch them to `@Inject(INERTIA_MODULE_OPTIONS)` and read the relevant field from the options object. Or better: pass the value to your provider via a factory that calls `computeAssetVersion()` directly — a simpler pattern with no token dependency.
+
+### Exception filters — the lib does not ship them
+
+The library deliberately omits `NotFound`, `Forbidden`, and `Unauthorized` exception filters because the component name, error shape, and API-vs-page routing logic are application concerns. If your old `InertiaModule` registered these filters globally, you need to recreate them outside `src/inertia/`.
+
+See [Not Found Filter](/recipes/not-found/) for a production-ready pattern that handles both Inertia page requests and JSON API clients in a single configurable class.
+
+### Auth guard — the lib does not ship one
+
+Same reasoning as above: auth redirect behavior (which URL is your sign-in page, what counts as "authenticated") is app-specific. Move your `inertia-auth.guard.ts` to `src/auth/` as described in step 2 and keep using it unchanged.
+
+For the Inertia-aware redirect pattern (302 for plain browser, 409 for Inertia XHR), see [Auth Redirect Guard](/recipes/auth-redirect/).
+
+### SSR bundle path must be absolute
+
+Pass an absolute path to `ssr.bundlePath`:
+
+```ts
+ssr: {
+  enabled: process.env.NODE_ENV === 'production',
+  bundlePath: resolve(process.cwd(), 'dist/inertia/ssr/ssr.mjs'),
+}
+```
+
+A relative path resolves from the module file location inside `node_modules`, not from `process.cwd()`, and will fail silently with a fallback to CSR in production.
+
+---
+
+## What you gain by migrating
+
+Switching to `@dudousxd/nestjs-inertia` unlocks features that are impractical to maintain in-tree:
+
+- **CSRF helpers** — `generateCsrfToken`, `verifyCsrfToken`, `CsrfGuard`, and `rotateCsrfToken` with a `tokenContext` option for session-bound invalidation. Replace your hand-rolled CSRF cookie logic.
+- **Partial reload markers** — `Inertia.optional(value)`, `Inertia.defer(fn)`, and `Inertia.merge(value)` for fine-grained control over which props are sent on partial reloads. These are v3 Inertia protocol features and require no extra middleware.
+- **Codegen auto-bootstrap in dev** — the codegen watcher generates typed page maps, route constants, and an `api.*` surface from your controller decorators on every save. CI runs `nestjs-inertia codegen` once before build.
+- **Typed `<Link route="...">` component** — imported from `@dudousxd/nestjs-inertia-client/react` (or `/vue`, `/svelte`). Route names and parameter shapes come from the generated types.
+- **Multi-app support** — `InertiaModule.forFeature(...)` lets a single NestJS process serve multiple independent Inertia frontends with separate shell renderers, version tracking, and SSR bundles.
+- **Fast static contract discovery** — the static AST scanner resolves page components in ~100ms versus the ~10s probe cycle common in dynamic setups.
+- **v3 Inertia protocol** — script-tag page data (`application/json` inline), nested partial reload markers, and deferred prop streaming are all handled by the lib.
+
+---
+
+## Production checklist
+
+Before shipping to production, confirm:
+
+- [ ] `version` is computed from a real artifact hash (the Vite manifest), not a hardcoded string or a `randomUUID()` fallback
+- [ ] `ssr.bundlePath` is an absolute path (`resolve(process.cwd(), 'dist/inertia/ssr/ssr.mjs')`) and the SSR bundle is present in your Docker image / deployment artifact
+- [ ] `ssr.enabled` is gated on `process.env.NODE_ENV === 'production'` (or an explicit env var) so dev restarts do not attempt to load a non-existent bundle
+- [ ] Your CSP `script-src` directive allows `'self'` — the lib emits the page object as an `application/json` script tag, which does not require `'unsafe-inline'`
+- [ ] The `codegen` option is set to `{ enabled: false }` in production (or omitted, since the default is to skip in `NODE_ENV=production`) so the file watcher does not start
+- [ ] CI runs `pnpm exec nestjs-inertia codegen` before the build step so the `.nestjs-inertia/` generated directory is present before TypeScript compilation
+- [ ] Your shared-props middleware (`SquidInertiaMiddleware` or equivalent) is registered **after** the middleware that populates `req.user`, otherwise `buildAuthPayload(req.user)` will always receive `undefined`
+- [ ] Old `src/inertia/` DI tokens (`INERTIA_ASSET_VERSION`, `INERTIA_MANIFEST`) have been removed from all providers — the lib will not resolve them, and a missing provider will cause a runtime injection error at startup
