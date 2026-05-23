@@ -92,7 +92,19 @@ Import from the `/svelte` subpath. The component wraps `@inertiajs/svelte`'s `Li
 
 ## How the route name is chosen
 
-The route name passed to `<Link route="..." />` is **auto-derived** from `<ControllerClass>.<method>` by stripping the `Controller` suffix and lowercasing the first letter. For example, `UsersController.show` → `users.show`.
+The route name is composed from a **class portion** and a **method portion**, joined with a dot:
+
+- **Class portion**: class-level `@As(...)` value if present, otherwise the class name with the `Controller` suffix stripped and first letter lowercased.
+- **Method portion**: method-level `@As(...)` value if present, otherwise the method name.
+- **Final name**: `${classPortion}.${methodPortion}`
+
+| Class-level `@As` | Method-level `@As` | Derived name |
+|---|---|---|
+| absent | absent | `<classNameStripped>.<methodName>` (default) |
+| `@As('users')` | absent | `users.<methodName>` |
+| absent | `@As('profile')` | `<classNameStripped>.profile` |
+| `@As('users')` | `@As('profile')` | `users.profile` |
+| `@As('users.admin')` | `@As('profile')` | `users.admin.profile` |
 
 ```ts
 // Contract definition (server-side) — no name field needed
@@ -103,7 +115,7 @@ const ShowUser = defineContract({
   response: z.object({ id: z.string(), name: z.string() }),
 });
 
-// In the controller — name is derived from UsersController.show → 'users.show'
+// Name is derived from UsersController.show → 'users.show'
 @Get('/users/:id')
 @ApplyContract(ShowUser)
 show() { ... }
@@ -114,18 +126,23 @@ show() { ... }
 <Link route="users.show" routeParams={{ id: user.id }}>View profile</Link>
 ```
 
-Use `@As('custom.name')` to override the auto-derived name when needed:
+Use `@As` at the class or method level (or both) to override:
 
 ```ts
 import { As } from '@dudousxd/nestjs-inertia-client';
 
-@Get('/users/:id')
-@ApplyContract(ShowUser)
-@As('user.profile')   // overrides auto-derived 'users.show'
-show() { ... }
+// Class-level @As sets the class portion for all methods in the class
+@Controller('/users')
+@As('users')
+class UsersController {
+  @Get('/:id')
+  @ApplyContract(ShowUser)
+  @As('profile')   // → 'users.profile'
+  show() { ... }
+}
 ```
 
-**Best practice:** use the auto-derived name convention (`usersController.show` → `users.show`) so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
+**Best practice:** use the auto-derived name convention (`UsersController.show` → `users.show`) so that `route('users.show')` and `api.users.show` both point to the same endpoint — one typed URL builder, one typed data fetcher.
 
 ## Conditional `routeParams` behaviour
 

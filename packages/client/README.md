@@ -35,7 +35,21 @@ Contracts carry **no** `name`, `method`, or `path` — these are all routing con
 
 ### 2. How the API name is derived
 
-The API name is **auto-derived** from `<ControllerClass>.<method>` by stripping the `Controller` suffix and lowercasing the first letter:
+The API name is composed from a **class portion** and a **method portion**, joined with a dot:
+
+- **Class portion**: class-level `@As(...)` value if present, otherwise the class name with `Controller` stripped and first letter lowercased.
+- **Method portion**: method-level `@As(...)` value if present, otherwise the method name.
+- **Final name**: `${classPortion}.${methodPortion}`
+
+| Class-level `@As` | Method-level `@As` | Derived API name |
+|---|---|---|
+| absent | absent | `<classNameStripped>.<methodName>` (default) |
+| `@As('users')` | absent | `users.<methodName>` |
+| absent | `@As('directory')` | `<classNameStripped>.directory` |
+| `@As('users')` | `@As('directory')` | `users.directory` |
+| `@As('users.admin')` | `@As('list')` | `users.admin.list` |
+
+Examples:
 
 | Controller class | Method | Derived API name |
 |------------------|--------|-----------------|
@@ -43,15 +57,24 @@ The API name is **auto-derived** from `<ControllerClass>.<method>` by stripping 
 | `UsersController` | `create` | `users.create` → `api.users.create` |
 | `AdminUsersController` | `list` | `adminUsers.list` → `api.adminUsers.list` |
 
-To override the auto-derived name, use `@As('custom.name')` at the method level:
+To override, use `@As` at the class level, method level, or both:
 
 ```ts
 import { As } from '@dudousxd/nestjs-inertia-client';
 
-@Get('/api/users')
-@ApplyContract(listUsersContract)
-@As('user.directory')   // overrides auto-derived 'users.list'
-list() { ... }
+// Class-level @As sets the class portion for all methods
+@Controller('/api/users')
+@As('users')
+class UsersController {
+  @Get()
+  @ApplyContract(listUsersContract)
+  list() { ... }              // → 'users.list'
+
+  @Get('/top')
+  @ApplyContract(listUsersContract)
+  @As('directory')            // → 'users.directory'
+  listDirectory() { ... }
+}
 ```
 
 ### 3. Bind a Contract to a NestJS Handler with `@ApplyContract`
@@ -183,7 +206,7 @@ No `name`, `method`, or `path` — naming and routing come from NestJS decorator
 
 ### `@As(name)`
 
-Override the auto-derived route name on a controller method. Codegen derives the name as `<controller>.<method>` by default. Use `@As` when the natural derivation isn't what you want.
+Override the auto-derived route name at the controller **class** or **method** level (or both). When applied at both levels the values compose: `${classAs}.${methodAs}`. Each dot-separated segment must match `/^[a-z][a-zA-Z0-9]*$/`.
 
 ### `@ApplyContract(contractDef, opts?)`
 

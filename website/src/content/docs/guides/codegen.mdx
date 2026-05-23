@@ -129,21 +129,28 @@ After running `pnpm codegen`, the auto-derived `users.list` contract appears in 
 
 ## How the API name is chosen
 
-The API name is **derived automatically** from `<ControllerClass>.<method>` by stripping the `Controller` suffix and lowercasing the first letter.
+The API name is composed from a **class portion** and a **method portion**, joined with a dot:
 
-| Controller class | Method | Derived name |
-|------------------|--------|--------------|
-| `UsersController` | `list` | `users.list` |
-| `UsersController` | `show` | `users.show` |
-| `AdminUsersController` | `create` | `adminUsers.create` |
+- **Class portion**: class-level `@As(...)` value if present, otherwise the class name with the `Controller` suffix stripped and first letter lowercased.
+- **Method portion**: method-level `@As(...)` value if present, otherwise the method name.
+- **Final name**: `${classPortion}.${methodPortion}`
 
-Use dot-notation in the derived name to produce a nested path under `api.*.*`:
+| Class-level `@As` | Method-level `@As` | Derived name |
+|---|---|---|
+| absent | absent | `<classNameStripped>.<methodName>` (default) |
+| `@As('crew')` | absent | `crew.<methodName>` |
+| absent | `@As('top10')` | `<classNameStripped>.top10` |
+| `@As('crew')` | `@As('directory.fetch')` | `crew.directory.fetch` |
+| `@As('crew.admin')` | `@As('top10')` | `crew.admin.top10` |
 
-| Derived name       | Generated accessor            |
-|--------------------|-------------------------------|
-| `'users.list'`     | `api.users.list`              |
-| `'users.show'`     | `api.users.show`              |
-| `'adminUsers.create'` | `api.adminUsers.create`    |
+Use dot-notation in the final name to produce a nested path under `api.*.*`:
+
+| Final name            | Generated accessor              |
+|-----------------------|---------------------------------|
+| `'users.list'`        | `api.users.list`                |
+| `'users.show'`        | `api.users.show`                |
+| `'adminUsers.create'` | `api.adminUsers.create`         |
+| `'crew.admin.top10'`  | `api.crew.admin.top10`          |
 
 ```ts
 // UsersController.list → api.users.list.queryOptions(...)
@@ -152,16 +159,32 @@ const { data } = useQuery(api.users.list.queryOptions({ active: true }));
 
 ### Overriding the name with `@As`
 
-When the auto-derived name isn't what you want, use `@As('custom.name')` at the method level:
+`@As` can be applied at the **class level**, **method level**, or both. When both are present they compose: the class value becomes the class portion and the method value becomes the method portion.
 
 ```ts
 import { As } from '@dudousxd/nestjs-inertia-client';
 
+// Class-level @As sets the class portion for every method in the class
 @Controller('/api/v1/crew')
+@As('crew')
 class CrewController {
   @Get()
   @ApplyContract(ListCrew)
-  @As('crew.directory.fetch')   // overrides auto-derived 'crew.list'
+  list() { ... }              // → 'crew.list'
+
+  @Get('/top')
+  @ApplyContract(TopCrew)
+  @As('top10')                // → 'crew.top10'
+  top() { ... }
+}
+
+// Class @As can be multi-segment
+@Controller('/api/v1/admin/crew')
+@As('crew.admin')
+class CrewAdminController {
+  @Get()
+  @ApplyContract(ListCrew)
+  @As('top10')                // → 'crew.admin.top10'
   list() { ... }
 }
 ```
