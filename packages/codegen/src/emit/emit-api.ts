@@ -56,9 +56,7 @@ function validateNameSegment(seg: string, fullName: string): void {
   if (!/^[a-z][a-zA-Z0-9]*$/.test(seg)) {
     const suggested = toCamelCase(seg);
     throw new Error(
-      `Contract name "${fullName}" has invalid segment "${seg}". ` +
-        `Use camelCase identifiers only (lowercase letter then alphanumeric). ` +
-        `Suggested: "${suggested}"`,
+      `Contract name "${fullName}" has invalid segment "${seg}". Use camelCase identifiers only (lowercase letter then alphanumeric). Suggested: "${suggested}"`,
     );
   }
 }
@@ -126,7 +124,10 @@ function insertIntoTree(
     const existing = tree.get(head);
     if (existing !== undefined && existing.kind === 'leaf') {
       // The leaf's name is the prefix of fullName
-      const prefixName = fullName.split('.').slice(0, segments.length - rest.length).join('.');
+      const prefixName = fullName
+        .split('.')
+        .slice(0, segments.length - rest.length)
+        .join('.');
       throw new Error(
         `Contract name conflict: "${prefixName}" cannot have both a direct entry and child entries`,
       );
@@ -162,8 +163,9 @@ function emitRouterTypeBlock(tree: Map<string, TreeNode>, indent: number): strin
       const body = method === 'GET' ? 'never' : (c.contractSource.body ?? 'never');
       const response = c.contractSource.response;
       const safeMethod = JSON.stringify(method);
+      const safeUrl = JSON.stringify(c.path);
       lines.push(
-        `${pad}${objKey}: { method: ${safeMethod}; query: ${query}; body: ${body}; response: ${response} };`,
+        `${pad}${objKey}: { method: ${safeMethod}; url: ${safeUrl}; query: ${query}; body: ${body}; response: ${response} };`,
       );
     } else {
       lines.push(`${pad}${objKey}: {`);
@@ -255,9 +257,28 @@ function buildApiFile(routes: RouteDescriptor[]): string {
     lines.push('');
     lines.push('export const api: Record<string, never> = {} as Record<string, never>;');
     lines.push('');
-    lines.push("export type InferResponse<Path extends string> = never;");
-    lines.push("export type InferBody<Path extends string> = never;");
-    lines.push("export type InferQuery<Path extends string> = never;");
+    lines.push('export namespace Route {');
+    lines.push('  export type Response<K extends string> = never;');
+    lines.push('  export type Body<K extends string> = never;');
+    lines.push('  export type Query<K extends string> = never;');
+    lines.push('  export type Params<K extends string> = never;');
+    lines.push('  export type Error<K extends string> = never;');
+    lines.push(
+      '  export type Request<K extends string> = { body: never; query: never; params: never };',
+    );
+    lines.push('}');
+    lines.push('');
+    lines.push('export namespace Path {');
+    lines.push('  export type Response<M extends string, U extends string> = never;');
+    lines.push('  export type Body<M extends string, U extends string> = never;');
+    lines.push('  export type Query<M extends string, U extends string> = never;');
+    lines.push('  export type Params<M extends string, U extends string> = never;');
+    lines.push('  export type Error<M extends string, U extends string> = never;');
+    lines.push('}');
+    lines.push('');
+    lines.push('export type InferResponse<K extends string> = Route.Response<K>;');
+    lines.push('export type InferBody<K extends string> = Route.Body<K>;');
+    lines.push('export type InferQuery<K extends string> = Route.Query<K>;');
     lines.push('');
     return lines.join('\n');
   }
@@ -298,24 +319,72 @@ function buildApiFile(routes: RouteDescriptor[]): string {
   lines.push('};');
   lines.push('');
 
-  // --- Infer* types using recursive conditional type to split on '.' ---
-  // InferResponse<'users.list'> -> ApiRouter['users']['list']['response']
-  // Uses a helper type _RouterAt<R, P> that traverses the nested ApiRouter.
+  // --- Recursive helper type _RouterAt: walks nested ApiRouter by dot-path ---
+  lines.push('type _RouterAt<R, P extends string> = P extends `${infer Head}.${infer Tail}`');
+  lines.push('  ? Head extends keyof R ? _RouterAt<R[Head], Tail> : never');
+  lines.push('  : P extends keyof R ? R[P] : never;');
+  lines.push('');
+
+  // --- ResolveByName: resolve a field from a dot-path name ---
   lines.push(
-    "type _RouterAt<R, P extends string> = P extends `${infer Head}.${infer Tail}`",
+    'type ResolveByName<K extends string, Field extends string> = _RouterAt<ApiRouter, K> extends infer R ? Field extends keyof R ? R[Field] : never : never;',
   );
-  lines.push("  ? Head extends keyof R ? _RouterAt<R[Head], Tail> : never");
-  lines.push("  : P extends keyof R ? R[P] : never;");
+  lines.push('');
+
+  // --- ResolveByPath: scan all leaves for matching method + url ---
+  // Flattens ApiRouter recursively and finds the entry whose method === M and url === U.
+  lines.push('type _LeafValues<T> = T extends { method: string; url: string }');
+  lines.push('  ? T');
+  lines.push('  : T extends object ? _LeafValues<T[keyof T]> : never;');
   lines.push('');
   lines.push(
-    "export type InferResponse<Path extends string> = _RouterAt<ApiRouter, Path> extends { response: infer R } ? R : never;",
+    'type ResolveByPath<M extends string, U extends string, Field extends string> = _LeafValues<ApiRouter> extends infer L',
+  );
+  lines.push('  ? L extends { method: M; url: U }');
+  lines.push('    ? Field extends keyof L ? L[Field] : never');
+  lines.push('    : never');
+  lines.push('  : never;');
+  lines.push('');
+
+  // --- Route namespace ---
+  lines.push('export namespace Route {');
+  lines.push('  export type Response<K extends string> = ResolveByName<K, "response">;');
+  lines.push('  export type Body<K extends string> = ResolveByName<K, "body">;');
+  lines.push('  export type Query<K extends string> = ResolveByName<K, "query">;');
+  lines.push('  export type Params<K extends string> = ResolveByName<K, "params">;');
+  lines.push('  export type Error<K extends string> = ResolveByName<K, "error">;');
+  lines.push('  export type Request<K extends string> = {');
+  lines.push('    body: Body<K>;');
+  lines.push('    query: Query<K>;');
+  lines.push('    params: Params<K>;');
+  lines.push('  };');
+  lines.push('}');
+  lines.push('');
+
+  // --- Path namespace ---
+  lines.push('export namespace Path {');
+  lines.push(
+    '  export type Response<M extends string, U extends string> = ResolveByPath<M, U, "response">;',
   );
   lines.push(
-    "export type InferBody<Path extends string> = _RouterAt<ApiRouter, Path> extends { body: infer B } ? B : never;",
+    '  export type Body<M extends string, U extends string> = ResolveByPath<M, U, "body">;',
   );
   lines.push(
-    "export type InferQuery<Path extends string> = _RouterAt<ApiRouter, Path> extends { query: infer Q } ? Q : never;",
+    '  export type Query<M extends string, U extends string> = ResolveByPath<M, U, "query">;',
   );
+  lines.push(
+    '  export type Params<M extends string, U extends string> = ResolveByPath<M, U, "params">;',
+  );
+  lines.push(
+    '  export type Error<M extends string, U extends string> = ResolveByPath<M, U, "error">;',
+  );
+  lines.push('}');
+  lines.push('');
+
+  // --- Backward-compatible Infer* aliases → Route.* ---
+  lines.push('export type InferResponse<K extends string> = Route.Response<K>;');
+  lines.push('export type InferBody<K extends string> = Route.Body<K>;');
+  lines.push('export type InferQuery<K extends string> = Route.Query<K>;');
   lines.push('');
 
   return lines.join('\n');

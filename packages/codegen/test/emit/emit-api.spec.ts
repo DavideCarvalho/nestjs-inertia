@@ -329,6 +329,68 @@ describe('emitApi', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Q1: Tuyau-style Route + Path namespaced type helpers
+  // ---------------------------------------------------------------------------
+
+  describe('Route and Path namespace helpers', () => {
+    it('emits export namespace Route with Response, Body, Query, Params, Error, Request', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('export namespace Route');
+      expect(content).toContain('type Response');
+      expect(content).toContain('type Body');
+      expect(content).toContain('type Query');
+      expect(content).toContain('type Params');
+      expect(content).toContain('type Error');
+      expect(content).toContain('type Request');
+    });
+
+    it('emits export namespace Path with Response, Body, Query', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('export namespace Path');
+    });
+
+    it('ApiRouter leaf entries include a url field', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // The leaf entry should have url: "/api/users" inside the ApiRouter type
+      expect(content).toContain('url:');
+    });
+
+    it('InferResponse is aliased to Route.Response', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // InferResponse should delegate to Route.Response
+      expect(content).toMatch(/InferResponse.*Route\.Response/s);
+    });
+
+    it('InferBody is aliased to Route.Body', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toMatch(/InferBody.*Route\.Body/s);
+    });
+
+    it('InferQuery is aliased to Route.Query', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toMatch(/InferQuery.*Route\.Query/s);
+    });
+
+    it('Route.Response uses ResolveByName that walks ApiRouter', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('ResolveByName');
+    });
+
+    it('Path.Response uses ResolveByPath that scans for method+url', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('ResolveByPath');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Q2: Segment validation — camelCase only
   // ---------------------------------------------------------------------------
 

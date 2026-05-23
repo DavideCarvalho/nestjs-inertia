@@ -107,6 +107,25 @@ try {
 }
 ```
 
+## Type helpers (generated `api.ts`)
+
+The generated `api.ts` exports `Route.*` and `Path.*` namespaces for compile-time access to request/response shapes:
+
+```ts
+import type { Route, Path } from '.nestjs-inertia/api.js';
+
+// by contract name
+type UserList = Route.Response<'users.list'>;
+type CreateReq = Route.Request<'users.create'>;
+// → { body: ...; query: ...; params: ... }
+
+// by HTTP method + URL
+type ListResp = Path.Response<'GET', '/api/users'>;
+type CreateBody = Path.Body<'POST', '/api/users'>;
+```
+
+The existing `InferResponse<K>`, `InferBody<K>`, `InferQuery<K>` exports are preserved as aliases to `Route.Response`, `Route.Body`, `Route.Query`.
+
 ## SSR Hydration
 
 Import SSR helpers from the `/ssr` subpath:

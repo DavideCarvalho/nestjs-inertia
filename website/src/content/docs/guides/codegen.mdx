@@ -154,6 +154,40 @@ Each dot-separated segment must be a **camelCase identifier**: it must start wit
 - Valid: `'users.list'`, `'admin.userActions.create'`, `'health'`
 - Invalid (throws): `'user-post.list'` → suggest `'userPost.list'`, `'user_post.list'` → suggest `'userPost.list'`, `'User.list'` → suggest `'user.list'`
 
+## Type helpers
+
+The generated `api.ts` exports two namespaces of type helpers for accessing request and response shapes without importing the full client.
+
+### `Route.*` — by contract name
+
+```ts
+import type { Route } from '.nestjs-inertia/api.js';
+
+// Resolved type of the response field for users.list
+type UserList = Route.Response<'users.list'>;
+
+// Full request shape
+type CreateUserRequest = Route.Request<'users.create'>;
+// → { body: { name: string; email: string }; query: never; params: never }
+```
+
+All helpers: `Route.Response<K>`, `Route.Body<K>`, `Route.Query<K>`, `Route.Params<K>`, `Route.Error<K>`, `Route.Request<K>`.
+
+### `Path.*` — by HTTP method + URL pattern
+
+```ts
+import type { Path } from '.nestjs-inertia/api.js';
+
+type ListResponse = Path.Response<'GET', '/api/users'>;
+type CreateBody   = Path.Body<'POST', '/api/users'>;
+```
+
+All helpers: `Path.Response<M, U>`, `Path.Body<M, U>`, `Path.Query<M, U>`, `Path.Params<M, U>`, `Path.Error<M, U>`.
+
+### Backward-compatible `Infer*` aliases
+
+The existing `InferResponse<K>`, `InferBody<K>`, `InferQuery<K>` exports remain and are now aliases to `Route.Response`, `Route.Body`, `Route.Query` respectively.
+
 ## Auto-watch via `InertiaModule` (recommended)
 
 When the codegen package is installed, `InertiaModule` automatically starts the codegen watcher in dev mode — **no extra terminal or script needed**.
