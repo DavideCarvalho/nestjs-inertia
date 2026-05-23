@@ -783,7 +783,26 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
         const params = extractParams(combined);
 
         const methodName = method.getName();
-        const routeName = `${className}.${methodName}`;
+
+        // Read class-level @As
+        const classAsDecorator = cls.getDecorator('As');
+        let classAs: string | undefined;
+        if (classAsDecorator) {
+          const classAsArgs = classAsDecorator.getArguments();
+          const classAsName = decoratorStringArg(classAsArgs[0]);
+          if (classAsName) classAs = classAsName;
+        }
+
+        // Read method-level @As
+        const methodAsDecorator = method.getDecorator('As');
+        let methodAs: string | undefined;
+        if (methodAsDecorator) {
+          const methodAsArgs = methodAsDecorator.getArguments();
+          const methodAsName = decoratorStringArg(methodAsArgs[0]);
+          if (methodAsName) methodAs = methodAsName;
+        }
+
+        const routeName = resolveRouteName(className, methodName, classAs, methodAs);
 
         // ── DTO-based contract extraction ──────────────────────────────────
         const dtoContract = extractDtoContract(method, sourceFile, project);

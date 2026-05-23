@@ -105,7 +105,7 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
 
     expect(routes).toHaveLength(1);
     const route = routes[0];
-    expect(route.name).toBe('DashboardController.index');
+    expect(route.name).toBe('dashboard.index');
     expect(route.method).toBe('GET');
     expect(route.path).toBe('/dashboard');
     expect(route.contract).toBeUndefined();
@@ -129,7 +129,7 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
     expect(routes).toHaveLength(2);
     // MixedController.list → mixed.list (auto-derived)
     const contract = routes.find((r) => r.name === 'mixed.list' || r.contract !== undefined);
-    const plain = routes.find((r) => r.name === 'MixedController.index');
+    const plain = routes.find((r) => r.name === 'mixed.index');
 
     expect(contract).toBeDefined();
     expect(contract?.contract).toBeDefined();
@@ -466,7 +466,7 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       cwd: fixturesDir,
       glob: 'dto-controller.controller.ts',
     });
-    const route = routes.find((r) => r.name === 'DtoController.create');
+    const route = routes.find((r) => r.name === 'dto.create');
     expect(route).toBeDefined();
     expect(route?.contract).toBeDefined();
     const cs = route?.contract?.contractSource;
@@ -479,7 +479,7 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       cwd: fixturesDir,
       glob: 'dto-controller.controller.ts',
     });
-    const route = routes.find((r) => r.name === 'DtoController.list');
+    const route = routes.find((r) => r.name === 'dto.list');
     expect(route).toBeDefined();
     const cs = route?.contract?.contractSource;
     expect(cs?.query).toBe('{ page?: number }');
@@ -491,7 +491,7 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       cwd: fixturesDir,
       glob: 'dto-controller.controller.ts',
     });
-    const route = routes.find((r) => r.name === 'DtoController.list');
+    const route = routes.find((r) => r.name === 'dto.list');
     expect(route).toBeDefined();
     const cs = route?.contract?.contractSource;
     expect(cs?.response).toBe('Array<{ id: string; title: string }>');
@@ -502,7 +502,7 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       cwd: fixturesDir,
       glob: 'dto-controller.controller.ts',
     });
-    const route = routes.find((r) => r.name === 'DtoController.create');
+    const route = routes.find((r) => r.name === 'dto.create');
     expect(route).toBeDefined();
     const cs = route?.contract?.contractSource;
     expect(cs?.response).toBe('{ id: string; title: string }');
@@ -513,7 +513,7 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       cwd: fixturesDir,
       glob: 'dto-controller.controller.ts',
     });
-    const route = routes.find((r) => r.name === 'DtoController.show');
+    const route = routes.find((r) => r.name === 'dto.show');
     expect(route).toBeDefined();
     // The show method has @ApiResponse({ type: PostDto }) so it gets a contract
     expect(route?.contract).toBeDefined();
@@ -525,13 +525,13 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       cwd: fixturesDir,
       glob: 'dto-return-type.controller.ts',
     });
-    const listRoute = routes.find((r) => r.name === 'DtoReturnTypeController.list');
+    const listRoute = routes.find((r) => r.name === 'dtoReturnType.list');
     expect(listRoute).toBeDefined();
     expect(listRoute?.contract?.contractSource.response).toBe(
       'Array<{ slug: string; body: string }>',
     );
 
-    const singleRoute = routes.find((r) => r.name === 'DtoReturnTypeController.single');
+    const singleRoute = routes.find((r) => r.name === 'dtoReturnType.single');
     expect(singleRoute).toBeDefined();
     expect(singleRoute?.contract?.contractSource.response).toBe('{ slug: string; body: string }');
   });
@@ -659,13 +659,13 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
 
     expect(routes.length).toBeGreaterThanOrEqual(2);
 
-    const listRoute = routes.find((r) => r.name === 'CrossFileController.list');
+    const listRoute = routes.find((r) => r.name === 'crossFile.list');
     expect(listRoute).toBeDefined();
     const listCs = listRoute?.contract?.contractSource;
     expect(listCs?.response).toBe('Array<{ id: string; title: string; content: string; createdAt: string }>');
     expect(listCs?.query).toBe('{ page?: number; limit?: number }');
 
-    const createRoute = routes.find((r) => r.name === 'CrossFileController.create');
+    const createRoute = routes.find((r) => r.name === 'crossFile.create');
     expect(createRoute).toBeDefined();
     const createCs = createRoute?.contract?.contractSource;
     expect(createCs?.body).toBe('{ title: string; content: string }');
@@ -680,7 +680,7 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
 
     expect(routes.length).toBeGreaterThanOrEqual(2);
 
-    const listRoute = routes.find((r) => r.name === 'CrossFileNestedController.list');
+    const listRoute = routes.find((r) => r.name === 'crossFileNested.list');
     expect(listRoute).toBeDefined();
     const listCs = listRoute?.contract?.contractSource;
     // CommentDto has a `post: PostResponseDto` field — PostResponseDto is in a different file
@@ -688,7 +688,7 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
     expect(listCs?.response).toContain('text: string');
     expect(listCs?.response).toContain('post: { id: string; title: string; content: string; createdAt: string }');
 
-    const createRoute = routes.find((r) => r.name === 'CrossFileNestedController.create');
+    const createRoute = routes.find((r) => r.name === 'crossFileNested.create');
     expect(createRoute).toBeDefined();
     const createCs = createRoute?.contract?.contractSource;
     expect(createCs?.body).toBe('{ text: string; postId: string }');
