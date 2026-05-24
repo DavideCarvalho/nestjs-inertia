@@ -1,7 +1,15 @@
+export interface TypeRef {
+  name: string;
+  filePath: string;
+}
+
 export interface ContractSource {
   query: string | null;
   body: string | null;
   response: string;
+  queryRef?: TypeRef | null;
+  bodyRef?: TypeRef | null;
+  responseRef?: TypeRef | null;
 }
 
 export interface ContractDescriptor {

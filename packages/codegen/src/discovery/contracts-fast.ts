@@ -14,7 +14,7 @@ import {
   SyntaxKind,
   type TypeNode,
 } from 'ts-morph';
-import type { RouteDescriptor } from './types.js';
+import type { RouteDescriptor, TypeRef } from './types.js';
 
 export interface FastDiscoveryOptions {
   /** Absolute path to the project root. */
@@ -644,6 +644,58 @@ function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, projec
 }
 
 /**
+ * Try to resolve a TypeNode to a named exported type reference.
+ * Returns { name, filePath } if the type is a named export, null otherwise.
+ * Unwraps Promise<T> and Array<T> to find the inner named type.
+ */
+function tryResolveTypeRef(
+  typeNode: TypeNode,
+  sourceFile: SourceFile,
+  project: Project,
+): TypeRef | null {
+  if (Node.isTypeReference(typeNode)) {
+    const typeName = typeNode.getTypeName();
+    const name = Node.isIdentifier(typeName) ? typeName.getText() : null;
+    if (!name) return null;
+
+    // Unwrap Promise<T>
+    if (name === 'Promise') {
+      const typeArgs = typeNode.getTypeArguments();
+      const first = typeArgs[0];
+      if (first) return tryResolveTypeRef(first, sourceFile, project);
+      return null;
+    }
+
+    // Skip primitives and well-known types
+    if (['string', 'number', 'boolean', 'void', 'unknown', 'any', 'Date', 'Array'].includes(name)) {
+      return null;
+    }
+
+    // Check if it's exported from the current file
+    const localDecl = sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
+    if (localDecl && localDecl.isExported()) {
+      return { name, filePath: sourceFile.getFilePath() };
+    }
+
+    // Check if it's imported and exported from another file
+    const resolved = resolveImportedType(name, sourceFile, project);
+    if (resolved && (resolved.kind === 'class' || resolved.kind === 'interface')) {
+      const decl = resolved.decl;
+      if (decl.isExported()) {
+        return { name, filePath: resolved.file.getFilePath() };
+      }
+    }
+  }
+
+  // Array<T> — check inner type
+  if (Node.isArrayTypeNode(typeNode)) {
+    return tryResolveTypeRef(typeNode.getElementTypeNode(), sourceFile, project);
+  }
+
+  return null;
+}
+
+/**
  * Determine whether a method has any DTO-based contract info worth emitting
  * (body, query, params, or non-unknown response).
  * Returns a ContractSource-shaped object or null.
@@ -652,7 +704,7 @@ export function extractDtoContract(
   method: MethodDeclaration,
   sourceFile: SourceFile,
   project: Project,
-): { query: string | null; body: string | null; response: string; params: string | null } | null {
+): { query: string | null; body: string | null; response: string; params: string | null; queryRef?: TypeRef | null; bodyRef?: TypeRef | null; responseRef?: TypeRef | null } | null {
   const body = extractBodyType(method, sourceFile, project);
   const query = extractQueryType(method, sourceFile, project);
   const paramsType = extractParamsType(method, sourceFile, project);
@@ -663,7 +715,53 @@ export function extractDtoContract(
     return null;
   }
 
-  return { query, body, response, params: paramsType };
+  // Capture type references for import generation
+  let bodyRef: TypeRef | null = null;
+  let queryRef: TypeRef | null = null;
+  let responseRef: TypeRef | null = null;
+
+  for (const param of method.getParameters()) {
+    if (param.getDecorators().some((d) => d.getName() === 'Body') && param.getTypeNode()) {
+      bodyRef = tryResolveTypeRef(param.getTypeNode()!, sourceFile, project);
+    }
+    if (param.getDecorators().some((d) => d.getName() === 'Query') && param.getTypeNode()) {
+      queryRef = tryResolveTypeRef(param.getTypeNode()!, sourceFile, project);
+    }
+  }
+
+  const returnTypeNode = method.getReturnTypeNode();
+  if (returnTypeNode) {
+    responseRef = tryResolveTypeRef(returnTypeNode, sourceFile, project);
+  }
+  // Also check @ApiResponse
+  if (!responseRef) {
+    const apiResp = method.getDecorator('ApiResponse');
+    if (apiResp) {
+      const args = apiResp.getArguments();
+      const optsArg = args[0];
+      if (optsArg && Node.isObjectLiteralExpression(optsArg)) {
+        for (const prop of optsArg.getProperties()) {
+          if (Node.isPropertyAssignment(prop) && prop.getName() === 'type') {
+            const val = prop.getInitializer();
+            if (val && Node.isIdentifier(val)) {
+              const name = val.getText();
+              const localDecl = sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
+              if (localDecl && localDecl.isExported()) {
+                responseRef = { name, filePath: sourceFile.getFilePath() };
+              } else {
+                const resolved = resolveImportedType(name, sourceFile, project);
+                if (resolved && (resolved.kind === 'class' || resolved.kind === 'interface') && resolved.decl.isExported()) {
+                  responseRef = { name, filePath: resolved.file.getFilePath() };
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { query, body, response, params: paramsType, queryRef, bodyRef, responseRef };
 }
 
 // ---------------------------------------------------------------------------
@@ -870,6 +968,9 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
                     query: dtoContract.query,
                     body: dtoContract.body,
                     response: dtoContract.response,
+                    queryRef: dtoContract.queryRef,
+                    bodyRef: dtoContract.bodyRef,
+                    responseRef: dtoContract.responseRef,
                   },
                 },
               }
