@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import fg from 'fast-glob';
 /**
@@ -23,6 +24,28 @@ export interface FastDiscoveryOptions {
   glob: string;
   /** Optional tsconfig.json path; default 'tsconfig.json' in cwd */
   tsconfig?: string;
+}
+
+// Set during discoverContractsFast
+let _projectRoot = '';
+let _tsconfigPaths: Record<string, string[]> | null = null;
+const _debug = process.env.NESTJS_INERTIA_DEBUG === '1';
+function dbg(...args: unknown[]) {
+  if (_debug) console.log('[codegen:debug]', ...args);
+}
+
+function loadTsconfigPaths(tsconfigPath: string): Record<string, string[]> | null {
+  try {
+    const raw = readFileSync(tsconfigPath, 'utf8');
+    // Strip single-line comments (tsconfig allows them)
+    const stripped = raw.replace(/\/\/.*$/gm, '');
+    const parsed = JSON.parse(stripped) as {
+      compilerOptions?: { paths?: Record<string, string[]> };
+    };
+    return parsed.compilerOptions?.paths ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +90,8 @@ export async function discoverContractsFast(
   }
 
   const routes: RouteDescriptor[] = [];
+  _projectRoot = cwd;
+  _tsconfigPaths = loadTsconfigPaths(tsconfigPath);
 
   for (const sourceFile of project.getSourceFiles()) {
     routes.push(...extractFromSourceFile(sourceFile, project));
@@ -367,6 +392,47 @@ function findTypeInFile(name: string, file: SourceFile): TypeDeclResult | null {
 /**
  * Follow import declarations to find a type in another file.
  */
+function resolveModuleSpecifier(
+  moduleSpecifier: string,
+  sourceFile: SourceFile,
+  project: Project,
+): string[] {
+  if (moduleSpecifier.startsWith('.')) {
+    const dir = dirname(sourceFile.getFilePath());
+    return [resolve(dir, `${moduleSpecifier}.ts`), resolve(dir, moduleSpecifier, 'index.ts')];
+  }
+
+  // Try to resolve path aliases via tsconfig paths (read directly from JSON)
+  const baseUrl = _projectRoot;
+
+  dbg(
+    'resolveModuleSpecifier',
+    moduleSpecifier,
+    'paths:',
+    JSON.stringify(_tsconfigPaths),
+    'baseUrl:',
+    baseUrl,
+  );
+
+  if (_tsconfigPaths) {
+    for (const [pattern, mappings] of Object.entries(_tsconfigPaths)) {
+      const prefix = pattern.replace('*', '');
+      if (moduleSpecifier.startsWith(prefix)) {
+        const rest = moduleSpecifier.slice(prefix.length);
+        const candidates: string[] = [];
+        for (const mapping of mappings) {
+          const resolved = resolve(baseUrl, mapping.replace('*', rest));
+          candidates.push(`${resolved}.ts`, resolve(resolved, 'index.ts'));
+        }
+        dbg('  resolved candidates:', candidates);
+        return candidates;
+      }
+    }
+  }
+
+  return [];
+}
+
 function resolveImportedType(
   name: string,
   sourceFile: SourceFile,
@@ -377,13 +443,8 @@ function resolveImportedType(
     if (!namedImport) continue;
 
     const moduleSpecifier = importDecl.getModuleSpecifierValue();
-    if (!moduleSpecifier.startsWith('.')) return null;
-
-    const dir = dirname(sourceFile.getFilePath());
-    const candidates = [
-      resolve(dir, `${moduleSpecifier}.ts`),
-      resolve(dir, moduleSpecifier, 'index.ts'),
-    ];
+    const candidates = resolveModuleSpecifier(moduleSpecifier, sourceFile, project);
+    if (candidates.length === 0) continue;
 
     for (const candidate of candidates) {
       let importedFile = project.getSourceFile(candidate);
