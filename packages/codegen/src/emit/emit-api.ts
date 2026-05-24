@@ -154,7 +154,12 @@ function insertIntoTree(
 /**
  * Emit the nested ApiRouter type block.
  */
-function buildResponseType(c: LeafEntry, _outDir: string): string {
+function buildResponseType(c: LeafEntry, outDir: string): string {
+  if (c.controllerRef) {
+    let relPath = relative(outDir, c.controllerRef.filePath).replace(/\.ts$/, '');
+    if (!relPath.startsWith('.')) relPath = `./${relPath}`;
+    return `Awaited<ReturnType<import('${relPath}').${c.controllerRef.className}['${c.controllerRef.methodName}']>>`;
+  }
   const respRef = c.contractSource.responseRef;
   if (respRef) {
     return respRef.isArray ? `Array<${respRef.name}>` : respRef.name;
@@ -281,7 +286,10 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
   for (const r of contracted) {
     const cs = r.contract?.contractSource;
     if (!cs) continue;
-    const refs = [cs.queryRef, cs.bodyRef, cs.responseRef];
+    // When controllerRef exists, response uses ReturnType<import(...)> — skip response import
+    const refs = r.controllerRef
+      ? [cs.queryRef, cs.bodyRef]
+      : [cs.queryRef, cs.bodyRef, cs.responseRef];
     for (const ref of refs) {
       if (!ref) continue;
       let names = importsByFile.get(ref.filePath);

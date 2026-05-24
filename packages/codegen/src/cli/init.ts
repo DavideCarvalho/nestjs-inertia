@@ -426,11 +426,19 @@ function htmlShellTemplate(framework: Framework, _engine: TemplateEngine): strin
 
 function viteConfigTemplate(framework: Framework): string {
   const pluginOption = `{ ${framework}: true }`;
-  return `import { defineConfig } from 'vite';
+  return `import { resolve } from 'node:path';
+import { defineConfig } from 'vite';
 import nestInertia from '@dudousxd/nestjs-inertia-vite/plugin';
 
 export default defineConfig({
   plugins: [nestInertia(${pluginOption})],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '~': resolve(__dirname, 'inertia'),
+      '~codegen': resolve(__dirname, '.nestjs-inertia'),
+    },
+  },
 });
 `;
 }
