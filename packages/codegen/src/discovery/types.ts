@@ -1,6 +1,7 @@
 export interface TypeRef {
   name: string;
   filePath: string;
+  isArray?: boolean;
 }
 
 export interface ContractSource {

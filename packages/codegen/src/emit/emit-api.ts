@@ -162,9 +162,12 @@ function emitRouterTypeBlock(tree: Map<string, TreeNode>, indent: number): strin
     if (node.kind === 'leaf') {
       const c = node;
       const method = c.method.toUpperCase();
-      const query = c.contractSource.queryRef ? c.contractSource.queryRef.name : (c.contractSource.query ?? 'never');
-      const body = method === 'GET' ? 'never' : (c.contractSource.bodyRef ? c.contractSource.bodyRef.name : (c.contractSource.body ?? 'never'));
-      const response = c.contractSource.responseRef ? c.contractSource.responseRef.name : c.contractSource.response;
+      const queryRef = c.contractSource.queryRef;
+      const query = queryRef ? (queryRef.isArray ? `Array<${queryRef.name}>` : queryRef.name) : (c.contractSource.query ?? 'never');
+      const bodyRef = c.contractSource.bodyRef;
+      const body = method === 'GET' ? 'never' : (bodyRef ? (bodyRef.isArray ? `Array<${bodyRef.name}>` : bodyRef.name) : (c.contractSource.body ?? 'never'));
+      const respRef = c.contractSource.responseRef;
+      const response = respRef ? (respRef.isArray ? `Array<${respRef.name}>` : respRef.name) : c.contractSource.response;
       const safeMethod = JSON.stringify(method);
       const safeUrl = JSON.stringify(c.path);
       lines.push(

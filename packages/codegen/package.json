@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-codegen",
-  "version": "3.0.0",
+  "version": "1.2.0",
   "description": "CLI + programmatic API to generate typed artifacts from a NestJS + Inertia.js app.",
   "license": "MIT",
   "repository": {

@@ -441,7 +441,9 @@ function resolveTypeNodeToString(
     // Well-known pass-through primitives and types
     if (name === 'string' || name === 'number' || name === 'boolean') return name;
     if (name === 'Date') return 'string';
-    if (name === 'unknown' || name === 'any') return 'unknown';
+    if (name === 'unknown' || name === 'any' || name === 'void') return 'unknown';
+    // Server-only types that don't make sense on the client
+    if (name === 'StreamableFile' || name === 'Observable' || name === 'ReadableStream') return 'unknown';
 
     // Array<T> generic form
     if (name === 'Array') {
@@ -666,8 +668,19 @@ function tryResolveTypeRef(
       return null;
     }
 
+    // Array<T> generic form
+    if (name === 'Array') {
+      const typeArgs = typeNode.getTypeArguments();
+      const first = typeArgs[0];
+      if (first) {
+        const inner = tryResolveTypeRef(first, sourceFile, project);
+        if (inner) return { ...inner, isArray: true };
+      }
+      return null;
+    }
+
     // Skip primitives and well-known types
-    if (['string', 'number', 'boolean', 'void', 'unknown', 'any', 'Date', 'Array'].includes(name)) {
+    if (['string', 'number', 'boolean', 'void', 'unknown', 'any', 'Date'].includes(name)) {
       return null;
     }
 
@@ -687,9 +700,10 @@ function tryResolveTypeRef(
     }
   }
 
-  // Array<T> — check inner type
+  // T[] syntax — check inner type
   if (Node.isArrayTypeNode(typeNode)) {
-    return tryResolveTypeRef(typeNode.getElementTypeNode(), sourceFile, project);
+    const inner = tryResolveTypeRef(typeNode.getElementTypeNode(), sourceFile, project);
+    if (inner) return { ...inner, isArray: true };
   }
 
   return null;
