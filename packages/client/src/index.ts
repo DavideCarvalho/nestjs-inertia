@@ -1,4 +1,4 @@
-export const VERSION = '2.0.1';
+export const VERSION = '3.0.0';
 
 export { createFetcher } from './fetcher/fetcher.js';
 export { ApiHttpError } from './fetcher/errors.js';

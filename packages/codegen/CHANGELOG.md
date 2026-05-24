@@ -1,5 +1,16 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 3.0.0
+
+### Minor Changes
+
+- feat(codegen): import type references from source instead of inline expansion — eliminates unknown fields from depth limits
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@3.0.0
+
 ## 2.0.1
 
 ### Patch Changes
