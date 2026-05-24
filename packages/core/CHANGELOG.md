@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 2.0.1
+
+### Patch Changes
+
+- fix(codegen): remove @tanstack/query-core dependency — generated api.ts uses plain object literals
+
 ## 2.0.0
 
 ### Patch Changes

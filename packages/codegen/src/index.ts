@@ -1,4 +1,4 @@
-export const VERSION = '2.0.0';
+export const VERSION = '2.0.1';
 
 export { defineConfig } from './config/define-config.js';
 export { loadConfig } from './config/load-config.js';
