@@ -63,6 +63,9 @@ describe('emitApi', () => {
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain("from '@dudousxd/nestjs-inertia-client'");
     expect(content).not.toContain('@tanstack/query-core');
+    expect(content).toContain("from '@tanstack/react-query'");
+    expect(content).toContain('_queryOptions');
+    expect(content).toContain('_mutationOptions');
     expect(content).toContain("from './routes.js'");
     expect(content).toContain("from '@dudousxd/nestjs-inertia-client'");
   });
