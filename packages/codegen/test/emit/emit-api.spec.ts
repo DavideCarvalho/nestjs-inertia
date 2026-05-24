@@ -61,7 +61,8 @@ describe('emitApi', () => {
   it('includes required imports', async () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-    expect(content).toContain("from '@tanstack/query-core'");
+    expect(content).toContain("from '@dudousxd/nestjs-inertia-client'");
+    expect(content).not.toContain("@tanstack/query-core");
     expect(content).toContain("from './routes.js'");
     expect(content).toContain("from '@dudousxd/nestjs-inertia-client'");
   });
@@ -149,7 +150,7 @@ describe('emitApi', () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     // queryKey must use the flat string 'users.list', not nested
-    expect(content).toContain('queryKey: query !== undefined ? ["users.list", query] : ["users.list"]');
+    expect(content).toContain('queryKey: query !== undefined ? ["users.list", query] as const : ["users.list"] as const');
   });
 
   // --- Single-segment name (no dot) ---
@@ -193,7 +194,7 @@ describe('emitApi', () => {
     expect(content).toContain('users:');
     expect(content).toContain('list:');
     // queryKey must be flat
-    expect(content).toContain('queryKey: query !== undefined ? ["admin.users.list", query] : ["admin.users.list"]');
+    expect(content).toContain('queryKey: query !== undefined ? ["admin.users.list", query] as const : ["admin.users.list"] as const');
   });
 
   // --- Collision detection ---
