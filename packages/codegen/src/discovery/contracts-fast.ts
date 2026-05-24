@@ -1034,6 +1034,7 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
           path: combined,
           name: routeName,
           params,
+          controllerRef: { className, methodName, filePath: sourceFile.getFilePath() },
           contract: {
             contractSource: {
               query: contractDef.query,
@@ -1079,7 +1080,7 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
           path: combined,
           name: routeName,
           params,
-          // Attach contract if DTO extraction produced useful type info
+          controllerRef: { className, methodName, filePath: sourceFile.getFilePath() },
           ...(dtoContract
             ? {
                 contract: {

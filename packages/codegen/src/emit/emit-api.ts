@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
-import type { RouteDescriptor, TypeRef } from '../discovery/types.js';
+import type { ControllerRef, RouteDescriptor, TypeRef } from '../discovery/types.js';
 
 /**
  * Emits `api.ts` into `outDir` for all routes that carry a `.contract`.
@@ -70,6 +70,7 @@ type LeafEntry = {
   method: string;
   name: string;
   path: string;
+  controllerRef?: ControllerRef;
   contractSource: {
     query: string | null | undefined;
     body: string | null | undefined;
@@ -153,7 +154,19 @@ function insertIntoTree(
 /**
  * Emit the nested ApiRouter type block.
  */
-function emitRouterTypeBlock(tree: Map<string, TreeNode>, indent: number): string[] {
+function buildResponseType(c: LeafEntry, _outDir: string): string {
+  const respRef = c.contractSource.responseRef;
+  if (respRef) {
+    return respRef.isArray ? `Array<${respRef.name}>` : respRef.name;
+  }
+  return c.contractSource.response;
+}
+
+function emitRouterTypeBlock(
+  tree: Map<string, TreeNode>,
+  indent: number,
+  outDir: string,
+): string[] {
   const pad = ' '.repeat(indent);
   const lines: string[] = [];
 
@@ -177,12 +190,7 @@ function emitRouterTypeBlock(tree: Map<string, TreeNode>, indent: number): strin
               ? `Array<${bodyRef.name}>`
               : bodyRef.name
             : (c.contractSource.body ?? 'never');
-      const respRef = c.contractSource.responseRef;
-      const response = respRef
-        ? respRef.isArray
-          ? `Array<${respRef.name}>`
-          : respRef.name
-        : c.contractSource.response;
+      const response = buildResponseType(c, outDir);
       const safeMethod = JSON.stringify(method);
       const safeUrl = JSON.stringify(c.path);
       lines.push(
@@ -190,7 +198,7 @@ function emitRouterTypeBlock(tree: Map<string, TreeNode>, indent: number): strin
       );
     } else {
       lines.push(`${pad}${objKey}: {`);
-      lines.push(...emitRouterTypeBlock(node.children, indent + 2));
+      lines.push(...emitRouterTypeBlock(node.children, indent + 2, outDir));
       lines.push(`${pad}};`);
     }
   }
@@ -273,7 +281,8 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
   for (const r of contracted) {
     const cs = r.contract?.contractSource;
     if (!cs) continue;
-    for (const ref of [cs.queryRef, cs.bodyRef, cs.responseRef]) {
+    const refs = [cs.queryRef, cs.bodyRef, cs.responseRef];
+    for (const ref of refs) {
       if (!ref) continue;
       let names = importsByFile.get(ref.filePath);
       if (!names) {
@@ -357,6 +366,7 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
       method: r.method,
       name: name,
       path: r.path,
+      controllerRef: r.controllerRef,
       contractSource: c.contractSource,
     };
     insertIntoTree(tree, segments, leaf, name);
@@ -366,7 +376,7 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
 
   // --- ApiRouter type ---
   lines.push('export type ApiRouter = {');
-  lines.push(...emitRouterTypeBlock(tree, 2));
+  lines.push(...emitRouterTypeBlock(tree, 2, outDir ?? ''));
   lines.push('};');
   lines.push('');
 

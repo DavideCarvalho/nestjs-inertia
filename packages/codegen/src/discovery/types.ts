@@ -17,10 +17,17 @@ export interface ContractDescriptor {
   contractSource: ContractSource;
 }
 
+export interface ControllerRef {
+  className: string;
+  methodName: string;
+  filePath: string;
+}
+
 export interface RouteDescriptor {
   method: string;
   path: string;
   name: string;
   params: Array<{ name: string; source: 'path' | 'query' | 'body' | 'header' }>;
   contract?: ContractDescriptor;
+  controllerRef?: ControllerRef;
 }
