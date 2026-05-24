@@ -735,3 +735,177 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
     expect(typesRoute?.contract?.contractSource.response).toContain('"tanker"');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Utility type preservation (Record, Omit, etc.)
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — utility type preservation', () => {
+  it('preserves Record<string, unknown> in response type (not bare Record)', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'utility-types.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'utilityTypes.trigger');
+    expect(route).toBeDefined();
+    const cs = route?.contract?.contractSource;
+    expect(cs?.response).toBe('Record<string, unknown>');
+  });
+
+  it('preserves Record<string, unknown> in body type for nested utility types', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'utility-types.controller.ts',
+    });
+
+    const route = routes.find((r) => r.name === 'utilityTypes.trigger');
+    expect(route).toBeDefined();
+    const cs = route?.contract?.contractSource;
+    expect(cs?.body).toContain('Record<string, unknown>');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// StreamableFile → unknown (no contract, since response=unknown + no body/query)
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — StreamableFile maps to unknown', () => {
+  it('resolves StreamableFile return type to unknown, resulting in no contract', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'stream.controller.ts',
+    });
+
+    expect(routes).toHaveLength(1);
+    const route = routes[0];
+    expect(route?.name).toBe('stream.download');
+    // StreamableFile resolves to 'unknown' which, with no body/query, means no contract
+    expect(route?.contract).toBeUndefined();
+  });
+
+  it('StreamableFile is treated as a server-only type via extractDtoContract', () => {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      skipLoadingLibFiles: true,
+      skipFileDependencyResolution: true,
+      compilerOptions: { strict: false },
+    });
+    const sf = project.createSourceFile(
+      'test-stream.ts',
+      `
+      class StreamableFile {}
+      class TestController {
+        download(): StreamableFile { return {} as any; }
+      }
+    `,
+    );
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('download');
+    // extractDtoContract returns null because the resolved response is 'unknown'
+    // and there's no body/query/params
+    const result = extractDtoContract(method, sf, project);
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unresolvable type → unknown (no contract, since response=unknown + no body/query)
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — unresolvable type falls back to unknown', () => {
+  it('treats unresolvable type as unknown, resulting in no contract', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'unresolvable.controller.ts',
+    });
+
+    expect(routes).toHaveLength(1);
+    const route = routes[0];
+    expect(route?.name).toBe('unresolvable.getData');
+    // Unresolvable type resolves to 'unknown' which, with no body/query, means no contract
+    expect(route?.contract).toBeUndefined();
+  });
+
+  it('unresolvable type is treated as unknown via extractDtoContract', () => {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      skipLoadingLibFiles: true,
+      skipFileDependencyResolution: true,
+      compilerOptions: { strict: false },
+    });
+    const sf = project.createSourceFile(
+      'test-unresolvable.ts',
+      `
+      class TestController {
+        getData(): SomeNonExistentType { return {} as any; }
+      }
+    `,
+    );
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('getData');
+    // extractDtoContract returns null because the resolved response is 'unknown'
+    // and there's no body/query/params
+    const result = extractDtoContract(method, sf, project);
+    expect(result).toBeNull();
+  });
+
+  it('unresolvable type with @Body still produces a contract with unknown response', () => {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      skipLoadingLibFiles: true,
+      skipFileDependencyResolution: true,
+      compilerOptions: { strict: false },
+    });
+    const sf = project.createSourceFile(
+      'test-unresolvable-with-body.ts',
+      `
+      class MyDto { name: string; }
+      class TestController {
+        create(@Body() body: MyDto): SomeNonExistentType { return {} as any; }
+      }
+    `,
+    );
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('create');
+    // Has a @Body, so extractDtoContract returns a contract with unknown response
+    const result = extractDtoContract(method, sf, project);
+    expect(result).not.toBeNull();
+    expect(result?.body).toBe('{ name: string }');
+    expect(result?.response).toBe('unknown');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TypeRef with isArray on cross-file array return types
+// ---------------------------------------------------------------------------
+
+describe('discoverContractsFast — responseRef isArray flag', () => {
+  it('sets isArray: true on responseRef when return type is Promise<PostResponseDto[]>', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'cross-file.controller.ts',
+    });
+
+    const listRoute = routes.find((r) => r.name === 'crossFile.list');
+    expect(listRoute).toBeDefined();
+    const ref = listRoute?.contract?.contractSource.responseRef;
+    expect(ref).toBeDefined();
+    expect(ref?.name).toBe('PostResponseDto');
+    expect(ref?.isArray).toBe(true);
+  });
+
+  it('does not set isArray on responseRef for a single object return type', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'cross-file.controller.ts',
+    });
+
+    const createRoute = routes.find((r) => r.name === 'crossFile.create');
+    expect(createRoute).toBeDefined();
+    const ref = createRoute?.contract?.contractSource.responseRef;
+    expect(ref).toBeDefined();
+    expect(ref?.name).toBe('PostResponseDto');
+    expect(ref?.isArray).not.toBe(true);
+  });
+});

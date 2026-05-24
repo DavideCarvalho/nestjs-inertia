@@ -411,4 +411,167 @@ describe('emitApi', () => {
       );
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // import type generation for responseRef / bodyRef / queryRef
+  // ---------------------------------------------------------------------------
+
+  describe('import type generation', () => {
+    it('emits import type statement when routes have responseRef', async () => {
+      const routesWithRefs: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/items',
+          name: 'items.list',
+          params: [],
+          contract: {
+            contractSource: {
+              query: null,
+              body: null,
+              response: 'Array<ItemDto>',
+              responseRef: {
+                name: 'ItemDto',
+                filePath: '/src/items/item.dto.ts',
+                isArray: true,
+              },
+            },
+          },
+        },
+      ];
+      await emitApi(routesWithRefs, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain("import type { ItemDto } from '");
+      // Should strip .ts extension from the import path
+      expect(content).toMatch(/from '.*item\.dto'/);
+      expect(content).not.toContain("item.dto.ts'");
+    });
+
+    it('ApiRouter uses the named type (Array<ItemDto>) when responseRef is set', async () => {
+      const routesWithRefs: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/items',
+          name: 'items.list',
+          params: [],
+          contract: {
+            contractSource: {
+              query: null,
+              body: null,
+              response: 'Array<{ id: string; title: string }>',
+              responseRef: {
+                name: 'ItemDto',
+                filePath: '/src/items/item.dto.ts',
+                isArray: true,
+              },
+            },
+          },
+        },
+      ];
+      await emitApi(routesWithRefs, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // The ApiRouter type should use the named type reference, not the inline expansion
+      expect(content).toContain('Array<ItemDto>');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // _queryOptions and _mutationOptions wrappers
+  // ---------------------------------------------------------------------------
+
+  describe('_queryOptions and _mutationOptions wrappers', () => {
+    it('GET routes produce _queryOptions({', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('_queryOptions({');
+    });
+
+    it('POST routes produce _mutationOptions({', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('_mutationOptions({');
+    });
+
+    it('@tanstack/react-query import is present', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain("from '@tanstack/react-query'");
+    });
+
+    it('imports queryOptions aliased as _queryOptions when GET routes exist', async () => {
+      const getOnly: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/data',
+          name: 'data.list',
+          params: [],
+          contract: {
+            contractSource: { query: null, body: null, response: '{ ok: boolean }' },
+          },
+        },
+      ];
+      await emitApi(getOnly, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('queryOptions as _queryOptions');
+    });
+
+    it('imports mutationOptions aliased as _mutationOptions when mutation routes exist', async () => {
+      const postOnly: RouteDescriptor[] = [
+        {
+          method: 'POST',
+          path: '/api/data',
+          name: 'data.create',
+          params: [],
+          contract: {
+            contractSource: {
+              query: null,
+              body: '{ value: string }',
+              response: '{ id: string }',
+            },
+          },
+        },
+      ];
+      await emitApi(postOnly, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('mutationOptions as _mutationOptions');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // queryKey() helper
+  // ---------------------------------------------------------------------------
+
+  describe('queryKey() helper', () => {
+    it('GET routes have a queryKey function that returns the route name as const', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // queryKey function for GET should produce ["users.list"] as const
+      expect(content).toContain('queryKey:');
+      expect(content).toContain('["users.list"] as const');
+    });
+
+    it('GET queryKey includes query param when provided', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('["users.list", query] as const');
+    });
+
+    it('mutation routes also have a queryKey function', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // POST/mutation routes should also have queryKey
+      expect(content).toContain('["users.create"] as const');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // No @tanstack/query-core
+  // ---------------------------------------------------------------------------
+
+  describe('no @tanstack/query-core import', () => {
+    it('does not import from @tanstack/query-core', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).not.toContain('@tanstack/query-core');
+    });
+  });
 });
