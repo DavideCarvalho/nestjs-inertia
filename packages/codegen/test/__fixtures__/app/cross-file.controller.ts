@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { CreatePostDto, ListPostsQueryDto, PostResponseDto } from './dto/post.dto';
+import { type CreatePostDto, type ListPostsQueryDto, PostResponseDto } from './dto/post.dto';
 
 @Controller('/api/posts')
 export class CrossFileController {

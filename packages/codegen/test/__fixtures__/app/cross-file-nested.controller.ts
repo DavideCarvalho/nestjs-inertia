@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { CommentDto, CreateCommentDto } from './dto/comment.dto';
+import { CommentDto, type CreateCommentDto } from './dto/comment.dto';
 
 @Controller('/api/comments')
 export class CrossFileNestedController {

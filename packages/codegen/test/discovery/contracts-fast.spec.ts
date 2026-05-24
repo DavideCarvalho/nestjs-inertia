@@ -662,14 +662,18 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
     const listRoute = routes.find((r) => r.name === 'crossFile.list');
     expect(listRoute).toBeDefined();
     const listCs = listRoute?.contract?.contractSource;
-    expect(listCs?.response).toBe('Array<{ id: string; title: string; content: string; createdAt: string }>');
+    expect(listCs?.response).toBe(
+      'Array<{ id: string; title: string; content: string; createdAt: string }>',
+    );
     expect(listCs?.query).toBe('{ page?: number; limit?: number }');
 
     const createRoute = routes.find((r) => r.name === 'crossFile.create');
     expect(createRoute).toBeDefined();
     const createCs = createRoute?.contract?.contractSource;
     expect(createCs?.body).toBe('{ title: string; content: string }');
-    expect(createCs?.response).toBe('{ id: string; title: string; content: string; createdAt: string }');
+    expect(createCs?.response).toBe(
+      '{ id: string; title: string; content: string; createdAt: string }',
+    );
   });
 
   it('resolves nested cross-file DTOs (DTO imports another DTO)', async () => {
@@ -686,7 +690,9 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
     // CommentDto has a `post: PostResponseDto` field — PostResponseDto is in a different file
     expect(listCs?.response).toContain('id: string');
     expect(listCs?.response).toContain('text: string');
-    expect(listCs?.response).toContain('post: { id: string; title: string; content: string; createdAt: string }');
+    expect(listCs?.response).toContain(
+      'post: { id: string; title: string; content: string; createdAt: string }',
+    );
 
     const createRoute = routes.find((r) => r.name === 'crossFileNested.create');
     expect(createRoute).toBeDefined();
@@ -712,7 +718,9 @@ describe('discoverContractsFast — cross-file DTO resolution', () => {
     // Interface as @Body — TelemetryBody should be expanded inline
     const createRoute = routes.find((r) => r.name === 'crossFileInterface.create');
     expect(createRoute).toBeDefined();
-    expect(createRoute?.contract?.contractSource.body).toBe('{ lat: number; lng: number; timestamp: string }');
+    expect(createRoute?.contract?.contractSource.body).toBe(
+      '{ lat: number; lng: number; timestamp: string }',
+    );
 
     // Type alias — VesselStatus should be the raw union string
     const statusRoute = routes.find((r) => r.name === 'crossFileInterface.status');

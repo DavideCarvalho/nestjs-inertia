@@ -61,8 +61,14 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
     await generate(config, initialRoutes);
   } catch (err) {
     // Best-effort; don't crash the watcher on initial generation failure
-    console.warn(`[nestjs-inertia-codegen] Initial route discovery failed, falling back to pages-only: ${err instanceof Error ? err.message : String(err)}`);
-    try { await generate(config); } catch { /* fallback: pages only */ }
+    console.warn(
+      `[nestjs-inertia-codegen] Initial route discovery failed, falling back to pages-only: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    try {
+      await generate(config);
+    } catch {
+      /* fallback: pages only */
+    }
   }
 
   // ── Pages watcher (fast path — no route discovery) ──────────────────────────

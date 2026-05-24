@@ -404,11 +404,7 @@ function resolveImportedType(
 /**
  * Find a type declaration by name: first in the current file, then by following imports.
  */
-function findType(
-  name: string,
-  sourceFile: SourceFile,
-  project: Project,
-): TypeDeclResult | null {
+function findType(name: string, sourceFile: SourceFile, project: Project): TypeDeclResult | null {
   const local = findTypeInFile(name, sourceFile);
   if (local) return local;
   return resolveImportedType(name, sourceFile, project);
@@ -443,7 +439,8 @@ function resolveTypeNodeToString(
     if (name === 'Date') return 'string';
     if (name === 'unknown' || name === 'any' || name === 'void') return 'unknown';
     // Server-only types that don't make sense on the client
-    if (name === 'StreamableFile' || name === 'Observable' || name === 'ReadableStream') return 'unknown';
+    if (name === 'StreamableFile' || name === 'Observable' || name === 'ReadableStream')
+      return 'unknown';
 
     // Array<T> generic form
     if (name === 'Array') {
@@ -534,7 +531,11 @@ function resolvePropertied(
  * Extract the body type from a `@Body()` (no-arg) decorated parameter.
  * Returns a TS type string or null.
  */
-function extractBodyType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string | null {
+function extractBodyType(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): string | null {
   for (const param of method.getParameters()) {
     const bodyDecorator = param.getDecorators().find((d) => d.getName() === 'Body');
     if (!bodyDecorator) continue;
@@ -552,7 +553,11 @@ function extractBodyType(method: MethodDeclaration, sourceFile: SourceFile, proj
  * Extract the query type from a `@Query()` (no-arg) decorated parameter.
  * Returns a TS type string or null.
  */
-function extractQueryType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string | null {
+function extractQueryType(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): string | null {
   for (const param of method.getParameters()) {
     const queryDecorator = param.getDecorators().find((d) => d.getName() === 'Query');
     if (!queryDecorator) continue;
@@ -570,7 +575,11 @@ function extractQueryType(method: MethodDeclaration, sourceFile: SourceFile, pro
  * Collect `@Param('name')` decorated parameters into a `{ name: type; ... }` string.
  * Returns a TS type string or null when no @Param decorators are present.
  */
-function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string | null {
+function extractParamsType(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): string | null {
   const entries: string[] = [];
   for (const param of method.getParameters()) {
     const paramDecorator = param.getDecorators().find((d) => d.getName() === 'Param');
@@ -581,7 +590,9 @@ function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile, pr
     if (!Node.isStringLiteral(nameArg)) continue;
     const paramName = nameArg.getLiteralValue();
     const typeNode = param.getTypeNode();
-    const paramType = typeNode ? resolveTypeNodeToString(typeNode, sourceFile, project, 3) : 'string';
+    const paramType = typeNode
+      ? resolveTypeNodeToString(typeNode, sourceFile, project, 3)
+      : 'string';
     entries.push(`${paramName}: ${paramType}`);
   }
   return entries.length > 0 ? `{ ${entries.join('; ')} }` : null;
@@ -592,7 +603,11 @@ function extractParamsType(method: MethodDeclaration, sourceFile: SourceFile, pr
  * Falls back to the method return type annotation (unwrapping `Promise<>`).
  * Returns a TS type string (never null — falls back to 'unknown').
  */
-function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile, project: Project): string {
+function extractResponseType(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): string {
   // 1. Try @ApiResponse
   const apiResponseDecorator = method.getDecorator('ApiResponse');
   if (apiResponseDecorator) {
@@ -635,7 +650,12 @@ function extractResponseType(method: MethodDeclaration, sourceFile: SourceFile, 
  * Resolve an expression (expected to be a class identifier) to its expanded type string.
  * E.g. the `PostDto` identifier in `@ApiResponse({ type: PostDto })`.
  */
-function resolveIdentifierToClassType(node: Node, sourceFile: SourceFile, project: Project, depth: number): string {
+function resolveIdentifierToClassType(
+  node: Node,
+  sourceFile: SourceFile,
+  project: Project,
+  depth: number,
+): string {
   if (!Node.isIdentifier(node)) return 'unknown';
   const name = node.getText();
   const resolved = findType(name, sourceFile, project);
@@ -685,8 +705,9 @@ function tryResolveTypeRef(
     }
 
     // Check if it's exported from the current file
-    const localDecl = sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
-    if (localDecl && localDecl.isExported()) {
+    const localDecl =
+      sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
+    if (localDecl?.isExported()) {
       return { name, filePath: sourceFile.getFilePath() };
     }
 
@@ -718,7 +739,15 @@ export function extractDtoContract(
   method: MethodDeclaration,
   sourceFile: SourceFile,
   project: Project,
-): { query: string | null; body: string | null; response: string; params: string | null; queryRef?: TypeRef | null; bodyRef?: TypeRef | null; responseRef?: TypeRef | null } | null {
+): {
+  query: string | null;
+  body: string | null;
+  response: string;
+  params: string | null;
+  queryRef?: TypeRef | null;
+  bodyRef?: TypeRef | null;
+  responseRef?: TypeRef | null;
+} | null {
   const body = extractBodyType(method, sourceFile, project);
   const query = extractQueryType(method, sourceFile, project);
   const paramsType = extractParamsType(method, sourceFile, project);
@@ -759,12 +788,19 @@ export function extractDtoContract(
             const val = prop.getInitializer();
             if (val && Node.isIdentifier(val)) {
               const name = val.getText();
-              const localDecl = sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
-              if (localDecl && localDecl.isExported()) {
+              const localDecl =
+                sourceFile.getInterface(name) ||
+                sourceFile.getClass(name) ||
+                sourceFile.getTypeAlias(name);
+              if (localDecl?.isExported()) {
                 responseRef = { name, filePath: sourceFile.getFilePath() };
               } else {
                 const resolved = resolveImportedType(name, sourceFile, project);
-                if (resolved && (resolved.kind === 'class' || resolved.kind === 'interface') && resolved.decl.isExported()) {
+                if (
+                  resolved &&
+                  (resolved.kind === 'class' || resolved.kind === 'interface') &&
+                  resolved.decl.isExported()
+                ) {
                   responseRef = { name, filePath: resolved.file.getFilePath() };
                 }
               }

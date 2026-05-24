@@ -1,6 +1,11 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { FleetResponse, TelemetryBody, VesselStatus, VesselType } from './dto/fleet.dto';
+import {
+  FleetResponse,
+  type TelemetryBody,
+  type VesselStatus,
+  type VesselType,
+} from './dto/fleet.dto';
 
 @Controller('/api/fleet')
 export class CrossFileInterfaceController {

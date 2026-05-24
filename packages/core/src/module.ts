@@ -371,9 +371,7 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
   protected _resolveCodegenModule(): Promise<CodegenModule> {
     // Use a computed specifier so bundlers (esbuild/Vite) skip static analysis.
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-    const dynamicImport = new Function('s', 'return import(s)') as (
-      s: string
-    ) => Promise<unknown>;
+    const dynamicImport = new Function('s', 'return import(s)') as (s: string) => Promise<unknown>;
     return dynamicImport('@dudousxd/nestjs-inertia-codegen') as Promise<CodegenModule>;
   }
 
