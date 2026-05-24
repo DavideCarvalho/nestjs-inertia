@@ -149,7 +149,7 @@ describe('emitApi', () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     // queryKey must use the flat string 'users.list', not nested
-    expect(content).toContain('queryKey: ["users.list"');
+    expect(content).toContain('queryKey: query !== undefined ? ["users.list", query] : ["users.list"]');
   });
 
   // --- Single-segment name (no dot) ---
@@ -193,7 +193,7 @@ describe('emitApi', () => {
     expect(content).toContain('users:');
     expect(content).toContain('list:');
     // queryKey must be flat
-    expect(content).toContain('queryKey: ["admin.users.list"');
+    expect(content).toContain('queryKey: query !== undefined ? ["admin.users.list", query] : ["admin.users.list"]');
   });
 
   // --- Collision detection ---

@@ -194,12 +194,12 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
       const fetcherMethod = method.toLowerCase();
 
       if (method === 'GET') {
-        // Build the type path for ApiRouter traversal: ApiRouter['users']['list']
         const typeAccess = buildRouterTypeAccess(c.name);
         lines.push(`${pad}${objKey}: {`);
+        lines.push(`${pad}  queryKey: (query?: ${typeAccess}['query']) => query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`);
         lines.push(`${pad}  queryOptions: (query?: ${typeAccess}['query']) =>`);
         lines.push(`${pad}    queryOptions({`);
-        lines.push(`${pad}      queryKey: [${flatName}, query],`);
+        lines.push(`${pad}      queryKey: query !== undefined ? [${flatName}, query] : [${flatName}],`);
         lines.push(
           `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query }),`,
         );
@@ -208,6 +208,7 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
       } else {
         const typeAccess = buildRouterTypeAccess(c.name);
         lines.push(`${pad}${objKey}: {`);
+        lines.push(`${pad}  queryKey: () => [${flatName}] as const,`);
         lines.push(`${pad}  mutationOptions: () => ({`);
         lines.push(
           `${pad}    mutationFn: (body: ${typeAccess}['body']) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { body }),`,
