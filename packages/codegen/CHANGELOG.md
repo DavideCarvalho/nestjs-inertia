@@ -1,5 +1,16 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 2.0.0
+
+### Minor Changes
+
+- feat(codegen): ReturnType<import(...)> for response types, queryKey helper, TanStack helpers, type ref imports, path alias resolution, debug mode
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@2.0.0
+
 ## 3.0.0
 
 ### Minor Changes
