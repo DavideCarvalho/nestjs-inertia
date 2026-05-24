@@ -513,6 +513,13 @@ function resolveTypeNodeToString(
       return 'Array<unknown>';
     }
 
+    // Well-known utility types — preserve full text with type args
+    if (
+      ['Record', 'Omit', 'Pick', 'Partial', 'Required', 'Readonly', 'Map', 'Set'].includes(name)
+    ) {
+      return typeNode.getText();
+    }
+
     // Promise<T> — unwrap
     if (name === 'Promise') {
       const typeArgs = typeNode.getTypeArguments();
@@ -529,8 +536,9 @@ function resolveTypeNodeToString(
       return expandTypeDecl(resolved, project, depth - 1);
     }
 
-    // Fall back: use the name as-is
-    return name;
+    // Unresolvable type — use unknown instead of bare name to avoid TS errors in generated code
+    dbg('unresolvable type:', name, 'in', sourceFile.getFilePath());
+    return 'unknown';
   }
 
   // Primitive keyword types
