@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 2.0.0
+
+### Patch Changes
+
+- feat(codegen): add queryKey() helper for typed cache invalidation — api.crew.getCrew.queryKey()
+
 ## 1.0.7
 
 ### Patch Changes
