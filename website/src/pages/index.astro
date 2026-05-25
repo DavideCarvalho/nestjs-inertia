@@ -1,0 +1,423 @@
+---
+/**
+ * Custom landing page for nestjs-inertia.
+ * Lives OUTSIDE Starlight — pure Astro page with its own HTML structure.
+ * Monochromatic zinc palette, same style as nestjs-filter.
+ */
+const rawBase = import.meta.env.BASE_URL;
+const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+const docsHref = `${base}getting-started/`;
+const githubHref = 'https://github.com/DavideCarvalho/nestjs-inertia';
+
+const beforeCode = `<span class="hl-cm">// manual axios hooks everywhere</span>
+<span class="hl-kw">export function</span> <span class="hl-fn">useGetCrew</span>() {
+  <span class="hl-kw">return</span> useQuery({
+    queryKey: [<span class="hl-str">'crew'</span>],
+    queryFn: <span class="hl-kw">async</span> () =&gt; {
+      <span class="hl-kw">const</span> { data } = <span class="hl-kw">await</span> axios.get(<span class="hl-str">'/api/v1/crew/list'</span>);
+      <span class="hl-kw">return</span> data <span class="hl-kw">as</span> <span class="hl-type">CrewResponse</span>;
+    },
+  });
+}
+
+<span class="hl-kw">export function</span> <span class="hl-fn">useUpdateCrew</span>() {
+  <span class="hl-kw">return</span> useMutation({
+    mutationFn: <span class="hl-kw">async</span> (<span class="hl-param">input</span>: <span class="hl-type">UpdateCrewInput</span>) =&gt; {
+      <span class="hl-kw">const</span> { data } = <span class="hl-kw">await</span> axios.patch(
+        <span class="hl-str">\`/api/v1/crew/users/\${input.id}\`</span>,
+        input.body,
+      );
+      <span class="hl-kw">return</span> data;
+    },
+  });
+}
+<span class="hl-cm">// ...repeat for every endpoint</span>`;
+
+const afterCode = `<span class="hl-kw">import</span> { useQuery, useMutation, useQueryClient } <span class="hl-kw">from</span> <span class="hl-str">'@tanstack/react-query'</span>;
+<span class="hl-kw">import</span> { <span class="hl-type">api</span> } <span class="hl-kw">from</span> <span class="hl-str">'~codegen/api'</span>;
+
+<span class="hl-cm">// Queries — fully typed, zero boilerplate</span>
+<span class="hl-kw">const</span> { data } = <span class="hl-fn">useQuery</span>(<span class="hl-type">api</span>.crew.getCrew.<span class="hl-fn">queryOptions</span>());
+
+<span class="hl-cm">// Mutations — body &amp; params typed from your controller</span>
+<span class="hl-kw">const</span> update = <span class="hl-fn">useMutation</span>(<span class="hl-type">api</span>.crew.updateCrew.<span class="hl-fn">mutationOptions</span>());
+<span class="hl-kw">await</span> update.<span class="hl-fn">mutateAsync</span>({
+  params: { id: <span class="hl-str">'42'</span> },
+  body: { name: <span class="hl-str">'New Name'</span> },
+});
+
+<span class="hl-cm">// Cache invalidation — typed keys</span>
+<span class="hl-kw">const</span> qc = <span class="hl-fn">useQueryClient</span>();
+qc.<span class="hl-fn">invalidateQueries</span>({
+  queryKey: <span class="hl-type">api</span>.crew.getCrew.<span class="hl-fn">queryKey</span>(),
+});`;
+
+const feat1Code = `<span class="hl-kw">import</span> { Controller, Get, Post, Body, Param } <span class="hl-kw">from</span> <span class="hl-str">'@nestjs/common'</span>;
+<span class="hl-kw">import</span> { <span class="hl-type">Inertia</span> } <span class="hl-kw">from</span> <span class="hl-str">'@dudousxd/nestjs-inertia'</span>;
+
+<span class="hl-dec">@Controller</span>(<span class="hl-str">'api/v1/posts'</span>)
+<span class="hl-kw">export class</span> <span class="hl-type">PostsController</span> {
+  <span class="hl-dec">@Get</span>()
+  <span class="hl-fn">list</span>(<span class="hl-dec">@Query</span>() <span class="hl-param">query</span>: <span class="hl-type">ListPostsQuery</span>) {
+    <span class="hl-kw">return</span> <span class="hl-kw">this</span>.postsService.<span class="hl-fn">list</span>(query);
+  }
+
+  <span class="hl-dec">@Post</span>()
+  <span class="hl-fn">create</span>(<span class="hl-dec">@Body</span>() <span class="hl-param">body</span>: <span class="hl-type">CreatePostDto</span>) {
+    <span class="hl-kw">return</span> <span class="hl-kw">this</span>.postsService.<span class="hl-fn">create</span>(body);
+  }
+}
+<span class="hl-cm">// That's it. No schemas, no contracts.</span>
+<span class="hl-cm">// The codegen reads your decorators + DTOs.</span>`;
+
+const feat2Code = `<span class="hl-kw">import</span> { <span class="hl-type">Link</span> } <span class="hl-kw">from</span> <span class="hl-str">'@dudousxd/nestjs-inertia-client/react'</span>;
+
+<span class="hl-cm">// Route name is autocompleted</span>
+&lt;<span class="hl-type">Link</span> <span class="hl-param">route</span>=<span class="hl-str">"posts.list"</span>&gt;All Posts&lt;/<span class="hl-type">Link</span>&gt;
+
+<span class="hl-cm">// Params are required &amp; typed</span>
+&lt;<span class="hl-type">Link</span> <span class="hl-param">route</span>=<span class="hl-str">"posts.show"</span> <span class="hl-param">routeParams</span>={{ id: <span class="hl-str">'42'</span> }}&gt;
+  Post #42
+&lt;/<span class="hl-type">Link</span>&gt;
+
+<span class="hl-cm">// Wrong route name? TypeScript error.</span>
+<span class="hl-cm">// Missing param? TypeScript error.</span>`;
+
+const feat3aCode = `<span class="hl-cm">// Type-safe page names — autocompleted from inertia/pages/</span>
+<span class="hl-dec">@Controller</span>(<span class="hl-str">'dashboard'</span>)
+<span class="hl-kw">export class</span> <span class="hl-type">DashboardController</span> {
+  <span class="hl-dec">@Get</span>()
+  <span class="hl-dec">@Inertia</span>(<span class="hl-str">'Dashboard'</span>)  <span class="hl-cm">// ✓ page exists</span>
+  <span class="hl-fn">show</span>() {
+    <span class="hl-kw">return</span> { users: [{ id: <span class="hl-str">'1'</span>, name: <span class="hl-str">'Alice'</span> }] };
+  }
+}
+
+<span class="hl-cm">// Typo → TypeScript error immediately:</span>
+<span class="hl-dec">@Inertia</span>(<span class="hl-str">'Dashbord'</span>)   <span class="hl-cm">// ✗ "Dashbord" is not in InertiaPages</span>`;
+
+const feat3bCode = `<span class="hl-cm">// inertia/pages/Dashboard.tsx</span>
+<span class="hl-kw">export type</span> <span class="hl-type">ComponentProps</span> = {
+  users: { id: <span class="hl-type">string</span>; name: <span class="hl-type">string</span> }[];
+};
+
+<span class="hl-kw">export default function</span> <span class="hl-fn">Dashboard</span>({
+  users,
+}: <span class="hl-type">ComponentProps</span>) {
+  <span class="hl-kw">return</span> (
+    &lt;<span class="hl-type">ul</span>&gt;
+      {users.<span class="hl-fn">map</span>(<span class="hl-param">u</span> =&gt;
+        &lt;<span class="hl-type">li</span> <span class="hl-param">key</span>={u.id}&gt;{u.name}&lt;/<span class="hl-type">li</span>&gt;
+      )}
+    &lt;/<span class="hl-type">ul</span>&gt;
+  );
+}
+<span class="hl-cm">// If the controller returns { crew: Crew[] }</span>
+<span class="hl-cm">// but this page expects { users: User[] }</span>
+<span class="hl-cm">// → type error at compile time</span>`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>nestjs-inertia: Inertia.js adapter for NestJS</title>
+    <meta name="description" content="Build server-driven SPAs with NestJS and Inertia.js — full type safety, codegen, and Tuyau-style typed client." />
+    <meta property="og:title" content="nestjs-inertia: Inertia.js adapter for NestJS" />
+    <meta property="og:description" content="Build server-driven SPAs with NestJS and Inertia.js — full type safety, codegen, and Tuyau-style typed client." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <style is:inline>
+      @font-face { font-family: "Geist Sans"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url("https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@2.304/fonts/variable/JetBrainsMono%5Bwght%5D.woff2") format("woff2"); }
+    </style>
+
+    <style is:inline>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace;
+        --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+        --bg: #09090b; --bg-elevated: #18181b; --border: #27272a; --border-light: #18181b;
+        --text: #fafafa; --text-muted: #a1a1aa; --text-dim: #71717a; --text-ghost: #52525b;
+        --surface-hover: #18181b; --invert-bg: #fafafa; --invert-text: #09090b;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #fafafa; --bg-elevated: #f4f4f5; --border: #e4e4e7; --border-light: #f4f4f5;
+          --text: #18181b; --text-muted: #52525b; --text-dim: #a1a1aa; --text-ghost: #a1a1aa;
+          --surface-hover: #f4f4f5; --invert-bg: #18181b; --invert-text: #fafafa;
+        }
+      }
+      html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+      body { font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+      code { font-family: var(--font-mono); }
+      a { color: inherit; text-decoration: none; }
+      .container { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
+
+      @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      .animate-in { opacity: 0; animation: fadeInUp 0.5s var(--ease-out) forwards; }
+      .delay-1 { animation-delay: 0.1s; } .delay-2 { animation-delay: 0.2s; } .delay-3 { animation-delay: 0.3s; }
+      .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out); }
+      .reveal.visible { opacity: 1; transform: translateY(0); }
+      @media (prefers-reduced-motion: reduce) { .animate-in { opacity: 1; animation: none; } .reveal { opacity: 1; transform: none; transition: none; } }
+
+      .nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); }
+      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 3.5rem; }
+      .nav-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+      .nav-links { display: flex; align-items: center; gap: 0.25rem; }
+      .nav-link { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 500; color: var(--text-muted); padding: 0.4rem 0.75rem; border-radius: 0.375rem; transition: color 0.15s var(--ease-out), background-color 0.15s var(--ease-out); }
+      .nav-link:hover { color: var(--text); background: var(--surface-hover); }
+      .nav-link svg { vertical-align: -2px; }
+
+      .hero { padding: 6rem 0 5rem; border-bottom: 1px solid var(--border); }
+      @media (max-width: 48rem) { .hero { padding: 3.5rem 0 3rem; } }
+      .hero-title { font-size: clamp(3.5rem, 9vw, 6rem); font-family: var(--font-mono); font-weight: 800; line-height: 1.0; letter-spacing: -0.04em; color: var(--text); margin-bottom: 1rem; }
+      .hero-subtitle { font-size: clamp(1.1rem, 2.5vw, 1.3rem); color: var(--text-muted); max-width: 48ch; line-height: 1.5; margin-bottom: 2.5rem; }
+
+      .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 2.5rem; }
+      .btn { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: 0.875rem; font-weight: 500; padding: 0.6rem 1.25rem; border-radius: 0.375rem; border: 1px solid var(--border); color: var(--text-muted); transition: background-color 0.15s var(--ease-out), border-color 0.15s var(--ease-out), color 0.15s var(--ease-out); cursor: pointer; background: transparent; }
+      .btn:hover { background: var(--surface-hover); border-color: var(--text); color: var(--text); }
+      .btn-primary { background: var(--invert-bg); border-color: var(--invert-bg); color: var(--invert-text); font-weight: 600; }
+      .btn-primary:hover { background: transparent; border-color: var(--invert-bg); color: var(--invert-bg); }
+
+      .install-bar { max-width: 48rem; margin-bottom: 3rem; }
+      .install-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-ghost); margin-bottom: 0.35rem; display: block; }
+      .install-cmd { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text); overflow-x: auto; }
+      .install-cmd code { flex: 1; white-space: nowrap; background: none; padding: 0; }
+      .copy-btn { display: inline-flex; align-items: center; gap: 0.3rem; background: transparent; border: 1px solid var(--border); border-radius: 0.25rem; padding: 0.25rem 0.5rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer; transition: background-color 0.15s var(--ease-out), border-color 0.15s var(--ease-out), color 0.15s var(--ease-out); white-space: nowrap; flex-shrink: 0; }
+      .copy-btn:hover { background: var(--surface-hover); border-color: var(--text); color: var(--text); }
+
+      .compare { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+      @media (min-width: 56rem) { .compare { grid-template-columns: 1fr 1fr; gap: 1.5rem; } }
+      .compare-card { border: 1px solid var(--border); border-radius: 0.5rem; overflow: hidden; }
+      .compare-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1rem; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+      .compare-icon { font-weight: 700; font-size: 0.85rem; }
+      .compare-icon-bad { color: var(--text-dim); }
+      .compare-icon-good { color: var(--text); }
+      .compare-card pre { margin: 0; padding: 1.25rem 1.5rem; overflow-x: auto; background: var(--bg-elevated); border: none; }
+      .compare-card code { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.65; color: var(--text); }
+      .compare-before pre { opacity: 0.55; }
+
+      .section { padding: 5rem 0; border-bottom: 1px solid var(--border); }
+      @media (max-width: 48rem) { .section { padding: 3rem 0; } }
+      .section-label { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.75rem; }
+      .section-title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; letter-spacing: -0.02em; color: var(--text); margin-bottom: 3rem; }
+
+      .feature-full { margin-bottom: 4rem; }
+      .feature-full:last-child { margin-bottom: 0; }
+      .feature-full .feature-text { margin-top: 1rem; max-width: 56ch; }
+      .feature-full .feature-text h3 { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+      .feature-full .feature-text p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; }
+      .feature-full .feature-text p code { font-size: 0.85em; background: var(--bg-elevated); padding: 0.1em 0.3em; border-radius: 3px; color: var(--text); }
+
+      .feature-row { display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: center; margin-bottom: 4rem; }
+      .feature-row:last-child { margin-bottom: 0; }
+      @media (min-width: 56rem) { .feature-row { grid-template-columns: 1fr 1fr; gap: 3rem; } .feature-row .feature-text { order: -1; } }
+      .feature-row .feature-text h3, .feature-text h3 { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 0.75rem; letter-spacing: -0.01em; }
+      .feature-row .feature-text p, .feature-text p { font-size: 0.95rem; color: var(--text-muted); line-height: 1.65; }
+      .feature-row .feature-text p code, .feature-text p code { font-size: 0.85em; background: var(--bg-elevated); padding: 0.1em 0.3em; border-radius: 3px; color: var(--text); }
+
+      .feature-code { border: 1px solid var(--border); border-radius: 0.5rem; overflow: hidden; }
+      .feature-code-header { padding: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-ghost); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+      .feature-code pre { margin: 0; padding: 1.25rem 1.5rem; overflow-x: auto; background: var(--bg-elevated); }
+      .feature-code code { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.65; color: var(--text); }
+
+      .packages-list { display: flex; flex-direction: column; gap: 0.5rem; }
+      @media (min-width: 56rem) { .packages-list { flex-direction: row; flex-wrap: wrap; gap: 0.75rem 1.5rem; } }
+      .pkg-item { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text); display: inline-flex; align-items: baseline; gap: 0.5rem; transition: color 0.15s var(--ease-out); }
+      .pkg-item:hover { color: var(--text-muted); }
+      .pkg-item .pkg-sep { color: var(--text-ghost); }
+      .pkg-item .pkg-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+      .cta { padding: 5rem 0 4rem; text-align: center; }
+      .cta-text { font-size: clamp(1.25rem, 3vw, 1.5rem); font-weight: 600; color: var(--text); margin-bottom: 1.5rem; letter-spacing: -0.01em; }
+
+      .footer { border-top: 1px solid var(--border); padding: 2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-ghost); }
+      .footer a { color: var(--text-muted); transition: color 0.15s var(--ease-out); }
+      .footer a:hover { color: var(--text); }
+
+      .hl-kw { color: #a1a1aa; font-weight: 500; } .hl-str { color: #d4d4d8; } .hl-type { color: #fafafa; font-weight: 500; }
+      .hl-fn { color: #e4e4e7; } .hl-dec { color: #fafafa; font-weight: 600; } .hl-param { color: #a1a1aa; }
+      .hl-prop { color: #d4d4d8; } .hl-cm { color: #52525b; font-style: italic; }
+      @media (prefers-color-scheme: light) {
+        .hl-kw { color: #52525b; } .hl-str { color: #3f3f46; } .hl-type { color: #18181b; }
+        .hl-fn { color: #27272a; } .hl-dec { color: #18181b; } .hl-param { color: #52525b; }
+        .hl-prop { color: #3f3f46; } .hl-cm { color: #a1a1aa; }
+      }
+      :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+    </style>
+  </head>
+
+  <body>
+    <nav class="nav">
+      <div class="container nav-inner">
+        <a href={base} class="nav-brand">nestjs-inertia</a>
+        <div class="nav-links">
+          <a href={docsHref} class="nav-link">Docs</a>
+          <a href={githubHref} class="nav-link" target="_blank" rel="noopener">
+            GitHub
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title animate-in">nestjs-inertia</h1>
+        <p class="hero-subtitle animate-in delay-1">Inertia.js adapter for NestJS. Full type safety from controller to component.</p>
+
+        <div class="hero-actions animate-in delay-2">
+          <a href={docsHref} class="btn btn-primary">
+            Get Started
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          <a href={githubHref} class="btn" target="_blank" rel="noopener">
+            GitHub
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+
+        <div class="install-bar animate-in delay-3">
+          <span class="install-label">Install</span>
+          <div class="install-cmd" id="install-cmd">
+            <code>pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client</code>
+            <button class="copy-btn" aria-label="Copy install command" id="copy-install" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span class="copy-text">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="compare">
+          <div class="compare-card compare-before reveal">
+            <div class="compare-header">
+              <span class="compare-icon compare-icon-bad">&#x2717;</span>
+              Manual hooks
+            </div>
+            <pre><code set:html={beforeCode} /></pre>
+          </div>
+          <div class="compare-card reveal">
+            <div class="compare-header">
+              <span class="compare-icon compare-icon-good">&#x2713;</span>
+              With nestjs-inertia codegen
+            </div>
+            <pre><code set:html={afterCode} /></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+
+        <div class="feature-full reveal">
+          <div class="feature-code">
+            <div class="feature-code-header">
+              <span>posts.controller.ts</span>
+              <span>TypeScript</span>
+            </div>
+            <pre><code set:html={feat1Code} /></pre>
+          </div>
+          <div class="feature-text">
+            <h3>Zero-config codegen</h3>
+            <p>The CLI reads your <code>@Controller</code>, <code>@Get</code>, <code>@Body</code>, <code>@Query</code>, and <code>@Param</code> decorators. No schemas, no contracts — your existing DTOs are the source of truth. Response types are inferred via <code>ReturnType&lt;import(...)&gt;</code>.</p>
+          </div>
+        </div>
+
+        <div class="feature-row reveal">
+          <div class="feature-code">
+            <div class="feature-code-header">
+              <span>PostList.tsx</span>
+              <span>React</span>
+            </div>
+            <pre><code set:html={feat2Code} /></pre>
+          </div>
+          <div class="feature-text">
+            <h3>Typed <code>&lt;Link&gt;</code></h3>
+            <p>Route names are autocompleted from your controllers. <code>routeParams</code> is required when the route has dynamic segments, and typed to the exact params. Wrong route name or missing param? TypeScript error at compile time.</p>
+          </div>
+        </div>
+
+        <div class="feature-full reveal">
+          <div class="feature-text" style="margin-top: 0; margin-bottom: 1.5rem;">
+            <h3>Props E2E type safety</h3>
+            <p>The <code>@Inertia()</code> decorator only accepts page names that exist in your <code>inertia/pages/</code> directory. The codegen validates that the controller return type matches the page's <code>ComponentProps</code>. Mismatched props surface as TypeScript errors — before you run the app.</p>
+          </div>
+          <div class="compare">
+            <div class="compare-card">
+              <div class="compare-header">dashboard.controller.ts</div>
+              <pre><code set:html={feat3aCode} /></pre>
+            </div>
+            <div class="compare-card">
+              <div class="compare-header">inertia/pages/Dashboard.tsx</div>
+              <pre><code set:html={feat3bCode} /></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <p class="section-label reveal">Ecosystem</p>
+        <h2 class="section-title reveal">Packages</h2>
+        <div class="packages-list reveal">
+          <a href={`${githubHref}/tree/main/packages/core`} class="pkg-item" target="_blank" rel="noopener">
+            @dudousxd/nestjs-inertia <span class="pkg-sep">&middot;</span> <span class="pkg-desc">core protocol + module</span>
+          </a>
+          <a href={`${githubHref}/tree/main/packages/vite`} class="pkg-item" target="_blank" rel="noopener">
+            @dudousxd/nestjs-inertia-vite <span class="pkg-sep">&middot;</span> <span class="pkg-desc">Vite plugin + dev server</span>
+          </a>
+          <a href={`${githubHref}/tree/main/packages/codegen`} class="pkg-item" target="_blank" rel="noopener">
+            @dudousxd/nestjs-inertia-codegen <span class="pkg-sep">&middot;</span> <span class="pkg-desc">CLI + typed API</span>
+          </a>
+          <a href={`${githubHref}/tree/main/packages/client`} class="pkg-item" target="_blank" rel="noopener">
+            @dudousxd/nestjs-inertia-client <span class="pkg-sep">&middot;</span> <span class="pkg-desc">typed Link + fetcher</span>
+          </a>
+          <a href={`${githubHref}/tree/main/packages/testing`} class="pkg-item" target="_blank" rel="noopener">
+            @dudousxd/nestjs-inertia-testing <span class="pkg-sep">&middot;</span> <span class="pkg-desc">expectInertia matchers</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <div class="cta">
+      <div class="container">
+        <p class="cta-text reveal">Install, init, and go. Under 5 minutes.</p>
+        <a href={docsHref} class="btn btn-primary reveal">
+          Read the guide
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div class="container">
+        <p>MIT &middot; <a href={githubHref} target="_blank" rel="noopener">GitHub</a></p>
+      </div>
+    </footer>
+
+    <script is:inline>
+      const btn = document.getElementById('copy-install');
+      const cmd = document.querySelector('#install-cmd code');
+      if (btn && cmd) {
+        btn.addEventListener('click', async () => {
+          const text = cmd.textContent || '';
+          await navigator.clipboard.writeText(text);
+          const label = btn.querySelector('.copy-text');
+          if (label) { label.textContent = 'Copied!'; setTimeout(() => { label.textContent = 'Copy'; }, 1500); }
+        });
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); } });
+      }, { threshold: 0.15 });
+      document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+    </script>
+  </body>
+</html>
