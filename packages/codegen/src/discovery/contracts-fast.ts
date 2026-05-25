@@ -669,11 +669,11 @@ function extractQueryType(
  * Resolves the filter class and reads its properties (excluding inherited base class members).
  * Returns a TS type string or null.
  */
-function extractApplyFilterQueryType(
+function extractApplyFilterInfo(
   method: MethodDeclaration,
   sourceFile: SourceFile,
   project: Project,
-): string | null {
+): { queryType: string; fieldNames: string[] } | null {
   for (const param of method.getParameters()) {
     const filterDecorator = param.getDecorators().find((d) => d.getName() === 'ApplyFilter');
     if (!filterDecorator) continue;
@@ -695,7 +695,10 @@ function extractApplyFilterQueryType(
       }
       if (fieldNames.length === 0) return null;
       const fieldsUnion = fieldNames.map((f) => JSON.stringify(f)).join(' | ');
-      return `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${fieldsUnion}>`;
+      return {
+        queryType: `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${fieldsUnion}>`,
+        fieldNames,
+      };
     }
   }
   return null;
@@ -877,11 +880,11 @@ export function extractDtoContract(
   queryRef?: TypeRef | null;
   bodyRef?: TypeRef | null;
   responseRef?: TypeRef | null;
+  filterFields?: string[] | null;
 } | null {
   const body = extractBodyType(method, sourceFile, project);
-  const query =
-    extractQueryType(method, sourceFile, project) ??
-    extractApplyFilterQueryType(method, sourceFile, project);
+  const filterInfo = extractApplyFilterInfo(method, sourceFile, project);
+  const query = extractQueryType(method, sourceFile, project) ?? filterInfo?.queryType ?? null;
   const paramsType = extractParamsType(method, sourceFile, project);
   const response = extractResponseType(method, sourceFile, project);
 
@@ -943,7 +946,16 @@ export function extractDtoContract(
     }
   }
 
-  return { query, body, response, params: paramsType, queryRef, bodyRef, responseRef };
+  return {
+    query,
+    body,
+    response,
+    params: paramsType,
+    queryRef,
+    bodyRef,
+    responseRef,
+    filterFields: filterInfo?.fieldNames ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------
