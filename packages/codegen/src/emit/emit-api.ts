@@ -88,19 +88,6 @@ type BranchEntry = {
 
 type TreeNode = LeafEntry | BranchEntry;
 
-function detectCollisions(tree: Map<string, TreeNode>, name: string): void {
-  // Walk to ensure no node that is a leaf also has children (or vice versa).
-  // Called after insertion; we scan top-level keys for conflicts.
-  for (const [key, node] of tree) {
-    if (node.kind === 'leaf') {
-      // A leaf at this position is fine
-    } else {
-      void key; // branch is fine too
-    }
-  }
-  void name;
-}
-
 /**
  * Insert a contracted route into the mutable tree.
  * Throws if a name conflict is detected.
@@ -379,8 +366,6 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
     };
     insertIntoTree(tree, segments, leaf, name);
   }
-
-  void detectCollisions; // used inline above
 
   // --- ApiRouter type ---
   lines.push('export type ApiRouter = {');
