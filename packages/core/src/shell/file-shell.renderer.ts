@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { extname, isAbsolute, resolve } from 'node:path';
 import type { Manifest } from '../asset/version.provider.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
@@ -39,7 +39,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
   async render(ctx: ShellRenderCtx): Promise<string> {
     const isDev = process.env.NODE_ENV !== 'production';
     if (this.cachedTemplate === null || isDev) {
-      this.cachedTemplate = readFileSync(this.absPath, 'utf8');
+      this.cachedTemplate = await readFile(this.absPath, 'utf8');
       if (isDev) this.engineRenderer = null; // re-compile on next render
     }
 
