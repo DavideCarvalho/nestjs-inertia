@@ -665,6 +665,48 @@ function extractQueryType(
 }
 
 /**
+ * Extract the query type from an `@ApplyFilter(FilterClass)` decorated parameter.
+ * Resolves the filter class and reads its properties (excluding inherited base class members).
+ * Returns a TS type string or null.
+ */
+function extractApplyFilterQueryType(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): string | null {
+  for (const param of method.getParameters()) {
+    const filterDecorator = param.getDecorators().find((d) => d.getName() === 'ApplyFilter');
+    if (!filterDecorator) continue;
+    const args = filterDecorator.getArguments();
+    if (args.length === 0) continue;
+    const filterClassArg = args[0];
+    if (!filterClassArg || !Node.isIdentifier(filterClassArg)) continue;
+    const filterClassName = filterClassArg.getText();
+    const resolved = findType(filterClassName, sourceFile, project);
+    if (resolved && resolved.kind === 'class') {
+      const classDecl = resolved.decl as ClassDeclaration;
+      const props = classDecl.getProperties();
+      if (props.length === 0) return null;
+      const lines: string[] = [];
+      for (const prop of props) {
+        const propName = prop.getName();
+        if (propName.startsWith('$') || propName.startsWith('_')) continue;
+        const isOptional = prop.hasQuestionToken();
+        const propTypeNode = prop.getTypeNode();
+        let propType = 'unknown';
+        if (propTypeNode) {
+          propType = resolveTypeNodeToString(propTypeNode, resolved.file, project, 3);
+        }
+        lines.push(`${propName}${isOptional ? '?' : ''}: ${propType}`);
+      }
+      if (lines.length === 0) return null;
+      return `{ ${lines.join('; ')} }`;
+    }
+  }
+  return null;
+}
+
+/**
  * Collect `@Param('name')` decorated parameters into a `{ name: type; ... }` string.
  * Returns a TS type string or null when no @Param decorators are present.
  */
@@ -842,7 +884,9 @@ export function extractDtoContract(
   responseRef?: TypeRef | null;
 } | null {
   const body = extractBodyType(method, sourceFile, project);
-  const query = extractQueryType(method, sourceFile, project);
+  const query =
+    extractQueryType(method, sourceFile, project) ??
+    extractApplyFilterQueryType(method, sourceFile, project);
   const paramsType = extractParamsType(method, sourceFile, project);
   const response = extractResponseType(method, sourceFile, project);
 
