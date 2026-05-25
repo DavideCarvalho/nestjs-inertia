@@ -3,13 +3,29 @@ title: Codegen
 description: Use nestjs-inertia-codegen to emit typed pages, routes, and a typed API surface from your NestJS controllers.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 `@dudousxd/nestjs-inertia-codegen` provides a CLI that statically analyses your NestJS application and emits TypeScript type files so that your frontend and any API client are fully type-safe.
 
 ## Install
 
-```bash
-pnpm add -D @dudousxd/nestjs-inertia-codegen
-```
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add -D @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install --save-dev @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add -D @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+</Tabs>
 
 ## Configuration
 
@@ -60,42 +76,67 @@ Or add a script to `package.json`:
 
 ```
 .nestjs-inertia/
-  pages.d.ts   — union type of all known Inertia page component names
-  routes.ts    — typed route helpers derived from @Inertia() metadata
-  api.ts       — typed client API surface derived from @ApplyContract() metadata
+  pages.d.ts   — module augmentation for typed @Inertia() and page props
+  routes.ts    — typed route map + route() helper for URL resolution
+  api.ts       — queryOptions(), mutationOptions(), queryKey() for every route
 ```
 
 ### `pages.d.ts`
 
 ```ts
-export type InertiaPages = 'Dashboard' | 'Users' | 'Settings';
+export type InertiaPageName = 'Dashboard' | 'Users' | 'Settings';
+
+declare module '@dudousxd/nestjs-inertia' {
+  interface InertiaPages {
+    Dashboard: import('../inertia/pages/Dashboard').ComponentProps;
+    Users: import('../inertia/pages/Users').ComponentProps;
+    Settings: import('../inertia/pages/Settings').ComponentProps;
+  }
+}
 ```
 
-Use this type to constrain the `component` argument wherever you construct Inertia responses programmatically.
+This augments the `@Inertia()` decorator to only accept valid page names. Write `@Inertia('Dashbord')` and TypeScript errors immediately.
 
 ### `routes.ts`
 
 ```ts
-export const routes = {
-  dashboard: () => '/dashboard',
-  users: { list: () => '/api/users' },
+export const ROUTES = {
+  "users.list": "/api/users",
+  "users.show": "/api/users/:id",
 } as const;
+
+export type RouteName = keyof typeof ROUTES;
+
+export function route(name: RouteName, params?: Record<string, string>): string;
 ```
 
 ### `api.ts`
 
 ```ts
-export interface InertiaApi {
-  'users.list': {
-    method: 'GET';
-    url: '/api/users';
-    query: { active?: boolean };
-    response: Array<{ id: string; name: string }>;
+import { queryOptions as _queryOptions, mutationOptions as _mutationOptions } from '@tanstack/react-query';
+
+export interface ApiRouter {
+  users: {
+    list: { method: "GET"; url: "/api/users"; query: { active?: boolean }; body: never; response: Awaited<ReturnType<import('../src/users.controller').UsersController['list']>> };
+    show: { method: "GET"; url: "/api/users/:id"; params: { id: string }; query: never; body: never; response: ... };
   };
 }
+
+export const api = {
+  users: {
+    list: {
+      queryOptions: (query?) => _queryOptions({ queryKey: [...], queryFn: ... }),
+      queryKey: (query?) => ["users.list", query] as const,
+    },
+    show: {
+      queryOptions: (params, query?) => _queryOptions({ ... }),
+      queryKey: (params, query?) => ["users.show", params, query] as const,
+    },
+  },
+};
 ```
 
-This file is consumed by `@dudousxd/nestjs-inertia-client`'s `createFetcher` to produce a fully typed client.
+Response types use `Awaited<ReturnType<import(...)>>` — they stay in sync with your controller automatically, no annotations needed.
 
 ## Using class-validator DTOs (no `defineContract` needed)
 
@@ -162,10 +203,12 @@ When building contract info for a method the codegen applies this priority:
 ### Notes and limitations
 
 - `@Query('key')` for individual string query params is **ignored** (only `@Query()` with no argument pointing to a DTO class is extracted).
-- DTO classes must be declared in the **same file** as the controller for the fast AST path to resolve them. Imported DTOs fall back to the class name string.
+- DTO classes can be imported from other files — the codegen follows `import` declarations and resolves `tsconfig.json` path aliases (e.g. `@/*`) automatically.
+- Interfaces, type aliases, and enums are also resolved across files.
 - Recursive class resolution is limited to **depth 3** to prevent infinite loops on circular references.
 - `Date` properties are emitted as `string` (common REST API convention).
-- `defineContract` with Zod is the **advanced path** for teams that prefer explicit, validated schemas. DTOs are the zero-boilerplate path for teams already using class-validator.
+- Utility types like `Record<K, V>`, `Omit<T, K>`, and `Pick<T, K>` are preserved with their generic arguments.
+- Server-only types (`StreamableFile`, `Observable`) are mapped to `unknown` in the generated output.
 
 ## `@ApplyContract` example
 
@@ -239,11 +282,9 @@ import { As } from '@dudousxd/nestjs-inertia-client';
 @As('crew')
 class CrewController {
   @Get()
-  @ApplyContract(ListCrew)
   list() { ... }              // → 'crew.list'
 
   @Get('/top')
-  @ApplyContract(TopCrew)
   @As('top10')                // → 'crew.top10'
   top() { ... }
 }
@@ -253,7 +294,6 @@ class CrewController {
 @As('crew.admin')
 class CrewAdminController {
   @Get()
-  @ApplyContract(ListCrew)
   @As('top10')                // → 'crew.admin.top10'
   list() { ... }
 }
@@ -273,7 +313,7 @@ The generated `api.ts` exports two namespaces of type helpers for accessing requ
 ### `Route.*` — by contract name
 
 ```ts
-import type { Route } from '.nestjs-inertia/api.js';
+import type { Route } from '~codegen/api';
 
 // Resolved type of the response field for users.list
 type UserList = Route.Response<'users.list'>;
@@ -288,7 +328,7 @@ All helpers: `Route.Response<K>`, `Route.Body<K>`, `Route.Query<K>`, `Route.Para
 ### `Path.*` — by HTTP method + URL pattern
 
 ```ts
-import type { Path } from '.nestjs-inertia/api.js';
+import type { Path } from '~codegen/api';
 
 type ListResponse = Path.Response<'GET', '/api/users'>;
 type CreateBody   = Path.Body<'POST', '/api/users'>;
@@ -341,6 +381,18 @@ pnpm nestjs-inertia codegen --watch
 
 Reruns whenever a controller or page file changes. When using this alongside `nest start --watch`, the auto-bootstrap watcher detects the held lock and becomes a no-op automatically.
 
+## Diagnosing your setup
+
+```bash
+pnpm exec nestjs-inertia doctor
+```
+
+Checks tsconfig paths, codegen output, package versions, Inertia v3, `.gitignore`, and Vite config. To auto-fix issues:
+
+```bash
+pnpm exec nestjs-inertia doctor --fix
+```
+
 ## Generated file management
 
-Add the output directory to version control so that CI has types without running the CLI. Alternatively, add a `postinstall` script to generate on install and add `.nestjs-inertia/` to `.gitignore`.
+Add `.nestjs-inertia/` to `.gitignore` and run `nestjs-inertia codegen` in CI before TypeScript compilation. Alternatively, commit the output directory so CI has types without running the CLI.

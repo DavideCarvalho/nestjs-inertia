@@ -3,9 +3,25 @@ title: "@dudousxd/nestjs-inertia-client"
 description: Tuyau-style typed HTTP client with Contract builders, createFetcher, and SSR hydration.
 ---
 
-```bash
-pnpm add @dudousxd/nestjs-inertia-client
-```
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia-client
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia-client
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia-client
+    ```
+  </TabItem>
+</Tabs>
 
 End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus typed `<Link>` components for React, Vue, and Svelte.
 
@@ -23,13 +39,12 @@ End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus
 
 | Export | Description |
 |--------|-------------|
-| `Contract.get/post/put/patch/delete` | Declare a typed REST contract with Zod schemas |
-| `@ApplyContract(contract)` | Attach a contract to a controller method (read by codegen) |
+| `@As(name)` | Set the route name for a controller class or method (read by codegen) |
 | `createFetcher<Api>(options)` | Create a typed fetch client from `api.ts` |
 | `InertiaRouteProvider` (React) | Context provider — wrap your app root to enable `<Link>` route resolution |
 | `provideInertiaRoutes()` (Vue/Svelte) | Provide the route resolver to all child `<Link>` components |
 | `useInertiaRoutes()` (React/Vue/Svelte) | Hook/function to access the route resolver in any component |
-| `Route.Response<K>` / `Route.Body<K>` / `Route.Query<K>` | Extract request/response types by contract name |
+| `Route.Response<K>` / `Route.Body<K>` / `Route.Query<K>` | Extract request/response types by route name |
 | `hydrateClientFromInertia(page)` | SSR: initialise TanStack Query from Inertia initial-page data |
 
 See [Typed Client guide](/nestjs-inertia/guides/typed-client/) for full HTTP client usage.

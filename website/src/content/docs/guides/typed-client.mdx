@@ -60,15 +60,42 @@ queryClient.invalidateQueries({ queryKey: api.crew.getCrew.queryKey() });
 queryClient.invalidateQueries({ queryKey: api.posts.list.queryKey({ page: 2 }) });
 ```
 
+## URL params
+
+Routes with dynamic segments (e.g. `/users/:id`) accept a `params` argument:
+
+```tsx
+// GET with params
+const { data } = useQuery(api.users.show.queryOptions({ id: userId }));
+
+// Mutation with params + body
+const update = useMutation(api.crew.updateCrew.mutationOptions());
+await update.mutateAsync({ params: { id: crewId }, body: { name: 'New Name' } });
+```
+
+## Infinite queries
+
+For paginated endpoints that return `{ data, meta: { page, lastPage } }`, use `infiniteQueryOptions()`:
+
+```tsx
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+const { data, fetchNextPage, hasNextPage } = useInfiniteQuery(
+  api.posts.list.infiniteQueryOptions()
+);
+```
+
+The codegen reads `meta.page` / `meta.lastPage` from the response to derive `getNextPageParam` automatically.
+
 ## Route helper
 
-For parameterized URLs (e.g. `/users/:id`), use the `route()` function with `fetcher`:
+For manual fetcher calls, use `route()` from the generated routes:
 
 ```ts
 import { fetcher } from '~codegen/api';
 import { route } from '~codegen/routes';
 
-// When mutationOptions() can't handle URL params
 const result = await fetcher.patch(route('crew.updateCrew', { id: userId }), {
   body: { name: 'New Name' },
 });
@@ -85,7 +112,3 @@ type CrewData = Route.Response<'crew.getCrew'>;
 type CreateBody = Route.Body<'posts.create'>;
 type ListQuery = Route.Query<'posts.list'>;
 ```
-
-## Advanced: defineContract + @ApplyContract
-
-For cases where you want explicit Zod schemas with runtime validation (not just type extraction), you can still use the contract pattern. See the [Codegen guide](/nestjs-inertia/guides/codegen/#applycontract-example).

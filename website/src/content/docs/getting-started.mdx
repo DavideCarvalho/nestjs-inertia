@@ -15,10 +15,26 @@ The fastest way to get Inertia.js running in NestJS is two steps: install the pa
 
 Install the five packages that make up the suite, then add the Inertia client adapter for your frontend framework.
 
-```bash
-pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-pnpm add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
-```
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
+    pnpm add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
+    npm install --save-dev @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
+    yarn add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
+    ```
+  </TabItem>
+</Tabs>
 
 Then install your framework's Inertia adapter and Vite plugin:
 
@@ -47,9 +63,23 @@ Then install your framework's Inertia adapter and Vite plugin:
 
 ### Step 2 — Run `nestjs-inertia init`
 
-```bash
-pnpm exec nestjs-inertia init
-```
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm exec nestjs-inertia init
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npx nestjs-inertia init
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn nestjs-inertia init
+    ```
+  </TabItem>
+</Tabs>
 
 This command scaffolds your entire Inertia setup in one shot. It:
 

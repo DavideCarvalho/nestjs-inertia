@@ -36,9 +36,9 @@ nestjs-inertia is a TypeScript-first monorepo of five focused packages that toge
                                               │  nestjs-inertia-      │
                                               │       client          │
                                               │                       │
-                                              │  Contract builder     │
-                                              │  @ApplyContract       │
+                                              │  @As() route naming   │
                                               │  createFetcher        │
+                                              │  <Link> components    │
                                               │  SSR hydration        │
                                               └───────────────────────┘
 ```
@@ -67,16 +67,18 @@ nestjs-inertia is a TypeScript-first monorepo of five focused packages that toge
 ### `@dudousxd/nestjs-inertia-codegen`
 
 CLI (`nestjs-inertia codegen`) that statically analyses the NestJS app and emits:
-- `pages.d.ts` — union of all Inertia page component names.
-- `routes.ts` — typed route helpers derived from controller metadata.
-- `api.ts` — typed client API surface derived from `@ApplyContract` metadata.
+- `pages.d.ts` — module augmentation for typed `@Inertia()` and page props.
+- `routes.ts` — typed route map + `route()` helper for URL resolution.
+- `api.ts` — `queryOptions()`, `mutationOptions()`, and `queryKey()` for every route, with response types inferred via `ReturnType<import(...)>`.
+
+Also provides `nestjs-inertia doctor` for setup diagnostics and `nestjs-inertia doctor --fix` for auto-repair.
 
 ### `@dudousxd/nestjs-inertia-client`
 
-- `Contract` builder — declare typed request/response schemas with Zod.
-- `@ApplyContract(contract)` — attaches the contract to a controller method (read by codegen).
+- `@As(name)` — sets the route name for a controller class or method (read by codegen).
 - `createFetcher(apiDef)` — creates a typed fetch client from the generated `api.ts`.
 - `hydrateClientFromInertia` — initialises TanStack Query from the Inertia initial-page payload.
+- Typed `<Link>` components for React, Vue 3, and Svelte with route-name autocomplete.
 
 ## Data flow (request lifecycle)
 

@@ -5,11 +5,27 @@ description: Use the typed <Link> component for React, Vue 3, and Svelte with fu
 
 The `@dudousxd/nestjs-inertia-client` package ships typed `<Link>` components for React, Vue 3, and Svelte. Each component wraps the corresponding `@inertiajs/*` `Link` but adds a `route` prop that is autocompleted from your codegen-emitted `RouteParamsMap`, and a conditionally required `routeParams` prop typed to the exact parameters of that route.
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 ## Install
 
-```bash
-pnpm add @dudousxd/nestjs-inertia-client
-```
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia-client
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia-client
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia-client
+    ```
+  </TabItem>
+</Tabs>
 
 ## Module augmentation
 
@@ -187,9 +203,8 @@ import { As } from '@dudousxd/nestjs-inertia-client';
 @As('users')
 class UsersController {
   @Get('/:id')
-  @ApplyContract(ShowUser)
   @As('profile')   // → 'users.profile'
-  show() { ... }
+  show(@Param('id') id: string) { ... }
 }
 ```
 

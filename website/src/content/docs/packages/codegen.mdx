@@ -3,9 +3,25 @@ title: "@dudousxd/nestjs-inertia-codegen"
 description: CLI that emits typed pages.d.ts, routes.ts, and api.ts from your NestJS app.
 ---
 
-```bash
-pnpm add -D @dudousxd/nestjs-inertia-codegen
-```
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add -D @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install --save-dev @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add -D @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+</Tabs>
 
 Static-analysis CLI that reads your NestJS controllers and Inertia page components and emits fully typed TypeScript files.
 
@@ -15,7 +31,9 @@ Static-analysis CLI that reads your NestJS controllers and Inertia page componen
 |--------------|-------------|
 | `nestjs-inertia codegen` | One-shot generation |
 | `nestjs-inertia codegen --watch` | Watch mode |
-| `nestjs-inertia init` | Scaffolds `nestjs-inertia.config.ts` + `.gitignore` entry |
+| `nestjs-inertia init` | Scaffolds config, HTML shell, Vite config, entry point, and patches existing files |
+| `nestjs-inertia doctor` | Diagnose tsconfig paths, package versions, codegen output, and Vite config |
+| `nestjs-inertia doctor --fix` | Auto-fix diagnosable issues (tsconfig paths, `.gitignore`, missing packages) |
 | `defineConfig(config)` | Type-safe config helper |
 | `generate(config)` | Programmatic API |
 | `watch(config, onChange?)` | Programmatic watch API |

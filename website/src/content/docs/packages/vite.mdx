@@ -3,10 +3,28 @@ title: "@dudousxd/nestjs-inertia-vite"
 description: Vite plugin and dev-server middleware bridge for NestJS.
 ---
 
-```bash
-pnpm add @dudousxd/nestjs-inertia-vite
-pnpm add -D vite @vitejs/plugin-react
-```
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia-vite
+    pnpm add -D vite @vitejs/plugin-react
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia-vite
+    npm install --save-dev vite @vitejs/plugin-react
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia-vite
+    yarn add -D vite @vitejs/plugin-react
+    ```
+  </TabItem>
+</Tabs>
 
 Bridges NestJS and Vite's dev server so that HMR, React Fast Refresh, and the Vite manifest work transparently.
 
