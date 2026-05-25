@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-import { ApplyContract, As, defineContract } from '@dudousxd/nestjs-inertia-client';
+import { defineContract } from '@dudousxd/nestjs-inertia-client';
+import { ApplyContract, As } from '@dudousxd/nestjs-inertia-client/server';
 import { Controller, Get } from '@nestjs/common';
 import { z } from 'zod';
 

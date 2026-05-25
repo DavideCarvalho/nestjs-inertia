@@ -7,6 +7,7 @@ export default defineConfig({
     'vue/index': 'src/vue/index.ts',
     'svelte/index': 'src/svelte/index.ts',
     'ssr/hydrate': 'src/ssr/hydrate.ts',
+    'server/index': 'src/server/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

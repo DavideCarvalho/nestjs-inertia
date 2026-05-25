@@ -3,7 +3,7 @@
  *
  * We mock @inertiajs/react so tests don't need a full Inertia context.
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @inertiajs/react Link: renders a plain <a> with all props forwarded
@@ -94,6 +94,126 @@ describe('Link component', () => {
     expect(() => render(<Link route="users.list">Users</Link>)).toThrowError(
       '@dudousxd/nestjs-inertia-client: <InertiaRouteProvider> not found in the component tree',
     );
+  });
+});
+
+// ---------- prefetch-on-hover tests ----------
+describe('prefetch on hover', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('calls queryClient.prefetchQuery on mouse enter when prefetch is provided', () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([{ id: 1 }]),
+    };
+
+    render(
+      <InertiaRouteProvider routes={makeResolver()}>
+        <Link route="users.list" prefetch={prefetchOpts} queryClient={queryClient}>
+          Users
+        </Link>
+      </InertiaRouteProvider>,
+    );
+
+    const a = screen.getByTestId('inertia-link');
+    fireEvent.mouseEnter(a);
+
+    expect(prefetchQuery).toHaveBeenCalledTimes(1);
+    expect(prefetchQuery).toHaveBeenCalledWith(prefetchOpts);
+  });
+
+  it('only prefetches once even after multiple hovers', () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([]),
+    };
+
+    render(
+      <InertiaRouteProvider routes={makeResolver()}>
+        <Link route="users.list" prefetch={prefetchOpts} queryClient={queryClient}>
+          Users
+        </Link>
+      </InertiaRouteProvider>,
+    );
+
+    const a = screen.getByTestId('inertia-link');
+    fireEvent.mouseEnter(a);
+    fireEvent.mouseEnter(a);
+    fireEvent.mouseEnter(a);
+
+    expect(prefetchQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not prefetch when prefetch prop is not provided', () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+
+    render(
+      <InertiaRouteProvider routes={makeResolver()}>
+        <Link route="users.list" queryClient={queryClient}>
+          Users
+        </Link>
+      </InertiaRouteProvider>,
+    );
+
+    const a = screen.getByTestId('inertia-link');
+    fireEvent.mouseEnter(a);
+
+    expect(prefetchQuery).not.toHaveBeenCalled();
+  });
+
+  it('does not prefetch when queryClient is not provided', () => {
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([]),
+    };
+
+    render(
+      <InertiaRouteProvider routes={makeResolver()}>
+        <Link route="users.list" prefetch={prefetchOpts}>
+          Users
+        </Link>
+      </InertiaRouteProvider>,
+    );
+
+    // Should not throw - just gracefully skips prefetch
+    const a = screen.getByTestId('inertia-link');
+    fireEvent.mouseEnter(a);
+  });
+
+  it('still calls the original onMouseEnter handler', () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+    const onMouseEnter = vi.fn();
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([]),
+    };
+
+    render(
+      <InertiaRouteProvider routes={makeResolver()}>
+        <Link
+          route="users.list"
+          prefetch={prefetchOpts}
+          queryClient={queryClient}
+          onMouseEnter={onMouseEnter}
+        >
+          Users
+        </Link>
+      </InertiaRouteProvider>,
+    );
+
+    const a = screen.getByTestId('inertia-link');
+    fireEvent.mouseEnter(a);
+
+    expect(prefetchQuery).toHaveBeenCalledTimes(1);
+    expect(onMouseEnter).toHaveBeenCalledTimes(1);
   });
 });
 

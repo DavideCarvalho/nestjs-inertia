@@ -398,7 +398,10 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
     );
   }
 
-  lines.push("import { route } from './routes.js';");
+  lines.push("import { router } from '@inertiajs/react';");
+  lines.push(
+    "import { route, ROUTES, type RouteName, type ExtractParams, type RouteParams } from './routes.js';",
+  );
   lines.push("import { createFetcher } from '@dudousxd/nestjs-inertia-client';");
 
   // Emit type imports from source files
@@ -437,6 +440,18 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
     lines.push('  export type Query<M extends string, U extends string> = never;');
     lines.push('  export type Params<M extends string, U extends string> = never;');
     lines.push('  export type Error<M extends string, U extends string> = never;');
+    lines.push('}');
+    lines.push('');
+    lines.push('export type NavigateOptions = {');
+    lines.push('  method?: string;');
+    lines.push('  data?: Record<string, unknown>;');
+    lines.push('  preserveState?: boolean;');
+    lines.push('  preserveScroll?: boolean;');
+    lines.push('  replace?: boolean;');
+    lines.push('};');
+    lines.push('');
+    lines.push('export function navigate(_name: never, _options?: NavigateOptions): void {');
+    lines.push('  // No routes available');
     lines.push('}');
     lines.push('');
     return lines.join('\n');
@@ -536,6 +551,36 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
   lines.push(
     '  export type Error<M extends string, U extends string> = ResolveByPath<M, U, "error">;',
   );
+  lines.push('}');
+  lines.push('');
+
+  // --- NavigateOptions type ---
+  lines.push('export type NavigateOptions = {');
+  lines.push('  method?: string;');
+  lines.push('  data?: Record<string, unknown>;');
+  lines.push('  preserveState?: boolean;');
+  lines.push('  preserveScroll?: boolean;');
+  lines.push('  replace?: boolean;');
+  lines.push('};');
+  lines.push('');
+
+  // --- navigate() function ---
+  lines.push('/**');
+  lines.push(' * Type-safe navigation using Inertia router.');
+  lines.push(' * Resolves the URL from the named route and calls `router.visit()`.');
+  lines.push(' */');
+  lines.push('export function navigate<K extends RouteName>(');
+  lines.push('  name: K,');
+  lines.push('  ...args: ExtractParams<(typeof ROUTES)[K]> extends never');
+  lines.push('    ? [options?: NavigateOptions]');
+  lines.push('    : [options: { params: RouteParams<K> } & NavigateOptions]');
+  lines.push('): void {');
+  lines.push(
+    '  const [options] = args as [({ params?: Record<string, string> } & NavigateOptions) | undefined];',
+  );
+  lines.push('  const url = route(name as never, (options as any)?.params as never);');
+  lines.push('  const { params: _p, ...visitOptions } = options ?? {} as any;');
+  lines.push('  router.visit(url, visitOptions);');
   lines.push('}');
   lines.push('');
 

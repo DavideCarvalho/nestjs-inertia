@@ -39,6 +39,11 @@
       "svelte": "./dist/svelte/index.js",
       "import": "./dist/svelte/index.js",
       "require": "./dist/svelte/index.cjs"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js",
+      "require": "./dist/server/index.cjs"
     }
   },
   "files": ["dist", "src/svelte/Link.svelte", "README.md", "CHANGELOG.md"],

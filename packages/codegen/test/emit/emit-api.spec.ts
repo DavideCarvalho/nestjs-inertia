@@ -892,4 +892,82 @@ describe('emitApi', () => {
       expect(content).toContain('{ body }');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // navigate() function generation
+  // ---------------------------------------------------------------------------
+
+  describe('navigate() function', () => {
+    it('imports router from @inertiajs/react', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain("import { router } from '@inertiajs/react'");
+    });
+
+    it('imports RouteName, ExtractParams, RouteParams, ROUTES from routes.js', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('type RouteName');
+      expect(content).toContain('type ExtractParams');
+      expect(content).toContain('type RouteParams');
+      expect(content).toContain('ROUTES');
+      expect(content).toContain("from './routes.js'");
+    });
+
+    it('exports NavigateOptions type with expected fields', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('export type NavigateOptions');
+      expect(content).toContain('method?: string');
+      expect(content).toContain('data?: Record<string, unknown>');
+      expect(content).toContain('preserveState?: boolean');
+      expect(content).toContain('preserveScroll?: boolean');
+      expect(content).toContain('replace?: boolean');
+    });
+
+    it('exports navigate function with RouteName constraint', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('export function navigate<K extends RouteName>');
+    });
+
+    it('navigate function uses conditional args (params required for parameterized routes)', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // Should have conditional rest args based on ExtractParams<(typeof ROUTES)[K]>
+      expect(content).toContain('ExtractParams<(typeof ROUTES)[K]> extends never');
+      expect(content).toContain('[options?: NavigateOptions]');
+      expect(content).toContain('{ params: RouteParams<K> } & NavigateOptions');
+    });
+
+    it('navigate function calls route() to resolve URL', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('const url = route(name as never');
+    });
+
+    it('navigate function calls router.visit()', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('router.visit(url');
+    });
+
+    it('navigate passes visitOptions (without params) to router.visit', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // Should destructure params out and pass the rest
+      expect(content).toContain('params: _p, ...visitOptions');
+      expect(content).toContain('router.visit(url, visitOptions)');
+    });
+
+    it('empty routes emit navigate with _name: never signature', async () => {
+      const onlyNoContract: RouteDescriptor[] = [
+        { method: 'GET', path: '/health', name: 'HealthController.check', params: [] },
+      ];
+      await emitApi(onlyNoContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('export function navigate(_name: never');
+      expect(content).toContain('export type NavigateOptions');
+    });
+  });
 });
