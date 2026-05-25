@@ -1,273 +1,55 @@
 # @dudousxd/nestjs-inertia-client
 
-Tuyau-style typed HTTP client for `@dudousxd/nestjs-inertia`, built on TanStack Query v5 core.
+> Typed HTTP client, `@As` route naming, `<Link>` components for React/Vue/Svelte, and SSR hydration.
 
 [![npm version](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia-client)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia-client)
-
-> Alpha — in active development. API may change before 1.0.
 
 ## Install
 
 ```bash
-pnpm add @dudousxd/nestjs-inertia-client @tanstack/query-core zod
+pnpm add @dudousxd/nestjs-inertia-client
 ```
 
-## Quick Start
+## What it does
 
-### 1. Define a Contract
+The codegen emits `.nestjs-inertia/api.ts` with `queryOptions()`, `mutationOptions()`, and `queryKey()` for every controller endpoint. This package provides:
 
-```ts
-import { defineContract } from '@dudousxd/nestjs-inertia-client';
-import { z } from 'zod';
+- `@As(name)` to override auto-derived route names
+- `createFetcher()` for a typed fetch client
+- Typed `<Link>` components for React, Vue 3, and Svelte
+- SSR hydration helpers for TanStack Query
 
-export const listUsersContract = defineContract({
-  query: z.object({ page: z.number().optional() }),
-  response: z.array(z.object({ id: z.string(), name: z.string() })),
-});
+## Usage
 
-export const createUserContract = defineContract({
-  body: z.object({ name: z.string(), email: z.string().email() }),
-  response: z.object({ id: z.string(), name: z.string() }),
-});
+```tsx
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+// Queries
+const { data } = useQuery(api.users.list.queryOptions());
+
+// Mutations
+const create = useMutation(api.users.create.mutationOptions());
+await create.mutateAsync({ name: 'Alice', email: 'alice@example.com' });
+
+// Cache invalidation
+const qc = useQueryClient();
+qc.invalidateQueries({ queryKey: api.users.list.queryKey() });
 ```
 
-Contracts carry **no** `name`, `method`, or `path` — these are all routing concerns handled by NestJS decorators and codegen.
+## Typed `<Link>`
 
-### 2. How the API name is derived
+```tsx
+import { Link } from '@dudousxd/nestjs-inertia-client/react';
 
-The API name is composed from a **class portion** and a **method portion**, joined with a dot:
-
-- **Class portion**: class-level `@As(...)` value if present, otherwise the class name with `Controller` stripped and first letter lowercased.
-- **Method portion**: method-level `@As(...)` value if present, otherwise the method name.
-- **Final name**: `${classPortion}.${methodPortion}`
-
-| Class-level `@As` | Method-level `@As` | Derived API name |
-|---|---|---|
-| absent | absent | `<classNameStripped>.<methodName>` (default) |
-| `@As('users')` | absent | `users.<methodName>` |
-| absent | `@As('directory')` | `<classNameStripped>.directory` |
-| `@As('users')` | `@As('directory')` | `users.directory` |
-| `@As('users.admin')` | `@As('list')` | `users.admin.list` |
-
-Examples:
-
-| Controller class | Method | Derived API name |
-|------------------|--------|-----------------|
-| `UsersController` | `list` | `users.list` → `api.users.list` |
-| `UsersController` | `create` | `users.create` → `api.users.create` |
-| `AdminUsersController` | `list` | `adminUsers.list` → `api.adminUsers.list` |
-
-To override, use `@As` at the class level, method level, or both:
-
-```ts
-import { As } from '@dudousxd/nestjs-inertia-client';
-
-// Class-level @As sets the class portion for all methods
-@Controller('/api/users')
-@As('users')
-class UsersController {
-  @Get()
-  @ApplyContract(listUsersContract)
-  list() { ... }              // → 'users.list'
-
-  @Get('/top')
-  @ApplyContract(listUsersContract)
-  @As('directory')            // → 'users.directory'
-  listDirectory() { ... }
-}
+<Link route="users.show" routeParams={{ id: '42' }}>View user</Link>
 ```
 
-### 3. Bind a Contract to a NestJS Handler with `@ApplyContract`
+Also available as `/vue` and `/svelte` subpaths.
 
-```ts
-import { Controller, Get, Post } from '@nestjs/common';
-import { ApplyContract } from '@dudousxd/nestjs-inertia-client';
-import { listUsersContract, createUserContract } from './contracts.js';
+## Docs
 
-@Controller()
-export class UserController {
-  @Get('/users')
-  @ApplyContract(listUsersContract)
-  listUsers() { /* ... */ }
-
-  @Post('/users')
-  @ApplyContract(createUserContract)
-  createUser() { /* ... */ }
-}
-```
-
-`@ApplyContract` only attaches the contract metadata (`CONTRACT_METADATA`) — it does **not** set the NestJS routing path or HTTP method. Always pair it with a NestJS HTTP verb decorator (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`). `@dudousxd/nestjs-inertia-codegen` reads both the verb decorator and the contract to emit a typed `api.ts`.
-
-### Alternative: class-validator DTOs (no `defineContract` needed)
-
-If you already use class-validator DTOs and `@nestjs/swagger`, the codegen reads types automatically — no `defineContract` required:
-
-```ts
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
-import { ApiResponse } from '@nestjs/swagger';
-
-class ListPostsQuery { page?: number; }
-class PostDto { id: string; title: string; }
-class CreatePostBody { title: string; content: string; }
-
-@Controller('/api/posts')
-export class PostsController {
-  @Get()
-  @ApiResponse({ type: [PostDto] })
-  list(@Query() query: ListPostsQuery): Promise<PostDto[]> { ... }
-
-  @Post()
-  @ApiResponse({ type: PostDto })
-  create(@Body() body: CreatePostBody): Promise<PostDto> { ... }
-}
-```
-
-The codegen extracts `@Body()` → body type, `@Query()` → query type, `@ApiResponse({ type })` → response type, and return type annotation as a fallback. When `@ApplyContract` is present, Zod schemas take full priority and DTO extraction is skipped for that method.
-
-### 4. Create a Fetcher and Call Endpoints
-
-```ts
-import { createFetcher } from '@dudousxd/nestjs-inertia-client';
-
-const fetcher = createFetcher({
-  baseUrl: 'http://localhost:3000',
-  headers: () => ({
-    Authorization: `Bearer ${getToken()}`,
-  }),
-});
-
-// GET /users?page=1
-const users = await fetcher.get<User[]>('/users', { query: { page: 1 } });
-
-// POST /users
-const newUser = await fetcher.post<User>('/users', {
-  body: { name: 'Alice', email: 'alice@example.com' },
-});
-```
-
-The generated `api.ts` (emitted by `nestjs-inertia codegen`) wraps `createFetcher` with full request/response types derived from your contracts.
-
-### 5. Handle Errors
-
-```ts
-import { ApiHttpError } from '@dudousxd/nestjs-inertia-client';
-
-try {
-  await fetcher.post('/users', { body: { name: '' } });
-} catch (err) {
-  if (err instanceof ApiHttpError) {
-    console.error(err.status, err.body);
-  }
-}
-```
-
-## Type helpers (generated `api.ts`)
-
-The generated `api.ts` exports `Route.*` and `Path.*` namespaces for compile-time access to request/response shapes:
-
-```ts
-import type { Route, Path } from '.nestjs-inertia/api.js';
-
-// by contract name
-type UserList = Route.Response<'users.list'>;
-type CreateReq = Route.Request<'users.create'>;
-// → { body: ...; query: ...; params: ... }
-
-// by HTTP method + URL
-type ListResp = Path.Response<'GET', '/api/users'>;
-type CreateBody = Path.Body<'POST', '/api/users'>;
-```
-
-Use `Route.*` and `Path.*` — they are the canonical type helpers.
-
-## SSR Hydration
-
-Import SSR helpers from the `/ssr` subpath:
-
-```ts
-import {
-  hydrateClientFromInertia,
-  seedInitialQueries,
-} from '@dudousxd/nestjs-inertia-client/ssr';
-import { QueryClient } from '@tanstack/query-core';
-```
-
-### Server side (NestJS)
-
-```ts
-// In your Inertia controller, seed the QueryClient and attach its cache to shared props
-const qc = new QueryClient();
-await qc.prefetchQuery({ queryKey: ['users'], queryFn: fetchUsers });
-
-return inertia.render('Dashboard', {
-  _initialQueries: seedInitialQueries(qc),
-});
-```
-
-### Client side
-
-```ts
-// In your client entry point, rehydrate from Inertia's page props
-const page = window.__INERTIA_PAGE__;   // or however you access the Inertia page object
-const queryClient = hydrateClientFromInertia(page);
-```
-
-This avoids a second network round-trip for data the server already fetched during SSR.
-
-## API Reference
-
-### `defineContract(def)`
-
-Creates a typed contract definition. Accepts:
-
-| Field | Required | Description |
-|---|---|---|
-| `response` | yes | Zod schema for the response body |
-| `query` | no | Zod schema for URL query parameters |
-| `body` | no | Zod schema for the request body |
-| `params` | no | Zod schema for path parameters |
-| `error` | no | Zod schema for error responses |
-
-No `name`, `method`, or `path` — naming and routing come from NestJS decorators and codegen derivation.
-
-### `@As(name)`
-
-Override the auto-derived route name at the controller **class** or **method** level (or both). When applied at both levels the values compose: `${classAs}.${methodAs}`. Each dot-separated segment must match `/^[a-z][a-zA-Z0-9]*$/`.
-
-### `@ApplyContract(contractDef, opts?)`
-
-NestJS method decorator. Attaches the contract to the handler via `Reflect` metadata under `CONTRACT_METADATA`. Does **not** set HTTP method or path — always combine with `@Get`, `@Post`, etc.
-
-Options:
-
-| Option | Default | Description |
-|---|---|---|
-| `validate` | `false` | When `true`, installs a `ContractValidationPipe` that validates `body` and `query` against Zod schemas at runtime |
-
-### `createFetcher(opts?): Fetcher`
-
-Creates a typed fetch wrapper. Options:
-
-| Option | Type | Description |
-|---|---|---|
-| `baseUrl` | `string` | Prepended to every request path |
-| `headers` | `() => Record<string, string>` | Dynamic headers (auth tokens, etc.) |
-| `fetch` | `typeof fetch` | Custom fetch implementation (useful in tests) |
-| `onError` | `(err: ApiHttpError) => void` | Called before an `ApiHttpError` is thrown |
-
-### `ApiHttpError`
-
-Thrown when the server responds with a non-2xx status. Properties: `.status: number`, `.body: unknown`.
-
-### `invalidate(queryClient, queryKey)`
-
-Convenience wrapper around `queryClient.invalidateQueries({ queryKey })`.
-
-## See Also
-
-- Design spec: [`docs/superpowers/specs/2026-05-22-nestjs-inertia-plan-d-design.md`](../../docs/superpowers/specs/2026-05-22-nestjs-inertia-plan-d-design.md)
-- Codegen (emits `api.ts`): [`packages/codegen/README.md`](../codegen/README.md)
-- Implementation plan: [`docs/superpowers/plans/2026-05-22-nestjs-inertia-plan-d-client.md`](../../docs/superpowers/plans/2026-05-22-nestjs-inertia-plan-d-client.md)
+Full documentation: **https://davidecarvalho.github.io/nestjs-inertia/guides/typed-client/**
 
 ## License
 

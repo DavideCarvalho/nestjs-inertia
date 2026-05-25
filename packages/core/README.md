@@ -5,7 +5,6 @@
 [![npm](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia.svg)](https://npmjs.com/package/@dudousxd/nestjs-inertia)
 [![license](https://img.shields.io/npm/l/@dudousxd/nestjs-inertia.svg)](https://github.com/DavideCarvalho/nestjs-inertia/blob/main/LICENSE)
 
-> **Status: alpha.** API is stabilising but may change before `1.0`. Not recommended for production use yet.
 
 ## Install
 
