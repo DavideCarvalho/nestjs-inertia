@@ -601,48 +601,47 @@ describe('runInit — auto-patches app.module.ts and main.ts', () => {
 // installDeps — branching on package manager
 // ---------------------------------------------------------------------------
 
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return { ...actual, execFileSync: vi.fn(() => Buffer.from('')) };
+});
+
 describe('installDeps', () => {
+  let execMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    const cp = await import('node:child_process');
+    execMock = cp.execFileSync as ReturnType<typeof vi.fn>;
+    execMock.mockClear();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('uses "install" command for npm', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
-    // installDeps will try to run execFileSync and fail since deps don't exist
-    // but the important thing is it doesn't throw fatally (catches error)
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
     installDeps('npm', ['some-fake-pkg'], false);
-    spy.mockRestore();
-    // Should log the "installed" message then the warning
-    const installedLog = logs.find((l) => l.includes('some-fake-pkg'));
-    expect(installedLog).toBeDefined();
+    expect(execMock).toHaveBeenCalledWith('npm', expect.arrayContaining(['install', 'some-fake-pkg']), expect.anything());
   });
 
   it('uses "add -D" command for pnpm dev deps', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
     installDeps('pnpm', ['some-fake-dev-pkg'], true);
-    spy.mockRestore();
-    const installedLog = logs.find((l) => l.includes('some-fake-dev-pkg'));
-    expect(installedLog).toBeDefined();
+    expect(execMock).toHaveBeenCalledWith('pnpm', expect.arrayContaining(['add', '-D', 'some-fake-dev-pkg']), expect.anything());
   });
 
   it('uses "add -D" command for yarn dev deps', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
     installDeps('yarn', ['some-fake-yarn-pkg'], true);
-    spy.mockRestore();
-    const installedLog = logs.find((l) => l.includes('some-fake-yarn-pkg'));
-    expect(installedLog).toBeDefined();
+    expect(execMock).toHaveBeenCalledWith('yarn', expect.arrayContaining(['add', '-D', 'some-fake-yarn-pkg']), expect.anything());
   });
 
   it('does nothing when deps array is empty', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
     installDeps('npm', [], false);
-    spy.mockRestore();
-    // Should not log anything
-    expect(logs).toHaveLength(0);
+    expect(execMock).not.toHaveBeenCalled();
   });
 });
 
