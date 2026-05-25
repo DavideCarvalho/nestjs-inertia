@@ -37,14 +37,15 @@ export class FileBasedShellRenderer implements ShellRenderer {
   }
 
   async render(ctx: ShellRenderCtx): Promise<string> {
-    if (this.cachedTemplate === null) {
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (this.cachedTemplate === null || isDev) {
       this.cachedTemplate = readFileSync(this.absPath, 'utf8');
+      if (isDev) this.engineRenderer = null; // re-compile on next render
     }
 
     const pageJson = serializePageData(ctx.page);
     const ssrHead = ctx.ssr?.head.join('\n') ?? '';
     const ssrBody = ctx.ssr?.body ?? null;
-    const isDev = process.env.NODE_ENV !== 'production';
     const manifest = ctx.manifest as Manifest | null;
 
     if (PLAIN_HTML.has(this.ext)) {
