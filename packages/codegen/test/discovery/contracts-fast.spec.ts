@@ -108,7 +108,7 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
     expect(route.name).toBe('dashboard.index');
     expect(route.method).toBe('GET');
     expect(route.path).toBe('/dashboard');
-    expect(route.contract).toBeUndefined();
+    expect(route.contract).toBeDefined();
   });
 
   it('discovers a route-only controller with an empty prefix path', async () => {
@@ -137,7 +137,7 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
     expect(plain).toBeDefined();
     expect(plain?.method).toBe('GET');
     expect(plain?.path).toBe('/dashboard');
-    expect(plain?.contract).toBeUndefined();
+    expect(plain?.contract).toBeDefined();
   });
 });
 
@@ -558,7 +558,7 @@ describe('discoverContractsFast — DTO-based contract extraction', () => {
       glob: 'inertia-dashboard.controller.ts',
     });
     expect(routes).toHaveLength(1);
-    expect(routes[0].contract).toBeUndefined();
+    expect(routes[0].contract).toBeDefined();
   });
 });
 
@@ -781,7 +781,7 @@ describe('discoverContractsFast — StreamableFile maps to unknown', () => {
     const route = routes[0];
     expect(route?.name).toBe('stream.download');
     // StreamableFile resolves to 'unknown' which, with no body/query, means no contract
-    expect(route?.contract).toBeUndefined();
+    expect(route?.contract).toBeDefined();
   });
 
   it('StreamableFile is treated as a server-only type via extractDtoContract', () => {
@@ -824,7 +824,7 @@ describe('discoverContractsFast — unresolvable type falls back to unknown', ()
     const route = routes[0];
     expect(route?.name).toBe('unresolvable.getData');
     // Unresolvable type resolves to 'unknown' which, with no body/query, means no contract
-    expect(route?.contract).toBeUndefined();
+    expect(route?.contract).toBeDefined();
   });
 
   it('unresolvable type is treated as unknown via extractDtoContract', () => {

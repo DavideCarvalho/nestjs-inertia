@@ -1081,20 +1081,16 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
           name: routeName,
           params,
           controllerRef: { className, methodName, filePath: sourceFile.getFilePath() },
-          ...(dtoContract
-            ? {
-                contract: {
-                  contractSource: {
-                    query: dtoContract.query,
-                    body: dtoContract.body,
-                    response: dtoContract.response,
-                    queryRef: dtoContract.queryRef,
-                    bodyRef: dtoContract.bodyRef,
-                    responseRef: dtoContract.responseRef,
-                  },
-                },
-              }
-            : {}),
+          contract: {
+            contractSource: {
+              query: dtoContract?.query ?? null,
+              body: dtoContract?.body ?? null,
+              response: dtoContract?.response ?? 'unknown',
+              queryRef: dtoContract?.queryRef,
+              bodyRef: dtoContract?.bodyRef,
+              responseRef: dtoContract?.responseRef,
+            },
+          },
         });
       }
     }
