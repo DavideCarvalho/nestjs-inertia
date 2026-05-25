@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-testing",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Testing helpers for @dudousxd/nestjs-inertia — expectInertia matchers, fakes, TestingModule.",
   "license": "MIT",
   "repository": {
@@ -30,7 +30,11 @@
       "require": "./dist/vitest.cjs"
     }
   },
-  "files": ["dist/", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -38,7 +42,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
-    "@dudousxd/nestjs-inertia": ">=1.4.1",
+    "@dudousxd/nestjs-inertia": ">=1.4.2",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
     "@nestjs/testing": ">=10.0.0"
