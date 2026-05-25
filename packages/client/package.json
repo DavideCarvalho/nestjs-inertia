@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-client",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Tuyau-style typed HTTP client for @dudousxd/nestjs-inertia, built on TanStack Query v5 core.",
   "license": "MIT",
   "repository": {
@@ -41,9 +41,11 @@
       "require": "./dist/svelte/index.cjs"
     },
     "./server": {
-      "types": "./dist/server/index.d.ts",
-      "import": "./dist/server/index.js",
-      "require": "./dist/server/index.cjs"
+      "node": {
+        "types": "./dist/server/index.d.ts",
+        "import": "./dist/server/index.js",
+        "require": "./dist/server/index.cjs"
+      }
     }
   },
   "files": ["dist", "src/svelte/Link.svelte", "README.md", "CHANGELOG.md"],

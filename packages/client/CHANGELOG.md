@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 1.7.3
+
+### Patch Changes
+
+- Mark `./server` subpath export with `"node"` condition so Vite's dep optimizer skips server-only code. Eliminates the need for `optimizeDeps.exclude` in consumer projects.
+
 ## 1.7.2
 
 ### Patch Changes
