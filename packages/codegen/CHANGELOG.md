@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.6.0
+
+### Minor Changes
+
+- [`284a3e3`](https://github.com/DavideCarvalho/nestjs-inertia/commit/284a3e31c1935d9d104a128a7a8310648d09a395) - Typed navigate() for type-safe router.visit() with route name autocomplete. Prefetch on hover for Link component (React, Vue, Svelte). useTypedReload for typed partial reloads.
+
 ## 1.5.1
 
 ### Patch Changes
