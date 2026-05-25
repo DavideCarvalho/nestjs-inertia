@@ -23,8 +23,13 @@ import { api } from '~codegen/api';
 // Simple query
 const { data: crew } = useQuery(api.crew.getCrew.queryOptions());
 
-// Query with params
+// Query with query string — { page: 2 } becomes ?page=2
 const { data: posts } = useQuery(api.posts.list.queryOptions({ page: 2 }));
+
+// Query with query string — typed from @Query() DTO in the controller
+const { data: filtered } = useQuery(
+  api.posts.list.queryOptions({ page: 1, status: 'published' })
+);
 
 // Conditional query (spread pattern)
 const { data } = useQuery({

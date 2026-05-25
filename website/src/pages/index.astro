@@ -83,38 +83,44 @@ const feat2Code = `<span class="hl-kw">import</span> { <span class="hl-type">Lin
 <span class="hl-cm">// Wrong route name? TypeScript error.</span>
 <span class="hl-cm">// Missing param? TypeScript error.</span>`;
 
-const feat3aCode = `<span class="hl-cm">// Type-safe page names — autocompleted from inertia/pages/</span>
-<span class="hl-dec">@Controller</span>(<span class="hl-str">'dashboard'</span>)
+const feat3Code = `<span class="hl-dec">@Controller</span>(<span class="hl-str">'dashboard'</span>)
 <span class="hl-kw">export class</span> <span class="hl-type">DashboardController</span> {
   <span class="hl-dec">@Get</span>()
-  <span class="hl-dec">@Inertia</span>(<span class="hl-str">'Dashboard'</span>)  <span class="hl-cm">// ✓ page exists</span>
+  <span class="hl-dec">@Inertia</span>(<span class="hl-str">'Dashboard'</span>)  <span class="hl-cm">// ✓ autocompleted from inertia/pages/</span>
   <span class="hl-fn">show</span>() {
     <span class="hl-kw">return</span> { users: [{ id: <span class="hl-str">'1'</span>, name: <span class="hl-str">'Alice'</span> }] };
   }
 }
 
-<span class="hl-cm">// Typo → TypeScript error immediately:</span>
-<span class="hl-dec">@Inertia</span>(<span class="hl-str">'Dashbord'</span>)   <span class="hl-cm">// ✗ "Dashbord" is not in InertiaPages</span>`;
+<span class="hl-dec">@Inertia</span>(<span class="hl-str">'Dashbord'</span>)   <span class="hl-cm">// ✗ TS2345: "Dashbord" is not assignable</span>
+                       <span class="hl-cm">//   to type "Dashboard" | "Settings" | ...</span>`;
 
-const feat3bCode = `<span class="hl-cm">// inertia/pages/Dashboard.tsx</span>
+const feat4aCode = `<span class="hl-cm">// Server — props are validated against the page</span>
+<span class="hl-dec">@Get</span>(<span class="hl-str">'stats'</span>)
+<span class="hl-kw">async</span> <span class="hl-fn">stats</span>(<span class="hl-dec">@Req</span>() <span class="hl-param">req</span>: <span class="hl-type">Request</span>) {
+  <span class="hl-kw">const</span> stats = <span class="hl-kw">await</span> <span class="hl-kw">this</span>.service.<span class="hl-fn">getStats</span>();
+
+  <span class="hl-cm">// ✓ Props match Dashboard.ComponentProps</span>
+  <span class="hl-kw">await</span> req.inertia.<span class="hl-fn">render</span>(<span class="hl-str">'Dashboard'</span>, {
+    users: stats.users,
+  });
+
+  <span class="hl-cm">// ✗ Wrong props — type error at compile time</span>
+  <span class="hl-kw">await</span> req.inertia.<span class="hl-fn">render</span>(<span class="hl-str">'Dashboard'</span>, {
+    crew: stats.crew,  <span class="hl-cm">// ✗ not in ComponentProps</span>
+  });
+}`;
+
+const feat4bCode = `<span class="hl-cm">// Client — inertia/pages/Dashboard.tsx</span>
 <span class="hl-kw">export type</span> <span class="hl-type">ComponentProps</span> = {
   users: { id: <span class="hl-type">string</span>; name: <span class="hl-type">string</span> }[];
 };
 
-<span class="hl-kw">export default function</span> <span class="hl-fn">Dashboard</span>({
-  users,
-}: <span class="hl-type">ComponentProps</span>) {
-  <span class="hl-kw">return</span> (
-    &lt;<span class="hl-type">ul</span>&gt;
-      {users.<span class="hl-fn">map</span>(<span class="hl-param">u</span> =&gt;
-        &lt;<span class="hl-type">li</span> <span class="hl-param">key</span>={u.id}&gt;{u.name}&lt;/<span class="hl-type">li</span>&gt;
-      )}
-    &lt;/<span class="hl-type">ul</span>&gt;
-  );
-}
-<span class="hl-cm">// If the controller returns { crew: Crew[] }</span>
-<span class="hl-cm">// but this page expects { users: User[] }</span>
-<span class="hl-cm">// → type error at compile time</span>`;
+<span class="hl-kw">export default function</span> <span class="hl-fn">Dashboard</span>(
+  { users }: <span class="hl-type">ComponentProps</span>,
+) {
+  <span class="hl-kw">return</span> &lt;<span class="hl-type">ul</span>&gt;{users.<span class="hl-fn">map</span>(...)}&lt;/<span class="hl-type">ul</span>&gt;;
+}`;
 ---
 
 <!doctype html>
@@ -345,18 +351,32 @@ const feat3bCode = `<span class="hl-cm">// inertia/pages/Dashboard.tsx</span>
         </div>
 
         <div class="feature-full reveal">
+          <div class="feature-code">
+            <div class="feature-code-header">
+              <span>dashboard.controller.ts</span>
+              <span>TypeScript</span>
+            </div>
+            <pre><code set:html={feat3Code} /></pre>
+          </div>
+          <div class="feature-text">
+            <h3>Type-safe page names</h3>
+            <p>The codegen scans your <code>inertia/pages/</code> directory and augments the <code>@Inertia()</code> decorator to only accept page names that actually exist. Every page name is autocompleted in your IDE. A typo like <code>'Dashbord'</code> is a compile-time error — not a blank screen in production.</p>
+          </div>
+        </div>
+
+        <div class="feature-full reveal">
           <div class="feature-text" style="margin-top: 0; margin-bottom: 1.5rem;">
-            <h3>Props E2E type safety</h3>
-            <p>The <code>@Inertia()</code> decorator only accepts page names that exist in your <code>inertia/pages/</code> directory. The codegen validates that the controller return type matches the page's <code>ComponentProps</code>. Mismatched props surface as TypeScript errors — before you run the app.</p>
+            <h3>Props E2E — server to component</h3>
+            <p><code>req.inertia.render()</code> knows what each page expects. The codegen reads <code>ComponentProps</code> from every page file and augments the <code>render</code> signature — so when you pass the wrong props, TypeScript catches it before the code ever runs.</p>
           </div>
           <div class="compare">
             <div class="compare-card">
               <div class="compare-header">dashboard.controller.ts</div>
-              <pre><code set:html={feat3aCode} /></pre>
+              <pre><code set:html={feat4aCode} /></pre>
             </div>
             <div class="compare-card">
               <div class="compare-header">inertia/pages/Dashboard.tsx</div>
-              <pre><code set:html={feat3bCode} /></pre>
+              <pre><code set:html={feat4bCode} /></pre>
             </div>
           </div>
         </div>
