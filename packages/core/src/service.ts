@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
+import type { InertiaPages } from './types/registry.js';
 
 /**
  * Validates a redirect URL to prevent open-redirect attacks.
@@ -208,6 +209,22 @@ export interface InertiaServiceDeps {
   featureShare: SharedInput | undefined;
   historyEncryptionDefault?: boolean;
   flashStore: FlashStore | undefined;
+}
+
+/**
+ * Typed render overloads. When `InertiaPages` has been augmented by codegen,
+ * calling `render('PageName', props)` constrains `props` to that page's
+ * `ComponentProps` type. Without codegen, falls back to `Record<string, unknown>`.
+ *
+ * Uses interface-class declaration merging so the implementation signature
+ * stays simple while callers get type safety.
+ */
+export interface InertiaService {
+  render<K extends keyof InertiaPages>(
+    component: K,
+    props: InertiaPages[K] extends Record<string, unknown> ? InertiaPages[K] : Props,
+  ): Promise<void>;
+  render(component: string, props?: Props): Promise<void>;
 }
 
 export class InertiaService {

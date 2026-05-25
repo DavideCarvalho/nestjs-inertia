@@ -4,6 +4,17 @@
 
 ### Minor Changes
 
+- feat: type-safe @Inertia, Props E2E, infiniteQueryOptions, URL params, doctor CLI, codegen HMR
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@2.0.0
+
+## 2.0.0
+
+### Minor Changes
+
 - feat(codegen): ReturnType<import(...)> for response types, queryKey helper, TanStack helpers, type ref imports, path alias resolution, debug mode
 
 ### Patch Changes

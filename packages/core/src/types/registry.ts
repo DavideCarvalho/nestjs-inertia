@@ -21,9 +21,13 @@ export type RegistryRoutes = InertiaRegistry extends { routes: infer R }
 
 /**
  * Empty interface for module augmentation by codegen.
- * When codegen runs, it augments this interface with `{ 'PageName': true; ... }`
- * entries for every discovered page. The `Inertia()` decorator uses `keyof InertiaPages`
- * to restrict its argument to valid page names.
+ * When codegen runs, it augments this interface with page name keys mapped to
+ * their `ComponentProps` type (via `import('...').ComponentProps`), or
+ * `Record<string, unknown>` for pages without exported props.
+ *
+ * The `Inertia()` decorator uses `keyof InertiaPages` to restrict its argument
+ * to valid page names. `InertiaService.render()` uses the mapped type to
+ * constrain the `props` parameter for type-safe render calls.
  *
  * Without codegen (empty interface): `keyof InertiaPages` is `never`, and the
  * decorator falls back to accepting any `string`.
