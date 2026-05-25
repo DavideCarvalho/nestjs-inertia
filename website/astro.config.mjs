@@ -1,5 +1,5 @@
 import starlight from '@astrojs/starlight';
-// website/astro.config.mjs
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
@@ -19,6 +19,11 @@ export default defineConfig({
       ],
       editLink: {
         baseUrl: 'https://github.com/DavideCarvalho/nestjs-inertia/edit/main/website/',
+      },
+      customCss: ['./src/styles/global.css'],
+      components: {
+        SiteTitle: './src/components/SiteTitle.astro',
+        PageTitle: './src/components/PageTitle.astro',
       },
       sidebar: [
         { label: 'Getting Started', slug: 'getting-started' },
@@ -41,4 +46,7 @@ export default defineConfig({
       ],
     }),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });

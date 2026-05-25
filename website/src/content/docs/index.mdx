@@ -1,42 +1,17 @@
 ---
-title: nestjs-inertia
+title: Documentation
 description: Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.
-template: splash
-hero:
-  tagline: Build server-driven SPAs with NestJS and Inertia.js — full type safety, multi-app support, and Tuyau-style typed client.
-  actions:
-    - text: Get Started
-      link: /nestjs-inertia/getting-started/
-      icon: right-arrow
-      variant: primary
-    - text: View on GitHub
-      link: https://github.com/DavideCarvalho/nestjs-inertia
-      icon: external
 ---
 
-## What is nestjs-inertia?
+Welcome to the **nestjs-inertia** documentation.
 
-`nestjs-inertia` is a TypeScript-first monorepo of five focused packages that implement the [Inertia.js](https://inertiajs.com/) protocol for NestJS applications.
+Head to the [Getting Started](/nestjs-inertia/getting-started/) guide to set up Inertia.js in your NestJS project in under 5 minutes, or use the sidebar to explore guides, packages, and API reference.
 
-| Package | Description |
-|---------|-------------|
-| `@dudousxd/nestjs-inertia` | Core protocol + NestJS module |
-| `@dudousxd/nestjs-inertia-vite` | Vite dev/build helpers + plugin |
-| `@dudousxd/nestjs-inertia-testing` | `expectInertia` matchers, fakes, and TestingModule |
-| `@dudousxd/nestjs-inertia-codegen` | Typed pages, routes, and `api.ts` via CLI |
-| `@dudousxd/nestjs-inertia-client` | Tuyau-style typed HTTP client + SSR hydration |
+## Quick links
 
-## Quick install
-
-```bash
-pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-pnpm add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
-```
-
-Then run the scaffold command and wire two lines into your existing module:
-
-```bash
-pnpm exec nestjs-inertia init
-```
-
-See [Getting Started](/nestjs-inertia/getting-started/) for the full quickstart — install, `init`, and you're running in under five minutes.
+- [Getting Started](/nestjs-inertia/getting-started/) -- install, `init`, and go
+- [Codegen](/nestjs-inertia/guides/codegen/) -- typed pages, routes, and API client from your controllers
+- [Typed Client](/nestjs-inertia/guides/typed-client/) -- `queryOptions`, `mutationOptions`, `queryKey` with TanStack Query
+- [Typed Link](/nestjs-inertia/guides/typed-link/) -- `<Link>` with route-name autocomplete for React, Vue, and Svelte
+- [Testing](/nestjs-inertia/guides/testing/) -- `expectInertia` matchers and `InertiaTestingModule`
+- [Multi-app](/nestjs-inertia/guides/multi-app/) -- `forFeature` for multiple independent frontends
