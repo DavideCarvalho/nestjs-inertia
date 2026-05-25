@@ -27,7 +27,9 @@ export async function generate(
     componentNameStrategy: config.pages.componentNameStrategy,
   });
 
-  await emitPages(pages, config.codegen.outDir);
+  await emitPages(pages, config.codegen.outDir, {
+    propsExport: config.pages.propsExport,
+  });
   await emitCache(pages, config.codegen.outDir);
 
   const hasRoutes = routes.length > 0;

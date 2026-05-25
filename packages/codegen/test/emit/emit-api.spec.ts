@@ -564,6 +564,128 @@ describe('emitApi', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // infiniteQueryOptions() generation for GET routes
+  // ---------------------------------------------------------------------------
+
+  describe('infiniteQueryOptions', () => {
+    it('GET route generates infiniteQueryOptions function', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('infiniteQueryOptions');
+    });
+
+    it('infiniteQueryOptions includes initialPageParam: 1', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('initialPageParam: 1');
+    });
+
+    it('infiniteQueryOptions includes getNextPageParam', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('getNextPageParam');
+    });
+
+    it('infiniteQueryOptions includes queryFn with pageParam', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('pageParam');
+      expect(content).toContain('{ pageParam }');
+      expect(content).toContain('page: pageParam');
+    });
+
+    it('GET route without params: infiniteQueryOptions(query?)', async () => {
+      const getNoParams: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/users',
+          name: 'users.list',
+          params: [],
+          contract: {
+            contractSource: {
+              query: '{ active?: boolean }',
+              body: null,
+              response: 'Array<{ id: string }>',
+            },
+          },
+        },
+      ];
+      await emitApi(getNoParams, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain(`infiniteQueryOptions: (query?: ApiRouter["users"]["list"]['query'])`);
+    });
+
+    it('GET route with params: infiniteQueryOptions(params, query?)', async () => {
+      const getWithParams: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/v1/fleet/vessels/:id/trail',
+          name: 'fleet.getVesselTrail',
+          params: [{ name: 'id', source: 'path' }],
+          contract: {
+            contractSource: {
+              query: '{ from?: string }',
+              body: null,
+              response: 'Array<{ lat: number; lng: number }>',
+            },
+          },
+        },
+      ];
+      await emitApi(getWithParams, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain(`infiniteQueryOptions: (params: ApiRouter["fleet"]["getVesselTrail"]['params']`);
+      expect(content).toContain(`query?: ApiRouter["fleet"]["getVesselTrail"]['query']`);
+    });
+
+    it('POST route does NOT generate infiniteQueryOptions', async () => {
+      const postOnly: RouteDescriptor[] = [
+        {
+          method: 'POST',
+          path: '/api/data',
+          name: 'data.create',
+          params: [],
+          contract: {
+            contractSource: {
+              query: null,
+              body: '{ value: string }',
+              response: '{ id: string }',
+            },
+          },
+        },
+      ];
+      await emitApi(postOnly, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).not.toContain('infiniteQueryOptions');
+      expect(content).not.toContain('initialPageParam');
+      expect(content).not.toContain('getNextPageParam');
+    });
+
+    it('getNextPageParam checks meta.page and meta.lastPage', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('meta?.page != null');
+      expect(content).toContain('meta?.lastPage != null');
+      expect(content).toContain('meta.page < meta.lastPage ? meta.page + 1 : undefined');
+    });
+
+    it('infiniteQueryOptions queryFn spreads query with page override', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('...query, page: pageParam');
+    });
+
+    it('infiniteQueryOptions uses same queryKey as queryOptions', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // Both queryOptions and infiniteQueryOptions should produce the same queryKey pattern
+      const queryKeyPattern = '["users.list", query] as const : ["users.list"] as const';
+      // Count occurrences — should appear in both queryKey, queryOptions and infiniteQueryOptions
+      const matches = content.split(queryKeyPattern).length - 1;
+      expect(matches).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // No @tanstack/query-core
   // ---------------------------------------------------------------------------
 

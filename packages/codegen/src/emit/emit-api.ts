@@ -253,6 +253,24 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           lines.push(
             `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query }),`,
           );
+          lines.push(`${pad}    }),`);
+          // infiniteQueryOptions for GET with params
+          lines.push(`${pad}  infiniteQueryOptions: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) => ({`);
+          lines.push(
+            `${pad}    queryKey: query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
+          );
+          lines.push(
+            `${pad}    queryFn: ({ pageParam }: { pageParam: number }) => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query: { ...query, page: pageParam } }),`,
+          );
+          lines.push(`${pad}    initialPageParam: 1,`);
+          lines.push(`${pad}    getNextPageParam: (lastPage: ${typeAccess}['response']) => {`);
+          lines.push(`${pad}      const meta = (lastPage as any)?.meta;`);
+          lines.push(`${pad}      if (meta?.page != null && meta?.lastPage != null) {`);
+          lines.push(`${pad}        return meta.page < meta.lastPage ? meta.page + 1 : undefined;`);
+          lines.push(`${pad}      }`);
+          lines.push(`${pad}      return undefined;`);
+          lines.push(`${pad}    },`);
+          lines.push(`${pad}  }),`);
         } else {
           lines.push(
             `${pad}  queryKey: (query?: ${typeAccess}['query']) => query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
@@ -265,8 +283,25 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           lines.push(
             `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query }),`,
           );
+          lines.push(`${pad}    }),`);
+          // infiniteQueryOptions for GET without params
+          lines.push(`${pad}  infiniteQueryOptions: (query?: ${typeAccess}['query']) => ({`);
+          lines.push(
+            `${pad}    queryKey: query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
+          );
+          lines.push(
+            `${pad}    queryFn: ({ pageParam }: { pageParam: number }) => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query: { ...query, page: pageParam } }),`,
+          );
+          lines.push(`${pad}    initialPageParam: 1,`);
+          lines.push(`${pad}    getNextPageParam: (lastPage: ${typeAccess}['response']) => {`);
+          lines.push(`${pad}      const meta = (lastPage as any)?.meta;`);
+          lines.push(`${pad}      if (meta?.page != null && meta?.lastPage != null) {`);
+          lines.push(`${pad}        return meta.page < meta.lastPage ? meta.page + 1 : undefined;`);
+          lines.push(`${pad}      }`);
+          lines.push(`${pad}      return undefined;`);
+          lines.push(`${pad}    },`);
+          lines.push(`${pad}  }),`);
         }
-        lines.push(`${pad}    }),`);
         lines.push(`${pad}},`);
       } else {
         const typeAccess = buildRouterTypeAccess(c.name);

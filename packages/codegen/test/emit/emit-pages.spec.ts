@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DiscoveredPage } from '../../src/discovery/pages.js';
 import { emitPages } from '../../src/emit/emit-pages.js';
@@ -36,6 +36,13 @@ describe('emitPages', () => {
       propsSource: null,
     },
   ];
+
+  /** Helper: compute the expected import path from outDir to a page's absolutePath (no ext). */
+  function expectedImportPath(absolutePath: string): string {
+    let rel = relative(outDir, absolutePath).replace(/\.(tsx?|vue|svelte)$/, '');
+    if (!rel.startsWith('.')) rel = `./${rel}`;
+    return rel;
+  }
 
   it('writes pages.d.ts to outDir', async () => {
     await emitPages(pages, outDir);
@@ -94,12 +101,34 @@ describe('emitPages', () => {
       expect(content).toContain("declare module '@dudousxd/nestjs-inertia'");
     });
 
-    it('augments InertiaPages with all discovered page names mapped to true', async () => {
+    it('augments pages with ComponentProps via import() for pages with propsSource', async () => {
       await emitPages(pages, outDir);
       const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
-      expect(content).toContain('Dashboard: true;');
-      expect(content).toContain('"users/Detail": true;');
-      expect(content).toContain('"nopprops/Bare": true;');
+      const dashboardImport = expectedImportPath('/fake/Dashboard.tsx');
+      const detailImport = expectedImportPath('/fake/users/Detail.tsx');
+      expect(content).toContain(`Dashboard: import('${dashboardImport}').ComponentProps;`);
+      expect(content).toContain(`"users/Detail": import('${detailImport}').ComponentProps;`);
+    });
+
+    it('augments pages without propsSource with Record<string, unknown>', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('"nopprops/Bare": Record<string, unknown>;');
+    });
+
+    it('uses custom propsExport name when specified', async () => {
+      const p: DiscoveredPage[] = [
+        {
+          name: 'Home',
+          absolutePath: '/fake/Home.tsx',
+          relativePath: 'Home.tsx',
+          propsSource: '{ title: string }',
+        },
+      ];
+      await emitPages(p, outDir, { propsExport: 'PageProps' });
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      const homeImport = expectedImportPath('/fake/Home.tsx');
+      expect(content).toContain(`Home: import('${homeImport}').PageProps;`);
     });
 
     it('augmentation contains interface InertiaPages inside declare module', async () => {
@@ -108,6 +137,22 @@ describe('emitPages', () => {
       // Verify the structure: declare module wrapping interface InertiaPages
       const moduleBlock = content.slice(content.indexOf("declare module '@dudousxd/nestjs-inertia'"));
       expect(moduleBlock).toContain('interface InertiaPages {');
+    });
+  });
+
+  describe('InertiaProps helper type', () => {
+    it('emits InertiaProps type alias', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('export type InertiaProps<K extends InertiaPageName>');
+    });
+
+    it('InertiaProps resolves to InertiaPages[K]', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain(
+        "export type InertiaProps<K extends InertiaPageName> = import('@dudousxd/nestjs-inertia').InertiaPages[K];",
+      );
     });
   });
 
@@ -139,8 +184,8 @@ describe('emitPages', () => {
       await emitPages(p, outDir);
       const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
       expect(content).toContain('  Dashboard: unknown;');
-      // The key should be unquoted in both the props interface and the augmentation interface
-      expect(content).toContain('  Dashboard: true;');
+      // The key should be unquoted in the augmentation interface as well
+      expect(content).toContain('Dashboard: Record<string, unknown>;');
       // But it IS quoted in the InertiaPageName union (JSON.stringify always quotes)
       expect(content).toContain('"Dashboard"');
     });
