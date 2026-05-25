@@ -20,11 +20,7 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": [
-    "dist/",
-    "README.md",
-    "CHANGELOG.md"
-  ],
+  "files": ["dist/", "README.md", "CHANGELOG.md"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -108,13 +104,5 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": [
-    "nestjs",
-    "inertia",
-    "inertia.js",
-    "ssr",
-    "react",
-    "vue",
-    "svelte"
-  ]
+  "keywords": ["nestjs", "inertia", "inertia.js", "ssr", "react", "vue", "svelte"]
 }
