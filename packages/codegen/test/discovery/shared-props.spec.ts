@@ -23,10 +23,7 @@ describe('discoverSharedProps', () => {
   describe('inline arrow function share', () => {
     it('discovers properties from inline arrow function with ternary', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'inline-arrow.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'inline-arrow.module.ts'));
 
       expect(result).not.toBeNull();
       expect(result!.properties).not.toBeNull();
@@ -46,10 +43,7 @@ describe('discoverSharedProps', () => {
 
     it('includes auth and flash in typeString', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'inline-arrow.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'inline-arrow.module.ts'));
 
       expect(result).not.toBeNull();
       expect(result!.typeString).toContain('auth');
@@ -82,10 +76,7 @@ describe('discoverSharedProps', () => {
   describe('forRoot without share property', () => {
     it('returns null when no share property is present', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'no-share.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'no-share.module.ts'));
 
       expect(result).toBeNull();
     });
@@ -94,10 +85,7 @@ describe('discoverSharedProps', () => {
   describe('async share function', () => {
     it('discovers properties from async arrow function', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'async-share.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'async-share.module.ts'));
 
       expect(result).not.toBeNull();
       expect(result!.properties).not.toBeNull();
@@ -118,10 +106,7 @@ describe('discoverSharedProps', () => {
   describe('block body arrow function', () => {
     it('discovers properties from block body return statement', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'block-body.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'block-body.module.ts'));
 
       expect(result).not.toBeNull();
       expect(result!.properties).not.toBeNull();
@@ -198,10 +183,7 @@ describe('discoverSharedProps', () => {
   describe('nonexistent file', () => {
     it('returns null when the module entry file does not exist', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'nonexistent.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'nonexistent.module.ts'));
 
       expect(result).toBeNull();
     });
@@ -210,10 +192,7 @@ describe('discoverSharedProps', () => {
   describe('isImportRef flag', () => {
     it('inline arrow function sets isImportRef to false', () => {
       const project = createProject();
-      const result = discoverSharedProps(
-        project,
-        resolve(fixturesDir, 'inline-arrow.module.ts'),
-      );
+      const result = discoverSharedProps(project, resolve(fixturesDir, 'inline-arrow.module.ts'));
 
       expect(result).not.toBeNull();
       expect(result!.isImportRef).toBe(false);
