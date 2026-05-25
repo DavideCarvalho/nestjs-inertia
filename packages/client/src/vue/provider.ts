@@ -1,10 +1,7 @@
 import { type InjectionKey, inject, provide } from 'vue';
 
-type RouteResolver = (
-  name: string,
-  params?: Record<string, unknown>,
-  query?: Record<string, unknown>,
-) => string;
+// biome-ignore lint/suspicious/noExplicitAny: must accept the codegen's generic route() signature
+type RouteResolver = (...args: any[]) => string;
 
 export const INERTIA_ROUTES_KEY: InjectionKey<RouteResolver> = Symbol('inertia-routes');
 
