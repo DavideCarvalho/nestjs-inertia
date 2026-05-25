@@ -25,21 +25,25 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Drop-in test utilities for Vitest, Jest, and Node's built-in test runner.
 
-## Key API surface
+## Exports
 
 | Export | Description |
 |--------|-------------|
 | `expectInertia(response)` | Fluent assertion chain from a supertest response |
 | `assertInertia(payload)` | Fluent assertion chain from a raw JSON payload |
-| `InertiaTestingModule` | Pre-configured NestJS testing module |
-| `createFakeInertiaRequest(opts)` | Creates a fake `req.inertia` for unit tests |
-| `expectInertiaRequest(req)` | Assertion chain against a fake request |
+| `InertiaAssertion` | The assertion class (for type-level use) |
+| `InertiaTestingModule.forTest(options?)` | Pre-configured module wrapping `InertiaModule.forRoot()` |
+| `createFakeInertiaRequest(opts?)` | Create a fake request object for unit tests |
+| `createFakeInertiaResponse()` | Create a fake response object for unit tests |
 
-See [Testing guide](/nestjs-inertia/guides/testing/) for full examples.
-
-## Register matchers
+## Register framework matchers
 
 ```ts
 // vitest.setup.ts
 import '@dudousxd/nestjs-inertia-testing/vitest';
+
+// jest.setup.ts
+import '@dudousxd/nestjs-inertia-testing/jest';
 ```
+
+See [Testing guide](/nestjs-inertia/guides/testing/) for full examples and the complete assertion API.

@@ -1,18 +1,32 @@
 ---
 title: Typed Client
-description: Auto-generated type-safe API client with queryOptions, mutationOptions, and queryKey — zero configuration.
+description: Auto-generated type-safe API client with queryOptions, mutationOptions, and queryKey for every controller endpoint. Zero configuration.
+sidebar:
+  order: 3
 ---
 
-## How it works
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
-The codegen reads your NestJS controllers and generates a fully typed API client in `.nestjs-inertia/api.ts`. No contracts, no schemas, no manual type definitions — it infers everything from your existing code.
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+const { data: users } = useQuery(api.users.list.queryOptions());
+```
+
+The codegen reads your NestJS controllers and generates a fully typed API client in `.nestjs-inertia/api.ts`. No contracts, no schemas, no manual type definitions.
 
 Every controller method gets:
-- **`queryOptions()`** (GET routes) — for `useQuery`
-- **`mutationOptions()`** (POST/PUT/PATCH/DELETE routes) — for `useMutation`
-- **`queryKey()`** — for `invalidateQueries` / `setQueryData`
 
-Response types use `Awaited<ReturnType<import('...').Controller['method']>>` — TypeScript infers the return type directly from your controller method. No explicit return type annotation needed.
+| Route type | Generated | Used with |
+|-----------|-----------|-----------|
+| GET | `queryOptions()` | `useQuery` |
+| POST / PUT / PATCH / DELETE | `mutationOptions()` | `useMutation` |
+| All | `queryKey()` | `invalidateQueries` / `setQueryData` |
+
+Response types use `Awaited<ReturnType<import('...').Controller['method']>>`. TypeScript infers the return type directly from your controller method. No explicit return type annotation needed.
+
+---
 
 ## Queries
 
@@ -26,17 +40,19 @@ const { data: crew } = useQuery(api.crew.getCrew.queryOptions());
 // Query with query string — { page: 2 } becomes ?page=2
 const { data: posts } = useQuery(api.posts.list.queryOptions({ page: 2 }));
 
-// Query with query string — typed from @Query() DTO in the controller
+// Typed from @Query() DTO in the controller
 const { data: filtered } = useQuery(
   api.posts.list.queryOptions({ page: 1, status: 'published' })
 );
 
 // Conditional query (spread pattern)
 const { data } = useQuery({
-  ...api.users.show.queryOptions(),
+  ...api.users.show.queryOptions({ id: userId }),
   enabled: !!userId,
 });
 ```
+
+---
 
 ## Mutations
 
@@ -47,8 +63,10 @@ import { api } from '~codegen/api';
 const createPost = useMutation(api.posts.create.mutationOptions());
 
 // Body is fully typed from the controller's @Body() parameter
-await createPost.mutateAsync({ title: 'Hello', content: '...' });
+await createPost.mutateAsync({ title: 'Hello', content: 'World' });
 ```
+
+---
 
 ## Cache invalidation
 
@@ -61,9 +79,11 @@ const queryClient = useQueryClient();
 // Typed key — no magic strings
 queryClient.invalidateQueries({ queryKey: api.crew.getCrew.queryKey() });
 
-// With params
+// With query params
 queryClient.invalidateQueries({ queryKey: api.posts.list.queryKey({ page: 2 }) });
 ```
+
+---
 
 ## URL params
 
@@ -78,6 +98,8 @@ const update = useMutation(api.crew.updateCrew.mutationOptions());
 await update.mutateAsync({ params: { id: crewId }, body: { name: 'New Name' } });
 ```
 
+---
+
 ## Infinite queries
 
 For paginated endpoints that return `{ data, meta: { page, lastPage } }`, use `infiniteQueryOptions()`:
@@ -91,7 +113,9 @@ const { data, fetchNextPage, hasNextPage } = useInfiniteQuery(
 );
 ```
 
-The codegen reads `meta.page` / `meta.lastPage` from the response to derive `getNextPageParam` automatically.
+The codegen reads `meta.page` and `meta.lastPage` from the response to derive `getNextPageParam` automatically.
+
+---
 
 ## Route helper
 
@@ -106,9 +130,11 @@ const result = await fetcher.patch(route('crew.updateCrew', { id: userId }), {
 });
 ```
 
-## Route.* type helpers
+---
 
-Extract request/response types from any route:
+## `Route.*` type helpers
+
+Extract request and response types from any route without importing the full client:
 
 ```ts
 import type { Route } from '~codegen/api';
@@ -116,4 +142,16 @@ import type { Route } from '~codegen/api';
 type CrewData = Route.Response<'crew.getCrew'>;
 type CreateBody = Route.Body<'posts.create'>;
 type ListQuery = Route.Query<'posts.list'>;
+type ShowParams = Route.Params<'users.show'>;
+type FullRequest = Route.Request<'users.create'>;
+// → { body: { name: string; email: string }; query: never; params: never }
 ```
+
+| Helper | Description |
+|--------|-------------|
+| `Route.Response<K>` | Response type for route `K` |
+| `Route.Body<K>` | Body type for route `K` |
+| `Route.Query<K>` | Query type for route `K` |
+| `Route.Params<K>` | Params type for route `K` |
+| `Route.Error<K>` | Error type for route `K` |
+| `Route.Request<K>` | Full request shape (`{ body, query, params }`) |

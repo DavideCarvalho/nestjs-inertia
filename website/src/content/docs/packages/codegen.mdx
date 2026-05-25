@@ -23,19 +23,30 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
   </TabItem>
 </Tabs>
 
-Static-analysis CLI that reads your NestJS controllers and Inertia page components and emits fully typed TypeScript files.
+Static-analysis CLI that reads your NestJS controllers and Inertia page components, then emits fully typed TypeScript files.
 
-## Key API surface
+## Exports
 
-| CLI / export | Description |
+| CLI / Export | Description |
 |--------------|-------------|
 | `nestjs-inertia codegen` | One-shot generation |
-| `nestjs-inertia codegen --watch` | Watch mode |
-| `nestjs-inertia init` | Scaffolds config, HTML shell, Vite config, entry point, and patches existing files |
-| `nestjs-inertia doctor` | Diagnose tsconfig paths, package versions, codegen output, and Vite config |
-| `nestjs-inertia doctor --fix` | Auto-fix diagnosable issues (tsconfig paths, `.gitignore`, missing packages) |
+| `nestjs-inertia codegen --watch` | Watch mode; re-generates on file changes |
+| `nestjs-inertia init` | Scaffold config, HTML shell, Vite config, entry point |
+| `nestjs-inertia doctor` | Diagnose tsconfig paths, package versions, codegen output, Vite config |
+| `nestjs-inertia doctor --fix` | Auto-fix diagnosable issues |
 | `defineConfig(config)` | Type-safe config helper |
 | `generate(config)` | Programmatic API |
 | `watch(config, onChange?)` | Programmatic watch API |
+| `loadConfig(cwd?)` | Load and resolve `nestjs-inertia.config.ts` |
+
+## Generated files
+
+| File | Contains |
+|------|----------|
+| `pages.d.ts` | Module augmentation for typed `@Inertia()` and page props |
+| `routes.ts` | Typed route map + `route()` helper for URL resolution |
+| `api.ts` | `queryOptions()`, `mutationOptions()`, `queryKey()`, `infiniteQueryOptions()` per route |
+
+Response types use `ReturnType<import(...)>`. Page props use `Parameters<typeof import(...).default>[0]`.
 
 See [Codegen guide](/nestjs-inertia/guides/codegen/) for full configuration and output reference.

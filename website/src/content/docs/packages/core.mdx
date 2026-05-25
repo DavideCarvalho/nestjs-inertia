@@ -23,33 +23,36 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
   </TabItem>
 </Tabs>
 
-The heart of the system. Implements the Inertia.js protocol as a NestJS module.
+Implements the [Inertia.js](https://inertiajs.com/) protocol as a NestJS module. Handles page rendering, version negotiation, shared props, SSR, CSRF, and redirects.
 
-## Key API surface
+## Exports
 
 | Export | Description |
 |--------|-------------|
-| `InertiaModule.forRoot(options)` | Registers the module globally; sets root view, version, and shared props |
+| `InertiaModule.forRoot(options)` | Global module registration; sets root view, version, shared props |
 | `InertiaModule.forRootAsync(options)` | Async variant (`useFactory`, `useClass`, `useExisting`) |
-| `InertiaModule.forFeature(options)` | Registers an additional scope with its own view/shared props |
-| `@Inertia(component)` | Method decorator — intercepts return value, renders Inertia response |
-| `@UseInertia(scope)` | Controller/method decorator — selects a `forFeature` scope |
+| `InertiaModule.forFeature(options)` | Register an additional scope with its own view/shared props |
+| `InertiaModule.forFeatureAsync(options)` | Async variant for feature scopes |
+| `@Inertia(component)` | Method decorator; intercepts return value, renders Inertia response |
+| `@UseInertia(scope)` | Controller/method decorator; selects a `forFeature` scope |
 | `InertiaService` | Injectable service for programmatic renders and redirects |
-| `Inertia.always(fn)` | Prop marker — always resolved, even on partial reloads |
-| `Inertia.optional(fn)` | Prop marker — resolved only when explicitly requested |
-| `Inertia.defer(fn, group?)` | Prop marker — deferred to a separate request |
-| `Inertia.merge(fn, opts?)` | Prop marker — appended/prepended on reload |
-| `InertiaAuthGuard` | Removed — see [auth-redirect recipe](/nestjs-inertia/recipes/auth-redirect/) |
-| `InertiaNotFoundFilter` | Removed — see [not-found recipe](/nestjs-inertia/recipes/not-found/) |
+| `Inertia.always(fn)` | Prop marker; always resolved, even on partial reloads |
+| `Inertia.optional(fn)` | Prop marker; resolved only when explicitly requested |
+| `Inertia.defer(fn, group?)` | Prop marker; deferred to a separate request |
+| `Inertia.merge(fn, opts?)` | Prop marker; appended/prepended on reload |
+| `Inertia.once(fn)` | Prop marker; resolved once, then cached |
 | `ErrorBagInterceptor` | Namespaces `errors` by `X-Inertia-Error-Bag` header |
 | `CsrfCookieInterceptor` | Sets `XSRF-TOKEN` cookie and validates `X-XSRF-TOKEN` |
+| `CsrfGuard` | Guard-based CSRF validation |
+| `RedirectInterceptor` | Converts 302 to 303 for PUT/PATCH/DELETE per Inertia spec |
+| `MethodSpoofMiddleware` | `_method` field support for HTML form method spoofing |
 
-## Minimal forRoot options
+## Minimal setup
 
 ```ts
 InertiaModule.forRoot({
-  rootView: 'inertia/root.html', // path to HTML shell (relative to cwd)
-  version: '1',                  // asset version for cache-busting
+  rootView: 'inertia/root.html',
+  version: '1',
 })
 ```
 

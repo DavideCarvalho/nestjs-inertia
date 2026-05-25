@@ -1,19 +1,26 @@
 ---
 title: Getting Started
-description: Add Inertia.js to an existing NestJS project in minutes — install the packages, run nestjs-inertia init, and you're done.
+description: Add Inertia.js to an existing NestJS project in minutes -- install the packages, run nestjs-inertia init, and you're done.
 ---
 
-import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
-The fastest way to get Inertia.js running in NestJS is two steps: install the packages, then run `nestjs-inertia init`. The init command scaffolds all files **and** auto-patches your existing `app.module.ts` and `main.ts` — no manual wiring needed. Most projects are done in under three minutes.
+The fastest way to get Inertia.js running in NestJS is two steps: install the packages, then run `nestjs-inertia init`. The init command scaffolds all files and auto-patches your existing `app.module.ts` and `main.ts`. Most projects are done in under three minutes.
 
 ---
 
-## Quickstart
+## Prerequisites
 
-### Step 1 — Install
+- **Node.js 20+**
+- **NestJS 10+** (both v10 and v11 are supported)
+- **TypeScript 5+**
+- One of: **React**, **Vue 3**, or **Svelte 5**
 
-Install the five packages that make up the suite, then add the Inertia client adapter for your frontend framework.
+---
+
+## Step 1 -- Install
+
+Install the five packages that make up the suite:
 
 <Tabs>
   <TabItem label="pnpm">
@@ -61,7 +68,7 @@ Then install your framework's Inertia adapter and Vite plugin:
 
 ---
 
-### Step 2 — Run `nestjs-inertia init`
+## Step 2 -- Run `nestjs-inertia init`
 
 <Tabs>
   <TabItem label="pnpm">
@@ -81,11 +88,9 @@ Then install your framework's Inertia adapter and Vite plugin:
   </TabItem>
 </Tabs>
 
-This command scaffolds your entire Inertia setup in one shot. It:
+This command detects your frontend framework from `package.json` (or asks interactively), detects your template engine (Handlebars, EJS, Pug, Liquid, or plain HTML), and scaffolds everything in one shot.
 
-- **Detects your frontend framework** from `package.json` (React, Vue 3, or Svelte 5). If none is found it asks interactively.
-- **Detects your template engine** — Handlebars, EJS, Pug, Liquid, or plain HTML.
-- **Creates scaffold files** — skips any that already exist (fully idempotent). If `vite.config.ts` exists but doesn't reference the `nestInertia` plugin, a warning is printed instead of overwriting your config:
+### Files created by init
 
 | File | What it is |
 |---|---|
@@ -97,67 +102,30 @@ This command scaffolds your entire Inertia setup in one shot. It:
 | `inertia/pages/Home.tsx` (or `.vue`/`.svelte`) | Sample page component |
 | `src/home.controller.ts` | Sample NestJS controller with `@Inertia('Home')` |
 
-- **Intelligently patches existing files** — each patch is only applied if the content is not already present:
-  - `src/app.module.ts` — adds `InertiaModule.forRoot(...)` to `imports` and `HomeController` to `controllers`
-  - `src/main.ts` — inserts the `setupInertiaVite(app, {...})` call right after `NestFactory.create`
-  - `.gitignore` — appends `.nestjs-inertia/` if not already present
-  - `package.json` scripts — adds `build:client` and `build:ssr` only if not already defined
+### Files patched by init
 
-**Expected output (fresh project):**
+| File | Patch |
+|---|---|
+| `src/app.module.ts` | Adds `InertiaModule.forRoot(...)` to `imports` and `HomeController` to `controllers` |
+| `src/main.ts` | Inserts `setupInertiaVite(app, {...})` after `NestFactory.create` |
+| `.gitignore` | Appends `.nestjs-inertia/` |
+| `package.json` | Adds `build:client` and `build:ssr` scripts |
 
-```
-nestjs-inertia init
+Every create and patch is idempotent. Re-running `init` on an existing project skips files that already exist and skips patches already applied.
 
-  Detected: React + plain HTML
-
-Scaffold files
-  ✓ nestjs-inertia.config.ts (created)
-  ✓ nestjs-inertia.d.ts (created)
-  ✓ inertia/index.html (created)
-  ✓ vite.config.ts (created)
-  ✓ inertia/app.tsx (created)
-  ✓ inertia/pages/Home.tsx (created)
-  ✓ src/home.controller.ts (created)
-
-Patch existing files
-  ✓ src/app.module.ts (added InertiaModule.forRoot)
-  ✓ src/app.module.ts (added HomeController to controllers)
-  ✓ src/main.ts (added setupInertiaVite after NestFactory.create)
-  ✓ .gitignore (added .nestjs-inertia/)
-  ✓ package.json (added build:client script)
-  ✓ package.json (added build:ssr script)
-
-Install dependencies
-  ✓ @inertiajs/react, react, react-dom (installed)
-
-✓ Setup complete! Run: nest start --watch
-```
-
-**Re-running `init` on an existing project** skips files that already exist and skips patches already applied — it is fully idempotent:
-
-```
-Scaffold files
-  → nestjs-inertia.config.ts (already exists, skipped)
-  → inertia/index.html (already exists, skipped)
-  → vite.config.ts (already exists, skipped)
-  ...
-
-Patch existing files
-  → src/app.module.ts (InertiaModule already registered, skipped)
-  → src/main.ts (setupInertiaVite already present, skipped)
-  → .gitignore (already contains .nestjs-inertia/, skipped)
-  → package.json (build:client already defined, skipped)
-```
+<Aside type="tip">
+  If `vite.config.ts` exists but doesn't reference the `nestInertia` plugin, a warning is printed instead of overwriting your config.
+</Aside>
 
 **Done.** Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-### Manual setup (if auto-patching fails)
+## Step 3 -- Manual setup (if auto-patching fails)
 
-If `init` cannot find or parse your `app.module.ts` or `main.ts` (e.g. non-standard structure), it prints a warning with the exact snippet to add manually.
+If `init` cannot find or parse your `app.module.ts` or `main.ts` (non-standard structure), it prints a warning with the exact snippet to add manually.
 
-**`src/app.module.ts`** — register `InertiaModule` and `HomeController`:
+**`src/app.module.ts`** -- register `InertiaModule` and `HomeController`:
 
 ```ts
 import { InertiaModule } from '@dudousxd/nestjs-inertia';
@@ -174,7 +142,7 @@ import { HomeController } from './home.controller.js';
 export class AppModule {}
 ```
 
-**`src/main.ts`** — wire Vite after `NestFactory.create`:
+**`src/main.ts`** -- wire Vite after `NestFactory.create`:
 
 ```ts
 const app = await NestFactory.create(AppModule);
@@ -194,7 +162,7 @@ await app.listen(3000);
 
 ## The HTML shell and its directives
 
-The shell file created by `init` uses three special directives. These are the key to how nestjs-inertia works.
+The shell file created by `init` uses three special directives:
 
 ```html
 <!DOCTYPE html>
@@ -214,26 +182,20 @@ The shell file created by `init` uses three special directives. These are the ke
 
 | Directive | What it emits |
 |---|---|
-| `@inertia` | `<div id="app"></div>` plus `<script data-page="app" type="application/json">{page data}</script>`. The page JSON is XSS-safe escaped. |
-| `@inertiaHead` | SSR `<head>` tags (title, meta) when SSR is enabled. Empty string in CSR-only mode. |
-| `@vite('entry')` | In dev: `<script src="/@vite/client">` (HMR) + React Refresh preamble + entry script. In prod: reads the Vite manifest and emits the hashed asset URL + CSS link. |
+| `@inertia` | `<div id="app">` plus `<script data-page="app" type="application/json">` containing the XSS-safe-escaped page data |
+| `@inertiaHead` | SSR `<head>` tags (title, meta) when SSR is enabled. Empty string in CSR-only mode |
+| `@vite('entry')` | In dev: HMR client + React Refresh preamble + entry script. In prod: hashed asset URL + CSS link from the Vite manifest |
 
 You write the `<head>` with your app's meta tags, fonts, and favicon. The lib handles everything else.
 
 ---
 
-## Going deeper
-
-The sections below cover the full configuration surface for each piece. They are optional reading — the quickstart above is all you need to get running.
-
----
-
-### `InertiaModule.forRoot()` options
+## `InertiaModule.forRoot()` options
 
 | Option | Type | Required | Description |
 |---|---|---|---|
-| `version` | `string \| () => string` | No | Asset version — auto-computed from Vite manifest if omitted (SHA-1 in prod, UUID in dev) |
-| `rootView` | `string \| (ctx) => string` | Yes | HTML shell — file path or render function |
+| `rootView` | `string \| (ctx) => string` | Yes | HTML shell -- file path or render function |
+| `version` | `string \| () => string` | No | Asset version -- auto-computed from Vite manifest if omitted (SHA-1 in prod, UUID in dev) |
 | `ssr` | `{ enabled, bundlePath, throwOnError? }` | No | SSR bundle configuration |
 | `share` | `(req) => Promise<Record>` | No | Per-request shared props injected into every page |
 | `csrf` | `{ secret, cookieName, tokenContext? }` | No | CSRF cookie options |
@@ -241,13 +203,15 @@ The sections below cover the full configuration surface for each piece. They are
 
 For the full options reference see the [core package docs](/nestjs-inertia/packages/core/).
 
-**Version auto-detection:** When `version` is omitted, the lib automatically computes it from the Vite manifest in production (SHA-1 hash) or generates a random UUID in development. You only need to set `version` explicitly if you have a custom versioning strategy.
+<Aside type="note">
+  When `version` is omitted, the lib automatically computes it from the Vite manifest in production (SHA-1 hash) or generates a random UUID in development. You only need to set `version` explicitly if you have a custom versioning strategy.
+</Aside>
 
 ---
 
-### Adding a typed API endpoint
+## Adding a typed API endpoint
 
-The codegen reads types directly from standard NestJS decorators — no extra schemas or contracts needed. Use the DTOs and decorators you already have:
+The codegen reads types directly from standard NestJS decorators. No extra schemas or contracts needed. Use the DTOs and decorators you already have:
 
 ```ts
 // src/posts.controller.ts
@@ -289,22 +253,29 @@ export class PostsController {
 ```
 
 The codegen reads:
-- **`@Controller('/api/posts')` + `@Get()`** → HTTP method + path
-- **`@Query() query: ListPostsQuery`** → query type from the DTO class
-- **`@ApiResponse({ type: [PostDto] })`** → response type
-- **`@As('posts')`** → class namespace; method name `list` → route name `posts.list`
+
+| Decorator | What it extracts |
+|---|---|
+| `@Controller('/api/posts')` + `@Get()` | HTTP method + path |
+| `@Query() query: ListPostsQuery` | Query type from the DTO class |
+| `@ApiResponse({ type: [PostDto] })` | Response type |
+| `@As('posts')` + method name `list` | Route name `posts.list` |
 
 No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
 
-> **No return type annotation needed.** The codegen uses `ReturnType<import(...)>` to infer the response type directly from the controller method. Whether you annotate `list(): Promise<PostDto[]>` or let TypeScript infer it, the generated types are correct.
+<Aside type="tip">
+  No return type annotation needed. The codegen uses `ReturnType<import(...)>` to infer the response type directly from the controller method. Whether you annotate `list(): Promise<PostDto[]>` or let TypeScript infer it, the generated types are correct.
+</Aside>
 
-> **Advanced:** If you prefer explicit Zod schemas (runtime validation + type extraction), see the [defineContract + @ApplyContract docs](/nestjs-inertia/guides/codegen/#applycontract-example). Both paths work — DTOs are zero-config, Zod is explicit.
+<Aside type="note" title="Explicit Zod schemas">
+  If you prefer explicit Zod schemas (runtime validation + type extraction), see the [defineContract + @ApplyContract docs](/nestjs-inertia/guides/codegen/#applycontract-example). Both paths work -- DTOs are zero-config, Zod is explicit.
+</Aside>
 
 ---
 
-### Codegen
+## Codegen
 
-Codegen runs **automatically** — no config needed. When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` is present, the watcher starts on `nest start --watch` and regenerates types on every controller/page change. It's disabled automatically in production.
+Codegen runs automatically. When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` is present, the watcher starts on `nest start --watch` and regenerates types on every controller/page change. Disabled automatically in production.
 
 On startup the watcher emits files into `.nestjs-inertia/` at the project root:
 
@@ -329,9 +300,9 @@ See the [Codegen guide](/nestjs-inertia/guides/codegen/) for full configuration 
 
 ---
 
-### Using the generated API
+## Using the generated API
 
-The generated `api.ts` provides `queryOptions()`, `mutationOptions()`, and `queryKey()` for every route — powered by [TanStack Query](https://tanstack.com/query).
+The generated `api.ts` provides `queryOptions()`, `mutationOptions()`, and `queryKey()` for every route -- powered by [TanStack Query](https://tanstack.com/query).
 
 ```tsx
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -350,18 +321,19 @@ const queryClient = useQueryClient();
 queryClient.invalidateQueries({ queryKey: api.posts.list.queryKey() });
 ```
 
-Response types are inferred automatically from the controller method via `ReturnType<import(...)>` — no explicit return type annotations needed.
+Response types are inferred automatically from the controller method via `ReturnType<import(...)>`.
 
 ---
 
-### Typed `<Link>` component
+## Typed `<Link>` component
 
 Wire the route resolver in your frontend entry, then use `<Link>` in any page component.
 
 <Tabs>
   <TabItem label="React">
+    **Boot wiring** -- `inertia/app.tsx`:
+
     ```tsx
-    // inertia/app.tsx — add InertiaRouteProvider
     import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
     import { route } from '~codegen/routes';
 
@@ -373,8 +345,9 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
     );
     ```
 
+    **Usage** -- any page component:
+
     ```tsx
-    // In any page component
     import { Link } from '@dudousxd/nestjs-inertia-client/react';
 
     <Link route="posts.list">All Posts</Link>
@@ -383,8 +356,9 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
     ```
   </TabItem>
   <TabItem label="Vue 3">
+    **Boot wiring** -- `inertia/app.ts`:
+
     ```ts
-    // inertia/app.ts — provide the route resolver
     import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
     import { route } from '~codegen/routes';
 
@@ -392,8 +366,9 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
     app.provide(INERTIA_ROUTES_KEY, route);
     ```
 
+    **Usage** -- any page component:
+
     ```vue
-    <!-- In any page component -->
     <script setup lang="ts">
     import { Link } from '@dudousxd/nestjs-inertia-client/vue';
     </script>
@@ -404,15 +379,17 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
     ```
   </TabItem>
   <TabItem label="Svelte 5">
+    **Boot wiring** -- `inertia/app.ts`:
+
     ```ts
-    // inertia/app.ts — pass resolver as Svelte context
     import { route } from '~codegen/routes';
     const appContext = new Map([['inertia-routes', route]]);
     // In setup: mount(App, { target: el, props, context: appContext });
     ```
 
+    **Usage** -- any page component:
+
     ```svelte
-    <!-- In any page component -->
     <script lang="ts">
     import { Link } from '@dudousxd/nestjs-inertia-client/svelte';
     </script>
@@ -425,27 +402,27 @@ See the [Typed Link guide](/nestjs-inertia/guides/typed-link/) for full `<Link>`
 
 ---
 
-### Type helpers
+## Type helpers
 
-The generated `api.ts` exports a `Route` namespace with helper types that let you extract request/response shapes for any named endpoint.
+The generated `api.ts` exports a `Route` namespace with helper types for extracting request/response shapes from any named endpoint:
 
 ```ts
 import type { Route } from '~codegen/api';
 
-type PostList      = Route.Response<'posts.list'>;
-type PostListQuery = Route.Query<'posts.list'>;
+type PostList       = Route.Response<'posts.list'>;
+type PostListQuery  = Route.Query<'posts.list'>;
 type PostShowParams = Route.Params<'posts.show'>;
 ```
 
-These types are derived from your controller method signatures via `ReturnType<import(...)>` — they stay in sync automatically without explicit type annotations.
+These types are derived from your controller method signatures via `ReturnType<import(...)>` and stay in sync automatically.
 
 See the [Typed Client guide](/nestjs-inertia/guides/typed-client/) for `createFetcher` and SSR hydration.
 
 ---
 
-### Testing
+## Testing
 
-`nestjs-inertia-testing` provides `expectInertia()` — a chainable assertion helper for Inertia responses.
+`nestjs-inertia-testing` provides `expectInertia()` -- a chainable assertion helper for Inertia responses.
 
 ```ts
 // src/home.controller.spec.ts
@@ -490,18 +467,18 @@ See the [Testing guide](/nestjs-inertia/guides/testing/) for the full API, `Test
 
 ---
 
-### Production build
+## Production build
 
 The `init` command adds `build:client` and `build:ssr` scripts to `package.json`. The full production build sequence:
 
 ```bash
-pnpm run build:client   # vite build — emits client bundle + manifest
-pnpm run build:ssr      # vite build --ssr — emits SSR bundle
+pnpm run build:client   # vite build -- emits client bundle + manifest
+pnpm run build:ssr      # vite build --ssr -- emits SSR bundle
 nest build              # compiles TypeScript to dist/
 NODE_ENV=production node dist/main.js
 ```
 
-In production `setupInertiaVite` switches from dev-server middleware to static-file serving from `publicDir`. The `computeAssetVersion` factory (shown in the forRoot section above) reads the real manifest and returns a stable hash.
+In production `setupInertiaVite` switches from dev-server middleware to static-file serving from `publicDir`. The asset version is auto-computed from the real Vite manifest (SHA-1 hash).
 
 ---
 
@@ -530,9 +507,9 @@ my-nestjs-app/
 
 ---
 
-### Recommended tsconfig aliases
+## Recommended tsconfig aliases
 
-For clean imports between frontend, backend, and codegen output, add these path aliases:
+For clean imports between frontend, backend, and codegen output, add these path aliases.
 
 **`tsconfig.json`** (or `tsconfig.inertia.json` if you have a separate frontend config):
 
@@ -565,20 +542,23 @@ export default defineConfig({
 ```
 
 This lets you write:
-- `import { api } from '~codegen/api'` instead of relative paths
-- `import { SomeService } from '@/some/service'` for backend imports
-- `import { MyComponent } from '~/components/MyComponent'` for frontend imports
+
+| Alias | Import | Resolves to |
+|---|---|---|
+| `~codegen/` | `import { api } from '~codegen/api'` | `.nestjs-inertia/api` |
+| `@/` | `import { SomeService } from '@/some/service'` | `src/some/service` |
+| `~/` | `import { MyComponent } from '~/components/MyComponent'` | `inertia/components/MyComponent` |
 
 ---
 
 ## Next steps
 
-- [Guides: Codegen](/nestjs-inertia/guides/codegen/) — full codegen configuration, CI integration, and generated file reference
-- [Guides: Typed Client](/nestjs-inertia/guides/typed-client/) — `createFetcher`, SSR hydration, and client-side contract usage
-- [Guides: Typed Link](/nestjs-inertia/guides/typed-link/) — `<Link>` props, `routeParams` inference, and programmatic navigation
-- [Guides: Testing](/nestjs-inertia/guides/testing/) — `expectInertia` full API, `TestingModule` harness, and faking shared props
-- [Guides: Multi-app](/nestjs-inertia/guides/multi-app/) — `InertiaModule.forFeature(...)` for multiple independent frontends in one process
-- [Packages: Core](/nestjs-inertia/packages/core/) — full `InertiaModule.forRoot` options, `InertiaService` API, and partial-reload markers
-- [Packages: Vite](/nestjs-inertia/packages/vite/) — `nestInertia` plugin options, `setupInertiaVite` options, and SSR build config
-- [Recipes: Auth Redirect](/nestjs-inertia/recipes/auth-redirect/) — `InertiaAuthGuard` pattern for 302 vs. 409 redirect on unauthenticated Inertia requests
-- [Recipes: Not Found Filter](/nestjs-inertia/recipes/not-found/) — exception filter that renders an Inertia page for 404s instead of JSON
+- [Codegen](/nestjs-inertia/guides/codegen/) -- full codegen configuration, CI integration, and generated file reference
+- [Typed Client](/nestjs-inertia/guides/typed-client/) -- `createFetcher`, SSR hydration, and client-side contract usage
+- [Typed Link](/nestjs-inertia/guides/typed-link/) -- `<Link>` props, `routeParams` inference, and programmatic navigation
+- [Testing](/nestjs-inertia/guides/testing/) -- `expectInertia` full API, `TestingModule` harness, and faking shared props
+- [Multi-app](/nestjs-inertia/guides/multi-app/) -- `InertiaModule.forFeature(...)` for multiple independent frontends in one process
+- [Core package](/nestjs-inertia/packages/core/) -- full `InertiaModule.forRoot` options, `InertiaService` API, and partial-reload markers
+- [Vite package](/nestjs-inertia/packages/vite/) -- `nestInertia` plugin options, `setupInertiaVite` options, and SSR build config
+- [Recipe: Auth Redirect](/nestjs-inertia/recipes/auth-redirect/) -- `InertiaAuthGuard` pattern for 302 vs. 409 redirect
+- [Recipe: Not Found Filter](/nestjs-inertia/recipes/not-found/) -- exception filter that renders an Inertia page for 404s

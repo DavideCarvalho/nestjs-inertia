@@ -1,11 +1,19 @@
 ---
 title: Codegen
-description: Use nestjs-inertia-codegen to emit typed pages, routes, and a typed API surface from your NestJS controllers.
+description: Static analysis of your NestJS controllers that emits typed pages, routes, and a full API client surface. Zero runtime cost.
+sidebar:
+  order: 2
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
-`@dudousxd/nestjs-inertia-codegen` provides a CLI that statically analyses your NestJS application and emits TypeScript type files so that your frontend and any API client are fully type-safe.
+```bash
+pnpm nestjs-inertia codegen
+```
+
+One command. Your controllers become typed page props, a route map, and a complete API client with `queryOptions`, `mutationOptions`, and `queryKey` for every endpoint.
+
+---
 
 ## Install
 
@@ -27,34 +35,40 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
   </TabItem>
 </Tabs>
 
+---
+
 ## Configuration
 
-Create `nestjs-inertia.config.ts` at your project root:
+Create `nestjs-inertia.config.ts` at the project root:
 
 ```ts
+// nestjs-inertia.config.ts
 import { defineConfig } from '@dudousxd/nestjs-inertia-codegen';
 
 export default defineConfig({
   pages: {
-    // Glob pattern for Inertia page components
     glob: 'inertia/pages/**/*.tsx',
-    // Named export that holds the page's prop type
-    propsExport: 'ComponentProps',
   },
   app: {
-    // Path to the NestJS AppModule (used to discover controllers)
     moduleEntry: './src/app.module.ts',
   },
   contracts: {
-    // Glob for controller files watched in auto/manual watch mode
     glob: 'src/**/*.controller.ts',
-    // Debounce before re-running contract discovery on file change
     debounceMs: 500,
   },
-  // Optional: where to emit generated files (default: .nestjs-inertia/)
   outDir: '.nestjs-inertia',
 });
 ```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `pages.glob` | -- | Glob for Inertia page components |
+| `app.moduleEntry` | -- | Path to `AppModule` (used to discover controllers) |
+| `contracts.glob` | `src/**/*.controller.ts` | Glob for controller files watched in watch mode |
+| `contracts.debounceMs` | `500` | Debounce before re-running on file change |
+| `outDir` | `.nestjs-inertia` | Directory for generated files |
+
+---
 
 ## Running
 
@@ -72,6 +86,8 @@ Or add a script to `package.json`:
 }
 ```
 
+---
+
 ## Output structure
 
 ```
@@ -81,23 +97,29 @@ Or add a script to `package.json`:
   api.ts       — queryOptions(), mutationOptions(), queryKey() for every route
 ```
 
-### `pages.d.ts`
+---
+
+## `pages.d.ts`
+
+Props are inferred directly from the default export of each page component using `Parameters<typeof import('...').default>[0]`. No `ComponentProps` export needed.
 
 ```ts
 export type InertiaPageName = 'Dashboard' | 'Users' | 'Settings';
 
 declare module '@dudousxd/nestjs-inertia' {
   interface InertiaPages {
-    Dashboard: import('../inertia/pages/Dashboard').ComponentProps;
-    Users: import('../inertia/pages/Users').ComponentProps;
-    Settings: import('../inertia/pages/Settings').ComponentProps;
+    Dashboard: Parameters<typeof import('../inertia/pages/Dashboard').default>[0];
+    Users: Parameters<typeof import('../inertia/pages/Users').default>[0];
+    Settings: Parameters<typeof import('../inertia/pages/Settings').default>[0];
   }
 }
 ```
 
 This augments the `@Inertia()` decorator to only accept valid page names. Write `@Inertia('Dashbord')` and TypeScript errors immediately.
 
-### `routes.ts`
+---
+
+## `routes.ts`
 
 ```ts
 export const ROUTES = {
@@ -110,43 +132,61 @@ export type RouteName = keyof typeof ROUTES;
 export function route(name: RouteName, params?: Record<string, string>): string;
 ```
 
-### `api.ts`
+The `route()` helper interpolates params into the URL pattern:
+
+```ts
+route('users.show', { id: '42' })
+// → "/api/users/42"
+```
+
+---
+
+## `api.ts`
 
 ```ts
 import { queryOptions as _queryOptions, mutationOptions as _mutationOptions } from '@tanstack/react-query';
 
 export interface ApiRouter {
   users: {
-    list: { method: "GET"; url: "/api/users"; query: { active?: boolean }; body: never; response: Awaited<ReturnType<import('../src/users.controller').UsersController['list']>> };
-    show: { method: "GET"; url: "/api/users/:id"; params: { id: string }; query: never; body: never; response: ... };
+    list: {
+      method: "GET";
+      url: "/api/users";
+      query: { active?: boolean };
+      body: never;
+      response: Awaited<ReturnType<import('../src/users.controller').UsersController['list']>>;
+    };
+    show: {
+      method: "GET";
+      url: "/api/users/:id";
+      params: { id: string };
+      query: never;
+      body: never;
+      response: Awaited<ReturnType<import('../src/users.controller').UsersController['show']>>;
+    };
   };
 }
 
 export const api = {
   users: {
     list: {
-      queryOptions: (query?) => _queryOptions({ queryKey: [...], queryFn: ... }),
+      queryOptions: (query?) => _queryOptions({ queryKey: ["users.list", query], queryFn: () => fetcher.get("/api/users", { query }) }),
       queryKey: (query?) => ["users.list", query] as const,
     },
     show: {
-      queryOptions: (params, query?) => _queryOptions({ ... }),
+      queryOptions: (params, query?) => _queryOptions({ queryKey: ["users.show", params, query], queryFn: () => fetcher.get(`/api/users/${params.id}`, { query }) }),
       queryKey: (params, query?) => ["users.show", params, query] as const,
     },
   },
 };
 ```
 
-Response types use `Awaited<ReturnType<import(...)>>` — they stay in sync with your controller automatically, no annotations needed.
+Response types use `Awaited<ReturnType<import(...)>>`. They stay in sync with your controller automatically. No annotations needed.
 
-## Using class-validator DTOs (no `defineContract` needed)
+---
 
-For standard NestJS projects that already use class-validator DTOs and `@nestjs/swagger`, you get typed API generation **without** writing `defineContract` at all. The codegen reads types directly from:
+## Using class-validator DTOs
 
-- `@Body() body: CreatePostDto` → body type
-- `@Query() query: ListPostsQuery` → query type
-- `@Param('id') id: string` → params type
-- `@ApiResponse({ type: [PostDto] })` or `@ApiResponse({ type: PostDto })` → response type
-- Return type annotation (`Promise<PostDto[]>`) → response fallback
+The codegen reads types directly from your existing NestJS decorators. No `defineContract`, no Zod schemas.
 
 ```ts
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
@@ -188,144 +228,152 @@ export class PostsController {
 }
 ```
 
-After running `pnpm codegen`, the `api.ts` file will contain fully typed entries for all three methods — no `defineContract`, no Zod schemas required.
+After running `pnpm codegen`, `api.ts` contains fully typed entries for all three methods.
 
-### Priority chain
+| Decorator | Extracted as |
+|-----------|-------------|
+| `@Body() body: CreatePostDto` | body type |
+| `@Query() query: ListPostsQuery` | query type |
+| `@Param('id') id: string` | params type |
+| `@ApiResponse({ type: PostDto })` | response type |
+| Return type `Promise<PostDto[]>` | response fallback |
 
-When building contract info for a method the codegen applies this priority:
+<Aside type="note">
+  `@Query('key')` for individual string query params is ignored. Only `@Query()` with no argument pointing to a DTO class is extracted.
+</Aside>
 
-1. **`@ApplyContract(defineContract({...}))`** — Zod schemas win. When present, DTO extraction is skipped entirely for that method.
-2. **Parameter decorators** — `@Body()`, `@Query()`, `@Param('name')` contribute body, query, and params types from the DTO class.
-3. **`@ApiResponse({ type: ... })`** — provides the response type.
-4. **Return type annotation** — `list(): Promise<PostDto[]>` is used as a response fallback when `@ApiResponse` is absent.
-5. **Nothing** — `unknown`.
+---
 
-### Notes and limitations
+## Priority chain
 
-- `@Query('key')` for individual string query params is **ignored** (only `@Query()` with no argument pointing to a DTO class is extracted).
-- DTO classes can be imported from other files — the codegen follows `import` declarations and resolves `tsconfig.json` path aliases (e.g. `@/*`) automatically.
-- Interfaces, type aliases, and enums are also resolved across files.
-- Recursive class resolution is limited to **depth 3** to prevent infinite loops on circular references.
-- `Date` properties are emitted as `string` (common REST API convention).
-- Utility types like `Record<K, V>`, `Omit<T, K>`, and `Pick<T, K>` are preserved with their generic arguments.
-- Server-only types (`StreamableFile`, `Observable`) are mapped to `unknown` in the generated output.
+When the codegen builds contract info for a method, it applies this priority:
 
-## `@ApplyContract` example
+| Priority | Source | Behavior |
+|----------|--------|----------|
+| 1 | `@ApplyContract(defineContract({...}))` | Zod schemas win. DTO extraction is skipped for that method. |
+| 2 | Parameter decorators (`@Body`, `@Query`, `@Param`) | Contributes body, query, and params types from the DTO class. |
+| 3 | `@ApiResponse({ type: ... })` | Provides the response type. |
+| 4 | Return type annotation (`Promise<PostDto[]>`) | Response fallback when `@ApiResponse` is absent. |
+| 5 | Nothing | `unknown` |
+
+---
+
+## Cross-file DTO resolution
+
+The codegen follows `import` declarations and resolves `tsconfig.json` path aliases (e.g. `@/*`) automatically. DTO classes, interfaces, type aliases, and enums are all resolved across files.
 
 ```ts
-import { Controller, Get } from '@nestjs/common';
-import { ApplyContract, defineContract } from '@dudousxd/nestjs-inertia-client';
-import { z } from 'zod';
+// src/dto/post.dto.ts
+export class PostDto {
+  id: string;
+  title: string;
+}
 
-const ListUsers = defineContract({
-  query: z.object({ active: z.boolean().optional() }),
-  response: z.array(z.object({ id: z.string(), name: z.string() })),
-});
+// src/posts.controller.ts
+import { PostDto } from './dto/post.dto';
 
-@Controller()
-export class UsersController {
-  @Get('/api/users')
-  @ApplyContract(ListUsers)
-  list() {
-    return [
-      { id: '1', name: 'Alice' },
-      { id: '2', name: 'Bob' },
-    ];
+@Controller('/api/posts')
+export class PostsController {
+  @Get()
+  list(): Promise<PostDto[]> {
+    return this.postsService.list();
   }
 }
 ```
 
-Use standard NestJS decorators (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) as the routing source-of-truth.
-`@ApplyContract` only attaches the contract metadata — it no longer sets the HTTP method or path.
+The codegen resolves `PostDto` from `./dto/post.dto` and emits the correct type in `api.ts`.
 
-After running `pnpm codegen`, the auto-derived `users.list` contract appears in `api.ts`.
+---
+
+## Notes and limitations
+
+| Behavior | Detail |
+|----------|--------|
+| Utility types preserved | `Record<K, V>`, `Omit<T, K>`, and `Pick<T, K>` are emitted with their generic arguments |
+| `Date` properties | Emitted as `string` (standard REST convention) |
+| Server-only types | `StreamableFile`, `Observable` are mapped to `unknown` |
+| Recursive depth | Class resolution is limited to depth 3 to prevent infinite loops on circular references |
+| `@Query('key')` | Individual string query params are ignored (only DTO-style `@Query()` is extracted) |
+
+---
 
 ## How the API name is chosen
 
-The API name is composed from a **class portion** and a **method portion**, joined with a dot:
+The API name is composed from a **class portion** and a **method portion**, joined with a dot.
 
-- **Class portion**: class-level `@As(...)` value if present, otherwise the class name with the `Controller` suffix stripped and first letter lowercased.
-- **Method portion**: method-level `@As(...)` value if present, otherwise the method name.
+- **Class portion**: class-level `@As(...)` if present, otherwise the class name with the `Controller` suffix stripped and first letter lowercased.
+- **Method portion**: method-level `@As(...)` if present, otherwise the method name.
 - **Final name**: `${classPortion}.${methodPortion}`
 
-| Class-level `@As` | Method-level `@As` | Derived name |
-|---|---|---|
-| absent | absent | `<classNameStripped>.<methodName>` (default) |
+| Class `@As` | Method `@As` | Derived name |
+|-------------|-------------|-------------|
+| absent | absent | `<classNameStripped>.<methodName>` |
 | `@As('crew')` | absent | `crew.<methodName>` |
 | absent | `@As('top10')` | `<classNameStripped>.top10` |
 | `@As('crew')` | `@As('directory.fetch')` | `crew.directory.fetch` |
 | `@As('crew.admin')` | `@As('top10')` | `crew.admin.top10` |
 
-Use dot-notation in the final name to produce a nested path under `api.*.*`:
+Dot-notation in the final name produces nested paths under `api.*.*`:
 
-| Final name            | Generated accessor              |
-|-----------------------|---------------------------------|
-| `'users.list'`        | `api.users.list`                |
-| `'users.show'`        | `api.users.show`                |
-| `'adminUsers.create'` | `api.adminUsers.create`         |
-| `'crew.admin.top10'`  | `api.crew.admin.top10`          |
-
-```ts
-// UsersController.list → api.users.list.queryOptions(...)
-const { data } = useQuery(api.users.list.queryOptions({ active: true }));
-```
-
-### Overriding the name with `@As`
-
-`@As` can be applied at the **class level**, **method level**, or both. When both are present they compose: the class value becomes the class portion and the method value becomes the method portion.
+| Final name | Generated accessor |
+|-----------|-------------------|
+| `'users.list'` | `api.users.list` |
+| `'users.show'` | `api.users.show` |
+| `'adminUsers.create'` | `api.adminUsers.create` |
+| `'crew.admin.top10'` | `api.crew.admin.top10` |
 
 ```ts
 import { As } from '@dudousxd/nestjs-inertia-client';
 
-// Class-level @As sets the class portion for every method in the class
 @Controller('/api/v1/crew')
 @As('crew')
 class CrewController {
   @Get()
-  list() { ... }              // → 'crew.list'
+  list() {}              // → 'crew.list'
 
   @Get('/top')
-  @As('top10')                // → 'crew.top10'
-  top() { ... }
+  @As('top10')           // → 'crew.top10'
+  top() {}
 }
 
-// Class @As can be multi-segment
 @Controller('/api/v1/admin/crew')
 @As('crew.admin')
 class CrewAdminController {
   @Get()
-  @As('top10')                // → 'crew.admin.top10'
-  list() { ... }
+  @As('top10')           // → 'crew.admin.top10'
+  list() {}
 }
 ```
 
-### Valid name format
+Each dot-separated segment must be a camelCase identifier: starts with a lowercase letter, contains only letters and digits. Codegen validates at emit time and throws a descriptive error with a suggested fix.
 
-Each dot-separated segment must be a **camelCase identifier**: it must start with a lowercase letter and contain only letters and digits (no hyphens, underscores, spaces, or uppercase first letters). Codegen validates this at emit time and throws a descriptive error with a suggested fix.
+---
 
-- Valid: `'users.list'`, `'admin.userActions.create'`, `'health'`
-- Invalid (throws): `'user-post.list'` → suggest `'userPost.list'`, `'user_post.list'` → suggest `'userPost.list'`, `'User.list'` → suggest `'user.list'`
+## `Route.*` and `Path.*` type helpers
 
-## Type helpers
+The generated `api.ts` exports two namespaces for accessing request and response shapes without importing the full client.
 
-The generated `api.ts` exports two namespaces of type helpers for accessing request and response shapes without importing the full client.
-
-### `Route.*` — by contract name
+### `Route.*` -- by contract name
 
 ```ts
 import type { Route } from '~codegen/api';
 
-// Resolved type of the response field for users.list
 type UserList = Route.Response<'users.list'>;
 
-// Full request shape
 type CreateUserRequest = Route.Request<'users.create'>;
 // → { body: { name: string; email: string }; query: never; params: never }
 ```
 
-All helpers: `Route.Response<K>`, `Route.Body<K>`, `Route.Query<K>`, `Route.Params<K>`, `Route.Error<K>`, `Route.Request<K>`.
+| Helper | Description |
+|--------|-------------|
+| `Route.Response<K>` | Response type for route `K` |
+| `Route.Body<K>` | Body type for route `K` |
+| `Route.Query<K>` | Query type for route `K` |
+| `Route.Params<K>` | Params type for route `K` |
+| `Route.Error<K>` | Error type for route `K` |
+| `Route.Request<K>` | Full request shape (`{ body, query, params }`) |
 
-### `Path.*` — by HTTP method + URL pattern
+### `Path.*` -- by HTTP method + URL pattern
 
 ```ts
 import type { Path } from '~codegen/api';
@@ -334,23 +382,30 @@ type ListResponse = Path.Response<'GET', '/api/users'>;
 type CreateBody   = Path.Body<'POST', '/api/users'>;
 ```
 
-All helpers: `Path.Response<M, U>`, `Path.Body<M, U>`, `Path.Query<M, U>`, `Path.Params<M, U>`, `Path.Error<M, U>`.
+| Helper | Description |
+|--------|-------------|
+| `Path.Response<M, U>` | Response type for method `M` at URL `U` |
+| `Path.Body<M, U>` | Body type |
+| `Path.Query<M, U>` | Query type |
+| `Path.Params<M, U>` | Params type |
+| `Path.Error<M, U>` | Error type |
 
-## Auto-watch (recommended)
+---
 
-When the codegen package is installed in your project, `InertiaModule` automatically starts the codegen watcher when your app bootstraps in dev mode. Just run your usual `nest start --watch` — the generated files appear under `.nestjs-inertia/` and update on every controller/page save. **No extra command, no extra terminal.**
+## Auto-watch
+
+When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` is present, `InertiaModule` starts the codegen watcher automatically on bootstrap in dev mode. Run your usual `nest start --watch` and the generated files appear under `.nestjs-inertia/` on every controller or page save. No extra command, no extra terminal.
 
 Auto-watch starts when all of these are true:
-- `NODE_ENV !== 'production'`
-- `@dudousxd/nestjs-inertia-codegen` is installed
-- `nestjs-inertia.config.ts` is present at the project root
-- The kill-switch env `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` is not set to `'1'`
 
-### Running the CLI watcher manually
+| Condition | Value |
+|-----------|-------|
+| `NODE_ENV` | not `'production'` |
+| `@dudousxd/nestjs-inertia-codegen` | installed |
+| `nestjs-inertia.config.ts` | present at project root |
+| `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` | not set to `'1'` |
 
-You can also run `pnpm nestjs-inertia codegen --watch` in a separate terminal if you prefer explicit control. When both the auto-watcher AND the CLI watcher are running, only one will hold the lock and generate files; the other becomes a no-op and logs a warning. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically — so a crash never leaves you stuck without codegen.
-
-### Disabling auto-watch
+Disable auto-watch in the module:
 
 ```ts
 InertiaModule.forRoot({
@@ -360,38 +415,46 @@ InertiaModule.forRoot({
 
 Or set `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1` in your shell.
 
-### Optional `nest-cli.json` snippet
+<Aside type="tip">
+  If your server bundle imports generated files (e.g. route helpers from `.nestjs-inertia/routes.ts`), add this to `nest-cli.json`:
 
-Only needed if your server bundle imports generated files (e.g. route helpers from `.nestjs-inertia/routes.ts`). This tells the NestJS compiler to copy and watch the output directory:
-
-```json
-{
-  "compilerOptions": {
-    "assets": [".nestjs-inertia/**/*"],
-    "watchAssets": true
+  ```json
+  {
+    "compilerOptions": {
+      "assets": [".nestjs-inertia/**/*"],
+      "watchAssets": true
+    }
   }
-}
-```
+  ```
+</Aside>
 
-## Manual watch mode (CLI)
+---
+
+## CLI watch mode
 
 ```bash
 pnpm nestjs-inertia codegen --watch
 ```
 
-Reruns whenever a controller or page file changes. When using this alongside `nest start --watch`, the auto-bootstrap watcher detects the held lock and becomes a no-op automatically.
+Reruns whenever a controller or page file changes. When both the auto-watcher and the CLI watcher are running, only one holds the lock and generates files. The other becomes a no-op and logs a warning. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically.
 
-## Diagnosing your setup
+---
+
+## Doctor command
 
 ```bash
 pnpm exec nestjs-inertia doctor
 ```
 
-Checks tsconfig paths, codegen output, package versions, Inertia v3, `.gitignore`, and Vite config. To auto-fix issues:
+Checks tsconfig paths, codegen output, package versions, Inertia v3, `.gitignore`, and Vite config.
+
+To auto-fix issues:
 
 ```bash
 pnpm exec nestjs-inertia doctor --fix
 ```
+
+---
 
 ## Generated file management
 

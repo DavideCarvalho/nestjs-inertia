@@ -1,30 +1,81 @@
 ---
 title: Installation
 description: Install nestjs-inertia packages with pnpm, npm, or yarn, and understand peer dependencies.
+sidebar:
+  order: 1
 ---
 
-## Package manager variants
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
-### pnpm (recommended)
+## Install core + Vite
 
-```bash
-pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
-pnpm add -D @dudousxd/nestjs-inertia-codegen
-```
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+    pnpm add -D @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+    npm install --save-dev @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
+    yarn add -D @dudousxd/nestjs-inertia-codegen
+    ```
+  </TabItem>
+</Tabs>
 
-### npm
+## HTTP adapter
 
-```bash
-npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
-npm install --save-dev @dudousxd/nestjs-inertia-codegen
-```
+NestJS defaults to Express. If you use Fastify, install the Fastify adapter instead.
 
-### yarn
+### Express (default)
 
-```bash
-yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
-yarn add -D @dudousxd/nestjs-inertia-codegen
-```
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add express
+    pnpm add -D @types/express
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install express
+    npm install --save-dev @types/express
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add express
+    yarn add -D @types/express
+    ```
+  </TabItem>
+</Tabs>
+
+### Fastify
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add fastify @fastify/cookie @nestjs/platform-fastify
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install fastify @fastify/cookie @nestjs/platform-fastify
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add fastify @fastify/cookie @nestjs/platform-fastify
+    ```
+  </TabItem>
+</Tabs>
 
 ## Peer dependencies
 
@@ -33,35 +84,38 @@ yarn add -D @dudousxd/nestjs-inertia-codegen
 | `@nestjs/common >=10` | core | always |
 | `@nestjs/core >=10` | core | always |
 | `express >=4` | core | Express adapter (default) |
-| `fastify >=4` | core | Fastify adapter (optional) |
+| `fastify >=4` | core | Fastify adapter |
 | `vite >=5` | vite | build pipeline |
 | `@nestjs/testing >=10` | testing | test suites |
 | `typescript >=5` | codegen | CLI static analysis |
 
-### Express (default NestJS adapter)
-
-```bash
-pnpm add express
-pnpm add -D @types/express
-```
-
-### Fastify (optional)
-
-```bash
-pnpm add fastify @fastify/cookie @nestjs/platform-fastify
-```
-
 ## Optional packages
 
-Install only what you need:
+Install only what you need.
 
-```bash
-# Typed HTTP client
-pnpm add @dudousxd/nestjs-inertia-client
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    # Typed HTTP client + <Link> components
+    pnpm add @dudousxd/nestjs-inertia-client
 
-# Test helpers
-pnpm add -D @dudousxd/nestjs-inertia-testing
-```
+    # Test helpers (expectInertia, InertiaTestingModule)
+    pnpm add -D @dudousxd/nestjs-inertia-testing
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia-client
+    npm install --save-dev @dudousxd/nestjs-inertia-testing
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia-client
+    yarn add -D @dudousxd/nestjs-inertia-testing
+    ```
+  </TabItem>
+</Tabs>
 
 ## Engine requirements
 

@@ -1,15 +1,13 @@
 ---
 title: Multi-App (forFeature)
-description: Run multiple independent Inertia apps (scopes) inside the same NestJS process using forFeature.
+description: Run multiple independent Inertia apps inside the same NestJS process using forFeature.
+sidebar:
+  order: 6
 ---
 
-## Why multi-app?
+import { Aside } from '@astrojs/starlight/components';
 
-Sometimes you need two independent Inertia frontends served from the same NestJS process — for example a user-facing `portal` and an `admin` panel, each with its own Vite entry, HTML shell, and shared props.
-
-nestjs-inertia supports this via `InertiaModule.forFeature()`.
-
-## Configure a new scope
+## Register a scope
 
 ```ts
 // admin.module.ts
@@ -30,11 +28,28 @@ import { InertiaModule } from '@dudousxd/nestjs-inertia';
 export class AdminModule {}
 ```
 
-Each scope has its own `InertiaService`, Vite manifest, SSR loader, and shared props — completely isolated from the default scope registered by `forRoot()`.
+Each scope gets its own `InertiaService`, Vite manifest, SSR loader, and shared props. Completely isolated from the default scope registered by `forRoot()`.
+
+## Async scope registration
+
+```ts
+InertiaModule.forFeatureAsync({
+  scope: 'admin',
+  imports: [ConfigModule],
+  useFactory: (config: ConfigService) => ({
+    rootView: config.get('ADMIN_ROOT_VIEW'),
+    vite: { entry: 'admin/client.tsx' },
+    share: async (req) => ({ adminUser: req.user }),
+  }),
+  inject: [ConfigService],
+})
+```
+
+Supports `useFactory`, `useClass`, and `useExisting`, same as `forRootAsync`.
 
 ## Select a scope in a controller
 
-Use `@UseInertia('scope-name')` on a controller or a handler to bind it to a specific scope:
+Use `@UseInertia('scope-name')` on a controller or handler to bind it to that scope.
 
 ```ts
 import { Controller, Get } from '@nestjs/common';
@@ -53,8 +68,10 @@ export class AdminDashboardController {
 
 ## Default scope
 
-Controllers that do not use `@UseInertia` will use the default scope registered by `InertiaModule.forRoot()`.
+Controllers without `@UseInertia` use the default scope registered by `InertiaModule.forRoot()`. No decorator needed.
 
 ## Shared props are scope-isolated
 
-Shared props from `forRoot.share` are **not** injected into `forFeature` scopes and vice-versa. Each scope's `share` function only runs for controllers bound to that scope.
+The `share` function from `forRoot()` does not run for `forFeature` scopes. The `share` function from a `forFeature` scope does not run for the default scope or other feature scopes.
+
+Each scope is a separate Inertia universe: its own root HTML shell, its own Vite manifest, its own shared props factory.
