@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 1.7.2
+
+### Patch Changes
+
+- Add `headers` prop to `InertiaRouteProvider` and `setGlobalHeaders` for auth header injection. The fetcher now reads global headers on every request, enabling Bearer token injection from Keycloak, Auth0, or any auth provider without custom fetch wrappers.
+
 ## 1.7.1
 
 ### Patch Changes

@@ -1,6 +1,7 @@
 export const VERSION = '1.7.1';
 
 export { createFetcher } from './fetcher/fetcher.js';
+export { setGlobalHeaders } from './fetcher/global-headers.js';
 export { ApiHttpError } from './fetcher/errors.js';
 export { buildUrl } from './fetcher/url-builder.js';
 export { defineContract } from './contract/contract.js';

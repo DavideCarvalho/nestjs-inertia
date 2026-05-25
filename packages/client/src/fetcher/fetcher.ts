@@ -1,5 +1,6 @@
-/* v8 ignore next 2 -- import resolution is not a branch */
+/* v8 ignore next 3 -- import resolution is not a branch */
 import { ApiHttpError } from './errors.js';
+import { getGlobalHeaders } from './global-headers.js';
 import { buildUrl } from './url-builder.js';
 
 export interface FetcherOptions {
@@ -39,7 +40,7 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
       throw new Error('No fetch implementation: pass opts.fetch or set globalThis.fetch');
     }
     const url = buildUrl(path, ro, baseUrl);
-    const headers: Record<string, string> = { ...opts.headers?.() };
+    const headers: Record<string, string> = { ...getGlobalHeaders(), ...opts.headers?.() };
     let body: string | FormData | undefined = undefined;
 
     if (ro.body !== undefined) {

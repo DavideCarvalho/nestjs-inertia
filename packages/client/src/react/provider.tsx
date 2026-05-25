@@ -1,5 +1,6 @@
-/* v8 ignore next -- import resolution is not a branch */
-import { type ReactNode, createContext, createElement, useContext } from 'react';
+/* v8 ignore next 2 -- import resolution is not a branch */
+import { type ReactNode, createContext, createElement, useContext, useEffect } from 'react';
+import { setGlobalHeaders } from '../fetcher/global-headers.js';
 
 // biome-ignore lint/suspicious/noExplicitAny: must accept the codegen's generic route() signature
 export type RouteResolver = (...args: any[]) => string;
@@ -24,9 +25,17 @@ export function useInertiaRoutes(): RouteResolver {
 
 export interface InertiaRouteProviderProps {
   routes: RouteResolver;
+  /** Called before every fetcher request. Return headers to inject (e.g. Authorization). */
+  headers?: () => Record<string, string>;
   children: ReactNode;
 }
 
-export function InertiaRouteProvider({ routes, children }: InertiaRouteProviderProps) {
+export function InertiaRouteProvider({ routes, headers, children }: InertiaRouteProviderProps) {
+  useEffect(() => {
+    if (!headers) return;
+    setGlobalHeaders(headers);
+    return () => setGlobalHeaders(() => ({}));
+  }, [headers]);
+
   return createElement(InertiaRoutesContext, { value: routes }, children);
 }
