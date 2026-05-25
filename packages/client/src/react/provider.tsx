@@ -1,4 +1,4 @@
-import { type ReactNode, createContext, useContext } from 'react';
+import { type ReactNode, createElement, createContext, useContext } from 'react';
 
 type RouteResolver = (
   name: string,
@@ -30,5 +30,5 @@ export interface InertiaRouteProviderProps {
 }
 
 export function InertiaRouteProvider({ routes, children }: InertiaRouteProviderProps) {
-  return <InertiaRoutesContext value={routes}>{children}</InertiaRoutesContext>;
+  return createElement(InertiaRoutesContext, { value: routes }, children);
 }
