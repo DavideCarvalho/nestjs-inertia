@@ -74,9 +74,17 @@ export class FileBasedShellRenderer implements ShellRenderer {
       page: ctx.page,
       inertia: inertiaHtml,
       inertiaHead: ssrHead,
-      vite: (entry: string) => processDirectives(`@vite('${entry}')`, directiveCtx),
+      vite: (entry: string) => {
+        if (!/^[\w\-./]+$/.test(entry))
+          throw new Error(`Invalid vite entry: ${entry}`);
+        return processDirectives(`@vite('${entry}')`, directiveCtx);
+      },
       viteRefresh: processDirectives('@viteRefresh', directiveCtx),
-      asset: (p: string) => processDirectives(`@asset('${p}')`, directiveCtx),
+      asset: (p: string) => {
+        if (!/^[\w\-./]+$/.test(p))
+          throw new Error(`Invalid asset path: ${p}`);
+        return processDirectives(`@asset('${p}')`, directiveCtx);
+      },
     };
 
     let output = await this.engineRenderer(locals);
