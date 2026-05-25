@@ -45,10 +45,10 @@ describe('Link + generated route()', () => {
     cleanup();
   });
 
-  it('renders href="/dashboard" for DashboardController.index', () => {
+  it('renders href="/dashboard" for dashboard.index', () => {
     render(
       <InertiaRouteProvider routes={route}>
-        <Link route="DashboardController.index">Dashboard</Link>
+        <Link route="dashboard.index">Dashboard</Link>
       </InertiaRouteProvider>,
     );
     const a = screen.getByTestId('inertia-link');

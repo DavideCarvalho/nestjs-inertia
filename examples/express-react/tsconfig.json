@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "exactOptionalPropertyTypes": false,
     "rootDir": ".",
     "outDir": "dist",
     "tsBuildInfoFile": ".tsbuildinfo",

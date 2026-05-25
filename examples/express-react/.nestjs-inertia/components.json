@@ -1,14 +1,14 @@
 {
   "pages": [
     {
-      "name": "inertia/pages/Dashboard",
+      "name": "Dashboard",
       "relativePath": "inertia/pages/Dashboard.tsx",
-      "mtime": "2026-05-22T20:10:40.961Z"
+      "mtime": "2026-05-25T17:05:33.265Z"
     },
     {
-      "name": "inertia/pages/Users",
+      "name": "Users",
       "relativePath": "inertia/pages/Users.tsx",
-      "mtime": "2026-05-23T00:16:56.602Z"
+      "mtime": "2026-05-23T00:16:56.000Z"
     }
   ]
 }

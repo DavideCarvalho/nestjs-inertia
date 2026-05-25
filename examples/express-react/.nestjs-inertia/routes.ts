@@ -2,15 +2,15 @@
 
 /** Map of route name → path pattern. */
 export const ROUTES = {
-  "DashboardController.root": "/",
-  "DashboardController.index": "/dashboard",
+  "dashboard.root": "/",
+  "dashboard.index": "/dashboard",
   "users.list": "/api/users",
 } as const;
 
 /** Union of all known route names. */
 export type RouteName =
-  | "DashboardController.root"
-  | "DashboardController.index"
+  | "dashboard.root"
+  | "dashboard.index"
   | "users.list";
 
 /**
@@ -44,8 +44,8 @@ export type RouteParamsMap = { [K in RouteName]: RouteParams<K> };
  * Build a URL from a named route, interpolating path params and appending query string.
  *
  * @example
- * route('DashboardController.index')   // → '/dashboard'
- * route('users.list')                  // → '/api/users'
+ * route('UsersController.show', { id: '42' }) // → '/users/42'
+ * route('UsersController.list')                // → '/users'
  * route('users.list', undefined, { active: true }) // → '/api/users?active=true'
  */
 export function route<K extends RouteName>(

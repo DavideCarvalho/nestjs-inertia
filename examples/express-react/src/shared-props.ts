@@ -1,6 +1,4 @@
-import type { Request } from 'express';
-
-export function getSharedProps(_req: Request) {
+export function getSharedProps(_req: unknown) {
   return {
     appName: 'nestjs-inertia-example',
     year: new Date().getFullYear(),
