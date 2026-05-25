@@ -143,6 +143,54 @@ describe('createFetcher', () => {
     }
   });
 
+  it('returns text when content-type is not application/json', async () => {
+    const f = mockFetch(
+      new Response('plain text response', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    );
+    const fetcher = createFetcher({ fetch: f });
+    const result = await fetcher.get<string>('/text');
+    expect(result).toBe('plain text response');
+  });
+
+  it('returns text when content-type header is absent', async () => {
+    const f = mockFetch(new Response('no ct body', { status: 200 }));
+    const fetcher = createFetcher({ fetch: f });
+    const result = await fetcher.get<string>('/no-ct');
+    expect(result).toBe('no ct body');
+  });
+
+  it('sets default accept header to application/json', async () => {
+    const f = mockFetch(
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const fetcher = createFetcher({ fetch: f });
+    await fetcher.get('/test');
+    const [, init] = vi.mocked(f).mock.calls[0]!;
+    expect((init?.headers as Record<string, string>).accept).toBe('application/json');
+  });
+
+  it('does not override accept header from headers()', async () => {
+    const f = mockFetch(
+      new Response('<html></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+    const fetcher = createFetcher({
+      fetch: f,
+      headers: () => ({ accept: 'text/html' }),
+    });
+    await fetcher.get('/page');
+    const [, init] = vi.mocked(f).mock.calls[0]!;
+    expect((init?.headers as Record<string, string>).accept).toBe('text/html');
+  });
+
   it('dynamic headers() call count matches number of requests', async () => {
     const headersFn = vi.fn().mockReturnValue({ 'x-custom': 'val' });
     const f = vi.fn().mockImplementation(() =>

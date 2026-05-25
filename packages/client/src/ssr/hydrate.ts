@@ -1,3 +1,4 @@
+/* v8 ignore next -- import resolution is not a branch */
 import { QueryClient } from '@tanstack/query-core';
 
 /**

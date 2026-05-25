@@ -20,7 +20,13 @@ vi.mock('@inertiajs/vue3', () => ({
       return () =>
         h(
           'a',
-          { href: props.href, class: props.class, 'data-testid': 'inertia-link', ...attrs },
+          {
+            href: props.href,
+            class: props.class,
+            method: props.method,
+            'data-testid': 'inertia-link',
+            ...attrs,
+          },
           slots.default?.(),
         );
     },
@@ -110,6 +116,31 @@ describe('Vue Link component', () => {
         slots: { default: 'Users' },
       }),
     ).toThrowError('@dudousxd/nestjs-inertia-client: provideInertiaRoutes() not called');
+  });
+
+  it('passes through method attribute when provided', () => {
+    const wrapper = mount(Link, {
+      props: { route: 'users.list', method: 'post' },
+      slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    const a = wrapper.find('[data-testid="inertia-link"]');
+    expect(a.attributes('method')).toBe('post');
+  });
+
+  it('does not pass class or method when they are not provided', () => {
+    const wrapper = mount(Link, {
+      props: { route: 'users.list' },
+      slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    const a = wrapper.find('[data-testid="inertia-link"]');
+    expect(a.attributes('class')).toBeUndefined();
+    expect(a.attributes('method')).toBeUndefined();
   });
 });
 

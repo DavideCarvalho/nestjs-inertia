@@ -110,4 +110,66 @@ describe('fastifyAdapter', () => {
     res.json({});
     expect(res.headersSent).toBe(true);
   });
+
+  it('adaptRequest omits body when undefined', () => {
+    const raw = fakeFastifyReq(); // body defaults to undefined
+    const req = fastifyAdapter.adaptRequest(raw);
+    expect(req.body).toBeUndefined();
+  });
+
+  it('adaptRequest includes body when defined', () => {
+    const raw = fakeFastifyReq({ body: { name: 'test' } });
+    const req = fastifyAdapter.adaptRequest(raw);
+    expect(req.body).toEqual({ name: 'test' });
+  });
+
+  it('adaptRequest omits query when undefined', () => {
+    const raw = { method: 'GET', url: '/', headers: {}, raw: { originalUrl: '/' } };
+    const req = fastifyAdapter.adaptRequest(raw);
+    expect(req.query).toBeUndefined();
+  });
+
+  it('adaptRequest includes query when defined', () => {
+    const raw = fakeFastifyReq({ query: { page: '2' } });
+    const req = fastifyAdapter.adaptRequest(raw);
+    expect(req.query).toEqual({ page: '2' });
+  });
+
+  it('adaptRequest falls back to r.url when raw.originalUrl is missing', () => {
+    const raw = { method: 'GET', url: '/fallback', headers: {} };
+    const req = fastifyAdapter.adaptRequest(raw);
+    expect(req.originalUrl).toBe('/fallback');
+  });
+
+  it('adaptRequest returns first element when header value is an array', () => {
+    const raw = {
+      method: 'GET',
+      url: '/',
+      headers: { 'x-custom': ['first', 'second'] },
+      raw: { originalUrl: '/' },
+    };
+    const req = fastifyAdapter.adaptRequest(raw);
+    expect(req.header('X-Custom')).toBe('first');
+  });
+
+  it('adaptResponse.statusCode delegates to raw reply', () => {
+    const raw = fakeFastifyReply();
+    raw.statusCode = 404;
+    const res = fastifyAdapter.adaptResponse(raw);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('adaptResponse.getHeader reads from raw reply', () => {
+    const raw = fakeFastifyReply();
+    raw.header('X-Custom', 'val');
+    const res = fastifyAdapter.adaptResponse(raw);
+    expect(res.getHeader('X-Custom')).toBe('val');
+  });
+
+  it('adaptResponse.end sends empty string', () => {
+    const raw = fakeFastifyReply();
+    const res = fastifyAdapter.adaptResponse(raw);
+    res.end();
+    expect(raw._captured.calls).toContain('send:');
+  });
 });

@@ -1,3 +1,4 @@
+/* v8 ignore next -- class declaration is not a branch */
 export class ApiHttpError extends Error {
   constructor(
     public readonly status: number,

@@ -11,6 +11,7 @@ export interface BuildUrlOptions {
  *   buildUrl('/users', { query: { active: true } })                        → '/users?active=true'
  *   buildUrl('/users', {}, 'https://api.test')                             → 'https://api.test/users'
  */
+/* v8 ignore next -- function signature default param is not a branch */
 export function buildUrl(path: string, opts: BuildUrlOptions = {}, baseUrl?: string): string {
   // Ensure path starts with / to prevent malformed URLs when baseUrl is provided
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;

@@ -219,7 +219,7 @@ export interface InertiaServiceDeps {
  * Uses interface-class declaration merging so the implementation signature
  * stays simple while callers get type safety.
  */
-// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: intentional — typed render overloads via interface-class merging
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: intentional interface-class merging for typed render overloads
 export interface InertiaService {
   render<K extends keyof InertiaPages>(
     component: K,

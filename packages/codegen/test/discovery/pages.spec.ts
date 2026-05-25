@@ -22,4 +22,28 @@ describe('discoverPages', () => {
     const bare = pages.find((p) => p.name === 'nopprops/Bare')!;
     expect(bare.propsSource).toBeNull();
   });
+
+  it('uses kebab naming strategy', async () => {
+    const pages = await discoverPages({
+      glob: '**/*.tsx',
+      cwd: fixturesDir,
+      propsExport: 'ComponentProps',
+      componentNameStrategy: 'kebab',
+    });
+    const names = pages.map((p) => p.name).sort();
+    // Dashboard → dashboard, users/Detail → users/detail
+    expect(names).toContain('dashboard');
+    expect(names).toContain('users/detail');
+  });
+
+  it('uses custom function naming strategy', async () => {
+    const pages = await discoverPages({
+      glob: '**/*.tsx',
+      cwd: fixturesDir,
+      propsExport: 'ComponentProps',
+      componentNameStrategy: (rel) => `custom:${rel}`,
+    });
+    const names = pages.map((p) => p.name);
+    expect(names.every((n) => n.startsWith('custom:'))).toBe(true);
+  });
 });

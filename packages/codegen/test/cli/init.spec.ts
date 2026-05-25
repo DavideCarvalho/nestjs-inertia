@@ -346,6 +346,54 @@ describe('detectPackageManager', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Template engine detection
+// ---------------------------------------------------------------------------
+
+describe('detectTemplateEngine', () => {
+  it('detects handlebars from dependencies', async () => {
+    const { detectTemplateEngine } = await import('../../src/cli/init.js');
+    const pkg = { dependencies: { handlebars: '^4.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectTemplateEngine(tmpBase)).toBe('handlebars');
+  });
+
+  it('detects ejs from dependencies', async () => {
+    const { detectTemplateEngine } = await import('../../src/cli/init.js');
+    const pkg = { dependencies: { ejs: '^3.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectTemplateEngine(tmpBase)).toBe('ejs');
+  });
+
+  it('detects pug from dependencies', async () => {
+    const { detectTemplateEngine } = await import('../../src/cli/init.js');
+    const pkg = { dependencies: { pug: '^3.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectTemplateEngine(tmpBase)).toBe('pug');
+  });
+
+  it('detects liquid from liquidjs dependency', async () => {
+    const { detectTemplateEngine } = await import('../../src/cli/init.js');
+    const pkg = { dependencies: { liquidjs: '^10.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectTemplateEngine(tmpBase)).toBe('liquid');
+  });
+
+  it('defaults to html when no template engine found', async () => {
+    const { detectTemplateEngine } = await import('../../src/cli/init.js');
+    const pkg = { dependencies: {} };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectTemplateEngine(tmpBase)).toBe('html');
+  });
+
+  it('detects engine from devDependencies', async () => {
+    const { detectTemplateEngine } = await import('../../src/cli/init.js');
+    const pkg = { devDependencies: { ejs: '^3.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectTemplateEngine(tmpBase)).toBe('ejs');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // writeIfNotExists
 // ---------------------------------------------------------------------------
 
@@ -546,5 +594,269 @@ describe('runInit — auto-patches app.module.ts and main.ts', () => {
 
     const warnLog = logs.find((l) => l.includes('app.module.ts not found'));
     expect(warnLog).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// installDeps — branching on package manager
+// ---------------------------------------------------------------------------
+
+describe('installDeps', () => {
+  it('uses "install" command for npm', async () => {
+    const { installDeps } = await import('../../src/cli/init.js');
+    // installDeps will try to run execFileSync and fail since deps don't exist
+    // but the important thing is it doesn't throw fatally (catches error)
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    installDeps('npm', ['some-fake-pkg'], false);
+    spy.mockRestore();
+    // Should log the "installed" message then the warning
+    const installedLog = logs.find((l) => l.includes('some-fake-pkg'));
+    expect(installedLog).toBeDefined();
+  });
+
+  it('uses "add -D" command for pnpm dev deps', async () => {
+    const { installDeps } = await import('../../src/cli/init.js');
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    installDeps('pnpm', ['some-fake-dev-pkg'], true);
+    spy.mockRestore();
+    const installedLog = logs.find((l) => l.includes('some-fake-dev-pkg'));
+    expect(installedLog).toBeDefined();
+  });
+
+  it('uses "add -D" command for yarn dev deps', async () => {
+    const { installDeps } = await import('../../src/cli/init.js');
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    installDeps('yarn', ['some-fake-yarn-pkg'], true);
+    spy.mockRestore();
+    const installedLog = logs.find((l) => l.includes('some-fake-yarn-pkg'));
+    expect(installedLog).toBeDefined();
+  });
+
+  it('does nothing when deps array is empty', async () => {
+    const { installDeps } = await import('../../src/cli/init.js');
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    installDeps('npm', [], false);
+    spy.mockRestore();
+    // Should not log anything
+    expect(logs).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchMainTs — edge case: no NestFactory.create match
+// ---------------------------------------------------------------------------
+
+describe('patchMainTs — edge cases', () => {
+  it('returns skipped when main.ts has no NestFactory.create line', async () => {
+    const { patchMainTs } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'main-no-create.ts');
+    writeFileSync(
+      filePath,
+      `import { NestFactory } from '@nestjs/core';
+async function bootstrap() {
+  // No NestFactory.create call
+  console.log('hello');
+}
+bootstrap();
+`,
+      'utf8',
+    );
+
+    const result = patchMainTs(filePath);
+    expect(result).toBe('skipped');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleViteConfig — existing config without plugin
+// ---------------------------------------------------------------------------
+
+describe('runInit — vite config edge cases', () => {
+  it('warns when vite.config.ts exists without nestInertia plugin', async () => {
+    // Create a vite.config.ts without the plugin
+    await writeFile(
+      join(tmpBase, 'vite.config.ts'),
+      `import { defineConfig } from 'vite';
+export default defineConfig({ plugins: [] });
+`,
+      'utf8',
+    );
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    await runInitInTmpDir('react');
+    spy.mockRestore();
+
+    const warnLog = logs.find((l) => l.includes('nestInertia plugin not detected'));
+    expect(warnLog).toBeDefined();
+  });
+
+  it('skips silently when vite.config.ts already has nestInertia plugin', async () => {
+    await writeFile(
+      join(tmpBase, 'vite.config.ts'),
+      `import nestInertia from '@dudousxd/nestjs-inertia-vite/plugin';
+import { defineConfig } from 'vite';
+export default defineConfig({ plugins: [nestInertia({ react: true })] });
+`,
+      'utf8',
+    );
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    await runInitInTmpDir('react');
+    spy.mockRestore();
+
+    const warnLog = logs.find((l) => l.includes('nestInertia plugin not detected'));
+    expect(warnLog).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchGitignore — existing content not ending with newline
+// ---------------------------------------------------------------------------
+
+describe('patchGitignore — edge cases', () => {
+  it('appends with preceding newline when file does not end with newline', async () => {
+    // Write .gitignore without trailing newline
+    await writeFile(join(tmpBase, '.gitignore'), 'node_modules/', 'utf8');
+    await runInitInTmpDir('react');
+
+    const content = await readFile(join(tmpBase, '.gitignore'), 'utf8');
+    expect(content).toContain('node_modules/');
+    expect(content).toContain('.nestjs-inertia/');
+    // Should have a newline before .nestjs-inertia/
+    expect(content).toContain('node_modules/\n.nestjs-inertia/');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchPackageJsonScripts — missing package.json
+// ---------------------------------------------------------------------------
+
+describe('patchPackageJsonScripts — edge cases', () => {
+  it('silently returns when package.json does not exist', async () => {
+    const { patchPackageJsonScripts } = await import('../../src/cli/init.js');
+    const emptyDir = join(tmpBase, 'no-pkg-json');
+    mkdirSync(emptyDir, { recursive: true });
+    // Should not throw
+    await patchPackageJsonScripts(emptyDir, { test: 'echo test' });
+  });
+
+  it('handles package.json with no scripts field', async () => {
+    const { patchPackageJsonScripts } = await import('../../src/cli/init.js');
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify({ name: 'test' }), 'utf8');
+    await patchPackageJsonScripts(tmpBase, { 'build:client': 'vite build' });
+    const updated = JSON.parse(await readFile(join(tmpBase, 'package.json'), 'utf8'));
+    expect(updated.scripts['build:client']).toBe('vite build');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchAppModule — findAfterLastImport edge cases
+// ---------------------------------------------------------------------------
+
+describe('patchAppModule — edge cases', () => {
+  it('handles file that starts with import (no preceding newline)', async () => {
+    const { patchAppModule } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'app-start-import.ts');
+    writeFileSync(
+      filePath,
+      `import { Module } from '@nestjs/common';
+@Module({ imports: [], controllers: [] })
+export class AppModule {}
+`,
+      'utf8',
+    );
+
+    const result = patchAppModule(filePath, 'inertia/index.html');
+    expect(result).toBe('patched');
+
+    const content = await readFile(filePath, 'utf8');
+    expect(content).toContain('InertiaModule');
+    expect(content).toContain('HomeController');
+  });
+
+  it('handles file with no import statements at all', async () => {
+    const { patchAppModule } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'app-no-imports.ts');
+    writeFileSync(
+      filePath,
+      `@Module({ imports: [], controllers: [] })
+export class AppModule {}
+`,
+      'utf8',
+    );
+
+    const result = patchAppModule(filePath, 'inertia/index.html');
+    expect(result).toBe('patched');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runInit — handlebars engine shell file name
+// ---------------------------------------------------------------------------
+
+describe('runInit — template engine scaffolding', () => {
+  async function runInitWithEngine(engine: string, engineDep: string) {
+    // Write package.json with both react and the template engine dep
+    // so that runInitInTmpDir doesn't overwrite the engine dep
+    const pkg = {
+      name: 'test-app',
+      scripts: {},
+      dependencies: { react: '^18.0.0', [engineDep]: '^1.0.0' },
+    };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+
+    const mod = await import('../../src/cli/init.js');
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((msg: string) => logs.push(msg));
+    await mod.runInit({ cwd: tmpBase, skipInstall: true });
+    spy.mockRestore();
+  }
+
+  it('creates index.hbs when handlebars is detected', async () => {
+    await runInitWithEngine('handlebars', 'handlebars');
+    const content = await readFile(join(tmpBase, 'inertia', 'index.hbs'), 'utf8');
+    expect(content).toContain('@inertia');
+  });
+
+  it('creates index.ejs when ejs is detected', async () => {
+    await runInitWithEngine('ejs', 'ejs');
+    const content = await readFile(join(tmpBase, 'inertia', 'index.ejs'), 'utf8');
+    expect(content).toContain('@inertia');
+  });
+
+  it('creates index.pug when pug is detected', async () => {
+    await runInitWithEngine('pug', 'pug');
+    const content = await readFile(join(tmpBase, 'inertia', 'index.pug'), 'utf8');
+    expect(content).toContain('@inertia');
+  });
+
+  it('creates index.liquid when liquidjs is detected', async () => {
+    await runInitWithEngine('liquid', 'liquidjs');
+    const content = await readFile(join(tmpBase, 'inertia', 'index.liquid'), 'utf8');
+    expect(content).toContain('@inertia');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectFramework — devDependencies
+// ---------------------------------------------------------------------------
+
+describe('detectFramework — devDependencies', () => {
+  it('detects @inertiajs/vue3 from devDependencies', async () => {
+    const { detectFramework } = await import('../../src/cli/init.js');
+    const pkg = { devDependencies: { '@inertiajs/vue3': '^1.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectFramework(tmpBase)).toBe('vue');
+  });
+
+  it('detects @inertiajs/svelte from devDependencies', async () => {
+    const { detectFramework } = await import('../../src/cli/init.js');
+    const pkg = { devDependencies: { '@inertiajs/svelte': '^1.0.0' } };
+    await writeFile(join(tmpBase, 'package.json'), JSON.stringify(pkg), 'utf8');
+    expect(await detectFramework(tmpBase)).toBe('svelte');
   });
 });

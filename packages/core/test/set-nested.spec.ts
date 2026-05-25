@@ -32,6 +32,23 @@ describe('setNested', () => {
       /conflict/i,
     );
   });
+
+  it('throws when intermediate path is null', () => {
+    const target: Record<string, unknown> = { user: null };
+    expect(() => setNested(target, ['user', 'name'], 'X')).toThrow(/conflict/i);
+  });
+
+  it('throws when intermediate path is an array', () => {
+    const target: Record<string, unknown> = { user: [1, 2, 3] };
+    expect(() => setNested(target, ['user', 'name'], 'X')).toThrow(/conflict/i);
+    expect(() => setNested(target, ['user', 'name'], 'X')).toThrow(/array/i);
+  });
+
+  it('no-ops when path is empty', () => {
+    const target: Record<string, unknown> = { a: 1 };
+    setNested(target, [], 'ignored');
+    expect(target).toEqual({ a: 1 });
+  });
 });
 
 describe('unpackDotKeys', () => {
@@ -48,6 +65,14 @@ describe('unpackDotKeys', () => {
 
   it('throws when a dot key conflicts with a non-dot key with same parent', () => {
     expect(() => unpackDotKeys({ user: 'X', 'user.name': 'Y' })).toThrow(/conflict/i);
+  });
+
+  it('throws when parent key is null and a dot key uses it', () => {
+    expect(() => unpackDotKeys({ user: null, 'user.name': 'Y' } as never)).toThrow(/conflict/i);
+  });
+
+  it('throws when parent key is an array and a dot key uses it', () => {
+    expect(() => unpackDotKeys({ user: [1, 2], 'user.name': 'Y' } as never)).toThrow(/conflict/i);
   });
 });
 

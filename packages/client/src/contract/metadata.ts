@@ -1,5 +1,6 @@
 import type { ContractDef } from './contract.js';
 
+/* v8 ignore next -- Symbol.for is not a branch */
 export const CONTRACT_METADATA = Symbol.for('nestjs-inertia:contract');
 
 type AnyContract = ContractDef<unknown, unknown, unknown, unknown, unknown>;

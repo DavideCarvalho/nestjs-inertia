@@ -19,6 +19,16 @@ describe('hydrateClientFromInertia', () => {
     expect(qc).toBeInstanceOf(QueryClient);
   });
 
+  it('returns a QueryClient when props is undefined', () => {
+    const qc = hydrateClientFromInertia({ props: undefined });
+    expect(qc).toBeInstanceOf(QueryClient);
+  });
+
+  it('returns a QueryClient when _initialQueries is explicitly undefined', () => {
+    const qc = hydrateClientFromInertia({ props: { _initialQueries: undefined } });
+    expect(qc).toBeInstanceOf(QueryClient);
+  });
+
   it('seeds multiple queries', () => {
     const page = {
       props: {

@@ -32,4 +32,36 @@ describe('buildUrl', () => {
   it('URL-encodes path traversal in params (../admin)', () => {
     expect(buildUrl('/users/:id', { params: { id: '../admin' } })).toBe('/users/..%2Fadmin');
   });
+
+  it('normalizes path that does not start with /', () => {
+    expect(buildUrl('users', {})).toBe('/users');
+  });
+
+  it('normalizes path without / when combined with params and query', () => {
+    expect(buildUrl('users/:id', { params: { id: 7 }, query: { v: 1 } })).toBe('/users/7?v=1');
+  });
+
+  it('throws on null param value', () => {
+    expect(() => buildUrl('/users/:id', { params: { id: null } })).toThrow('Missing param: id');
+  });
+
+  it('strips trailing slash from baseUrl', () => {
+    expect(buildUrl('/users', {}, 'https://api.test/')).toBe('https://api.test/users');
+  });
+
+  it('handles baseUrl with trailing slash and path without leading slash', () => {
+    expect(buildUrl('items', {}, 'https://api.test/')).toBe('https://api.test/items');
+  });
+
+  it('works with empty opts (default parameter)', () => {
+    expect(buildUrl('/simple')).toBe('/simple');
+  });
+
+  it('skips query string when opts.query is not provided', () => {
+    expect(buildUrl('/users/:id', { params: { id: 5 } })).toBe('/users/5');
+  });
+
+  it('skips query string when all query values are undefined', () => {
+    expect(buildUrl('/users', { query: { a: undefined, b: undefined } })).toBe('/users');
+  });
 });

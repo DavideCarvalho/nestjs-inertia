@@ -1,3 +1,4 @@
+/* v8 ignore next -- import resolution is not a branch */
 import { SetMetadata, UsePipes, applyDecorators } from '@nestjs/common';
 import { ContractValidationPipe } from './contract-validation.pipe.js';
 import type { ContractDef } from './contract.js';

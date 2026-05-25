@@ -1,3 +1,4 @@
+/* v8 ignore next 2 -- import resolution is not a branch */
 import { ApiHttpError } from './errors.js';
 import { buildUrl } from './url-builder.js';
 

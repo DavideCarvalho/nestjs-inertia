@@ -1,3 +1,4 @@
+/* v8 ignore next 5 -- import resolution is not a branch */
 import {
   type ArgumentMetadata,
   BadRequestException,

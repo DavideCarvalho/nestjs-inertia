@@ -43,4 +43,28 @@ describe('invalidate', () => {
     const result = invalidate(qc, 'users.list');
     await expect(result).resolves.toBeUndefined();
   });
+
+  it('passes [name] when queryArgs is explicitly undefined', async () => {
+    const calls: unknown[][] = [];
+    const qc = new QueryClient();
+    const orig = qc.invalidateQueries.bind(qc);
+    qc.invalidateQueries = async (filters: any) => {
+      calls.push(filters.queryKey);
+      return orig(filters);
+    };
+    await invalidate(qc, 'users.list', undefined);
+    expect(calls).toEqual([['users.list']]);
+  });
+
+  it('handles falsy queryArgs values (null, 0, empty string)', async () => {
+    const calls: unknown[][] = [];
+    const qc = new QueryClient();
+    const orig = qc.invalidateQueries.bind(qc);
+    qc.invalidateQueries = async (filters: any) => {
+      calls.push(filters.queryKey);
+      return orig(filters);
+    };
+    await invalidate(qc, 'users.list', null);
+    expect(calls).toEqual([['users.list', null]]);
+  });
 });

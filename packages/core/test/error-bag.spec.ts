@@ -50,4 +50,22 @@ describe('ErrorBagInterceptor', () => {
     );
     expect(result).toEqual({ user: { id: 1 } });
   });
+
+  it('passes through null value unchanged when bag is set', async () => {
+    const interceptor = new ErrorBagInterceptor();
+    const result = await lastValueFrom(
+      interceptor.intercept(makeCtx({ 'x-inertia-error-bag': 'bag' }), { handle: () => of(null) }),
+    );
+    expect(result).toBeNull();
+  });
+
+  it('passes through primitive value unchanged when bag is set', async () => {
+    const interceptor = new ErrorBagInterceptor();
+    const result = await lastValueFrom(
+      interceptor.intercept(makeCtx({ 'x-inertia-error-bag': 'bag' }), {
+        handle: () => of('string-value'),
+      }),
+    );
+    expect(result).toBe('string-value');
+  });
 });

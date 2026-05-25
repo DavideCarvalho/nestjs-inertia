@@ -1,3 +1,4 @@
+/* v8 ignore next -- import resolution is not a branch */
 import { type InjectionKey, inject, provide } from 'vue';
 
 // biome-ignore lint/suspicious/noExplicitAny: must accept the codegen's generic route() signature

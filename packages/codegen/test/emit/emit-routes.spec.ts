@@ -173,4 +173,29 @@ describe('emitRoutes', () => {
     expect(content).toContain('nestjs-inertia codegen');
     expect(content).toContain('@As()');
   });
+
+  it('emits empty stub types when routes array is empty', async () => {
+    await emitRoutes([], outDir);
+    const content = await readFile(join(outDir, 'routes.ts'), 'utf8');
+
+    // Must export an empty ROUTES object
+    expect(content).toContain('export const ROUTES = {} as const;');
+
+    // Must export RouteName as never
+    expect(content).toContain('export type RouteName = never;');
+
+    // Must export a no-op route function
+    expect(content).toContain('export function route(');
+
+    // Must export ExtractParams as never
+    expect(content).toContain('export type ExtractParams<_Path extends string> = never;');
+
+    // Must export RouteParams with Record<string, never>
+    expect(content).toContain(
+      'export type RouteParams<_K extends RouteName> = Record<string, never>;',
+    );
+
+    // Should NOT contain the full route() helper with URLSearchParams
+    expect(content).not.toContain('URLSearchParams');
+  });
 });

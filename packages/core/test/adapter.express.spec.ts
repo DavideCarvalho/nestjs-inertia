@@ -122,4 +122,64 @@ describe('expressAdapter', () => {
     res.json({});
     expect(res.headersSent).toBe(true);
   });
+
+  it('adaptRequest omits body when undefined', () => {
+    const raw = fakeExpressReq();
+    const req = expressAdapter.adaptRequest(raw);
+    expect(req.body).toBeUndefined();
+  });
+
+  it('adaptRequest includes body when defined', () => {
+    const raw = fakeExpressReq({ body: { name: 'test' } });
+    const req = expressAdapter.adaptRequest(raw);
+    expect(req.body).toEqual({ name: 'test' });
+  });
+
+  it('adaptRequest omits query when undefined', () => {
+    const raw = fakeExpressReq();
+    const req = expressAdapter.adaptRequest(raw);
+    expect(req.query).toBeUndefined();
+  });
+
+  it('adaptRequest includes query when defined', () => {
+    const raw = fakeExpressReq({ query: { page: '2' } });
+    const req = expressAdapter.adaptRequest(raw);
+    expect(req.query).toEqual({ page: '2' });
+  });
+
+  it('adaptRequest falls back to headers dict when header() method is absent', () => {
+    const raw = {
+      method: 'GET',
+      originalUrl: '/',
+      url: '/',
+      headers: { 'x-inertia': 'true' } as Record<string, string | string[]>,
+    };
+    const req = expressAdapter.adaptRequest(raw);
+    expect(req.header('X-Inertia')).toBe('true');
+  });
+
+  it('adaptRequest falls back to headers dict and picks first element of array header', () => {
+    const raw = {
+      method: 'GET',
+      originalUrl: '/',
+      url: '/',
+      headers: { 'x-multi': ['first', 'second'] } as Record<string, string | string[]>,
+    };
+    const req = expressAdapter.adaptRequest(raw);
+    expect(req.header('X-Multi')).toBe('first');
+  });
+
+  it('adaptResponse.getHeader reads from raw response', () => {
+    const raw = fakeExpressRes();
+    raw.setHeader('X-Custom', 'val');
+    const res = expressAdapter.adaptResponse(raw);
+    expect(res.getHeader('X-Custom')).toBe('val');
+  });
+
+  it('adaptResponse.end calls raw end', () => {
+    const raw = fakeExpressRes();
+    const res = expressAdapter.adaptResponse(raw);
+    res.end();
+    expect(raw._calls).toContain('end');
+  });
 });

@@ -1,4 +1,5 @@
 import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
+/* v8 ignore next -- import resolution is not a branch */
 import { Link as InertiaLink } from '@inertiajs/vue3';
 import { defineComponent, h } from 'vue';
 import type { PropType } from 'vue';

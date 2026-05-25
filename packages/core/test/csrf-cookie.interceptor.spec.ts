@@ -17,6 +17,24 @@ describe('csrf-token helpers', () => {
     expect(verifyCsrfToken('no-dot', 'secret')).toBe(false);
     expect(verifyCsrfToken('', 'secret')).toBe(false);
   });
+  it('rejects non-string token', () => {
+    expect(verifyCsrfToken(undefined as never, 'secret')).toBe(false);
+    expect(verifyCsrfToken(null as never, 'secret')).toBe(false);
+    expect(verifyCsrfToken(123 as never, 'secret')).toBe(false);
+  });
+  it('rejects 2-part token when context is expected', () => {
+    const t = generateCsrfToken('secret'); // 2-part, no context
+    expect(verifyCsrfToken(t, 'secret', 'sess-abc')).toBe(false);
+  });
+  it('rejects 3-part token with empty raw/ctxHex/sig parts', () => {
+    expect(verifyCsrfToken('..sig', 'secret')).toBe(false);
+    expect(verifyCsrfToken('raw..sig', 'secret')).toBe(false);
+    expect(verifyCsrfToken('raw.ctx.', 'secret')).toBe(false);
+  });
+  it('rejects 2-part token with empty raw or sig parts', () => {
+    expect(verifyCsrfToken('.sig', 'secret')).toBe(false);
+    expect(verifyCsrfToken('raw.', 'secret')).toBe(false);
+  });
   it('rejects multi-part token (raw.sig.junk silently-dropped L-1)', () => {
     const valid = generateCsrfToken('secret');
     const tampered = `${valid}.extraPart.extra2`;

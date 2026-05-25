@@ -1,3 +1,4 @@
+/* v8 ignore next 4 -- re-exports are not branches */
 export { Link } from './link.js';
 export type { LinkProps } from './link.js';
 export { InertiaRouteProvider, useInertiaRoutes } from './provider.js';

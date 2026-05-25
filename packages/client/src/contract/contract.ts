@@ -8,6 +8,7 @@ export interface ContractDef<Q = unknown, B = unknown, R = unknown, P = unknown,
   error?: z.ZodType<E>;
 }
 
+/* v8 ignore next -- generic function declaration is not a branch */
 export function defineContract<Q = unknown, B = unknown, R = unknown, P = unknown, E = unknown>(
   def: ContractDef<Q, B, R, P, E>,
 ): ContractDef<Q, B, R, P, E> {

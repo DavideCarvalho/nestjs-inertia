@@ -64,4 +64,45 @@ describe('SsrLoaderService — real bundle loading', () => {
     expect(first).toBeNull();
     expect(second).toBeNull();
   });
+
+  it('loads a bundle with default export containing render()', async () => {
+    const file = makeBundle(
+      `export default { render: async (page) => ({ head: ['<title>Default</title>'], body: '<div>D</div>' }) };`,
+    );
+    const svc = new SsrLoaderService(baseOpts({ bundlePath: file }) as never);
+    const mod = await svc.load();
+    expect(mod).not.toBeNull();
+    expect(typeof mod?.render).toBe('function');
+    const result = await mod!.render({ component: 'X', props: {}, url: '/', version: 'v' });
+    expect(result.head).toEqual(['<title>Default</title>']);
+    expect(result.body).toBe('<div>D</div>');
+  });
+
+  it('returns null when bundle exports neither default.render nor named render (throwOnError=false)', async () => {
+    const file = makeBundle('export const notRender = 42;');
+    const svc = new SsrLoaderService(baseOpts({ bundlePath: file }) as never);
+    const mod = await svc.load();
+    expect(mod).toBeNull();
+  });
+
+  it('throws when bundle exports neither default.render nor named render (throwOnError=true)', async () => {
+    const file = makeBundle('export const notRender = 42;');
+    const svc = new SsrLoaderService(baseOpts({ bundlePath: file, throwOnError: true }) as never);
+    await expect(svc.load()).rejects.toThrow(/neither default nor render/);
+  });
+
+  it('uses default bundlePath when not specified', async () => {
+    // When no bundlePath is specified, it resolves to cwd + 'dist/inertia/ssr/ssr.mjs'
+    // which won't exist — should return null (not throw) with default throwOnError=false
+    const svc = new SsrLoaderService(baseOpts({}) as never);
+    const mod = await svc.load();
+    expect(mod).toBeNull();
+  });
+
+  it('returns null when default export exists but default.render is not a function', async () => {
+    const file = makeBundle(`export default { render: 'not-a-function' };`);
+    const svc = new SsrLoaderService(baseOpts({ bundlePath: file }) as never);
+    const mod = await svc.load();
+    expect(mod).toBeNull();
+  });
 });

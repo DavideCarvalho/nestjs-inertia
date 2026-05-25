@@ -1,6 +1,11 @@
 import { writeFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { computeAssetVersion, loadManifest } from '../src/asset/version.provider.js';
+import {
+  assetVersionProvider,
+  computeAssetVersion,
+  loadManifest,
+  manifestProvider,
+} from '../src/asset/version.provider.js';
 import { makeNestedTmpManifest, makeTmpManifest } from './helpers/tmp-manifest.js';
 
 const origCwd = process.cwd();
@@ -56,6 +61,27 @@ describe('loadManifest', () => {
       expect(() => loadManifest(path)).toThrow('Vite manifest at');
     });
 
+    it('throws clear error when an entry is null', () => {
+      const path = makeTmpManifest({});
+      writeFileSync(path, JSON.stringify({ 'app/client.tsx': null }));
+      expect(() => loadManifest(path)).toThrow('Vite manifest at');
+      expect(() => loadManifest(path)).toThrow('not an object');
+    });
+
+    it('throws clear error when an entry is an array', () => {
+      const path = makeTmpManifest({});
+      writeFileSync(path, JSON.stringify({ 'app/client.tsx': ['bad'] }));
+      expect(() => loadManifest(path)).toThrow('Vite manifest at');
+      expect(() => loadManifest(path)).toThrow('not an object');
+    });
+
+    it('throws clear error when top-level is a primitive (null)', () => {
+      const path = makeTmpManifest({});
+      writeFileSync(path, 'null');
+      expect(() => loadManifest(path)).toThrow('Vite manifest at');
+      expect(() => loadManifest(path)).toThrow('unexpected shape');
+    });
+
     it('accepts a valid manifest with file + optional css/imports', () => {
       const path = makeTmpManifest({
         'app/client.tsx': { file: 'assets/x.js', css: ['assets/x.css'], imports: ['a.js'] },
@@ -89,5 +115,66 @@ describe('computeAssetVersion', () => {
 
   it('UUID branch is non-deterministic', () => {
     expect(computeAssetVersion(null)).not.toBe(computeAssetVersion(null));
+  });
+});
+
+describe('assetVersionProvider.useFactory', () => {
+  const factory = (assetVersionProvider as { useFactory: (...args: unknown[]) => unknown })
+    .useFactory;
+
+  it('returns opts.version string when provided', async () => {
+    const result = await factory(null, { version: 'custom-v1' });
+    expect(result).toBe('custom-v1');
+  });
+
+  it('calls opts.version function when provided', async () => {
+    const result = await factory(null, { version: () => 'fn-v2' });
+    expect(result).toBe('fn-v2');
+  });
+
+  it('calls async opts.version function when provided', async () => {
+    const result = await factory(null, { version: async () => 'async-v3' });
+    expect(result).toBe('async-v3');
+  });
+
+  it('falls back to computeAssetVersion when opts.version is undefined', async () => {
+    const manifest = { 'app/client.tsx': { file: 'x.js' } };
+    const result = await factory(manifest, {});
+    expect(result).toMatch(/^[a-f0-9]{32}$/);
+  });
+
+  it('falls back to UUID when opts.version is undefined and manifest is null', async () => {
+    const result = await factory(null, {});
+    expect(result).toMatch(/^[a-f0-9]{32}$/);
+  });
+});
+
+describe('manifestProvider.useFactory', () => {
+  const factory = (manifestProvider as { useFactory: (...args: unknown[]) => unknown }).useFactory;
+  const origNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.NODE_ENV = origNodeEnv;
+  });
+
+  it('returns null when NODE_ENV is not production', () => {
+    process.env.NODE_ENV = 'test';
+    const result = factory({});
+    expect(result).toBeNull();
+  });
+
+  it('loads manifest when NODE_ENV is production', () => {
+    process.env.NODE_ENV = 'production';
+    const path = makeTmpManifest({ 'app/client.tsx': { file: 'assets/x.js' } });
+    const result = factory({ vite: { manifestPath: path } });
+    expect(result).not.toBeNull();
+    expect(result?.['app/client.tsx'].file).toBe('assets/x.js');
+  });
+
+  it('uses default manifest path when vite.manifestPath is not specified', () => {
+    process.env.NODE_ENV = 'production';
+    // Default path won't exist, so loadManifest returns null
+    const result = factory({});
+    expect(result).toBeNull();
   });
 });
