@@ -1,0 +1,176 @@
+---
+title: nestjs-filter Integration
+description: Type-safe filter queries with operators, sort, pagination, and search when using @ApplyFilter from nestjs-filter.
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+```tsx
+const { data } = useQuery(
+  api.users.list.queryOptions({
+    filter: { name: 'Al', status: 'active' },
+    sort: [{ field: 'name', direction: 'asc' }],
+    paginate: { page: 1, size: 25 },
+  })
+);
+```
+
+When a controller uses `@ApplyFilter(FilterClass)` from `@dudousxd/nestjs-filter`, the codegen detects it and generates typed filter queries automatically. No extra configuration needed.
+
+---
+
+## How it works
+
+The codegen reads the filter class properties and generates `TypedFilterQuery<'field1' | 'field2'>` as the query type. Routes with filters also get a `filterQuery()` helper.
+
+```ts
+// src/users.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { ApplyFilter } from '@dudousxd/nestjs-filter';
+import { UserFilter } from './user.filter';
+
+@Controller('/api/users')
+export class UsersController {
+  @Get()
+  list(@ApplyFilter(UserFilter) qb: QueryBuilder) {
+    return qb.getResultList();
+  }
+}
+```
+
+```ts
+// src/user.filter.ts
+import { Filterable, FilterFor, MikroOrmFilter } from '@dudousxd/nestjs-filter';
+
+@Filterable({ entity: User })
+export class UserFilter extends MikroOrmFilter<User> {
+  name?: string;
+  minAge?: number;
+  status?: string;
+
+  @FilterFor('name')
+  applyName(v: string) {
+    this.$query.andWhere({ name: { $like: `%${v}%` } });
+  }
+}
+```
+
+The codegen generates:
+
+```ts
+// .nestjs-inertia/api.ts (generated)
+users: {
+  list: {
+    method: "GET";
+    query: import('@dudousxd/nestjs-filter-client').TypedFilterQuery<"name" | "minAge" | "status">;
+    // ...
+  }
+}
+```
+
+---
+
+## Using queryOptions with filters
+
+Pass filter, sort, pagination, and search as a typed object:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+const { data } = useQuery(
+  api.users.list.queryOptions({
+    filter: { name: 'Al', status: 'active' },
+    sort: [{ field: 'name', direction: 'asc' }],
+    paginate: { page: 1, size: 25 },
+    search: 'fleet',
+  })
+);
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filter` | `{ [field]?: value }` | Filter conditions (field names restricted to filter class properties) |
+| `sort` | `Array<{ field, direction }>` | Sort directives (field names restricted) |
+| `paginate` | `{ page, size }` | Offset-based pagination |
+| `search` | `string` | Global search term |
+| `include` | `string[]` | Relation paths to eager-load |
+
+---
+
+## Using the filterQuery() builder
+
+For queries with operators (contains, gte, in, between, etc.), use the generated `filterQuery()` helper:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+const q = api.users.list.filterQuery()
+  .contains('name', 'Al')
+  .gte('minAge', 18)
+  .in('status', ['active', 'pending']);
+
+const { data } = useQuery(api.users.list.queryOptions(q.build()));
+```
+
+The builder is fully typed. Only fields from the filter class are accepted:
+
+```tsx
+api.users.list.filterQuery()
+  .contains('name', 'Al')     // ✓ 'name' exists in UserFilter
+  .contains('foo', 'bar');    // ✗ TypeScript error: 'foo' is not a valid field
+```
+
+### Available operators
+
+| Operator | Example |
+|----------|---------|
+| `equals` | `.equals('status', 'active')` |
+| `contains` | `.contains('name', 'Al')` |
+| `startsWith` | `.startsWith('name', 'A')` |
+| `endsWith` | `.endsWith('name', 'ce')` |
+| `gt` / `gte` / `lt` / `lte` | `.gte('minAge', 18)` |
+| `in` / `notIn` | `.in('status', ['active', 'pending'])` |
+| `between` | `.between('age', 18, 65)` |
+| `isNull` / `isNotNull` | `.isNull('deletedAt')` |
+| `isEmpty` / `isNotEmpty` | `.isEmpty('notes')` |
+
+### Sort and pagination
+
+```tsx
+const q = api.users.list.filterQuery()
+  .contains('name', 'Al')
+  .sort('name', 'asc')
+  .paginate(1, 25);
+
+const { data } = useQuery(api.users.list.queryOptions(q.build()));
+```
+
+---
+
+## Install
+
+The codegen detects `@ApplyFilter` automatically. You only need `@dudousxd/nestjs-filter-client` installed for the `TypedFilterQuery` type and `filterQueryTyped` runtime:
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-filter-client
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @dudousxd/nestjs-filter-client
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-filter-client
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+  If `@dudousxd/nestjs-filter-client` is not installed, the codegen falls back to `query: never` for `@ApplyFilter` routes. No error, just no filter types.
+</Aside>
