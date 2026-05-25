@@ -1,10 +1,14 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { runCodegen } from './codegen.js';
+import { runInit } from './init.js';
 
 interface Check {
   name: string;
   pass: boolean;
   fix?: string;
+  autoFix?: () => void;
 }
 
 function checkFileExists(cwd: string, file: string): boolean {
@@ -20,6 +24,35 @@ function readJson(path: string): Record<string, unknown> | null {
   }
 }
 
+function writeJsonField(filePath: string, dotPath: string[], value: unknown): void {
+  const raw = readFileSync(filePath, 'utf8');
+  const stripped = raw.replace(/\/\/.*$/gm, '');
+  const obj = JSON.parse(stripped) as Record<string, unknown>;
+  let target = obj as Record<string, unknown>;
+  for (let i = 0; i < dotPath.length - 1; i++) {
+    const key = dotPath[i] as string;
+    if (!target[key] || typeof target[key] !== 'object') {
+      target[key] = {};
+    }
+    target = target[key] as Record<string, unknown>;
+  }
+  const lastKey = dotPath[dotPath.length - 1] as string;
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof target[lastKey] === 'object' &&
+    target[lastKey] !== null
+  ) {
+    target[lastKey] = {
+      ...(target[lastKey] as Record<string, unknown>),
+      ...(value as Record<string, unknown>),
+    };
+  } else {
+    target[lastKey] = value;
+  }
+  writeFileSync(filePath, JSON.stringify(obj, null, 2) + '\n', 'utf8');
+}
+
 function getPackageVersion(cwd: string, pkg: string): string | null {
   try {
     const pkgJson = readJson(join(cwd, 'node_modules', pkg, 'package.json'));
@@ -29,15 +62,23 @@ function getPackageVersion(cwd: string, pkg: string): string | null {
   }
 }
 
-export async function runDoctor(opts: { cwd: string }): Promise<number> {
-  const { cwd } = opts;
+function detectPkgManager(cwd: string): string {
+  if (existsSync(join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (existsSync(join(cwd, 'yarn.lock'))) return 'yarn';
+  return 'npm';
+}
+
+export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<number> {
+  const { cwd, fix = false } = opts;
   const checks: Check[] = [];
+  const pm = detectPkgManager(cwd);
 
   // 1. Config file
   checks.push({
     name: 'nestjs-inertia.config.ts exists',
     pass: checkFileExists(cwd, 'nestjs-inertia.config.ts'),
-    fix: 'Run: pnpm exec nestjs-inertia init',
+    fix: 'Run: nestjs-inertia init',
+    autoFix: () => runInit({ cwd }),
   });
 
   // 2. Codegen output
@@ -47,30 +88,43 @@ export async function runDoctor(opts: { cwd: string }): Promise<number> {
   checks.push({
     name: '.nestjs-inertia/ codegen output exists',
     pass: hasApi && hasRoutes && hasPages,
-    fix: 'Run: pnpm exec nestjs-inertia codegen',
+    fix: 'Run: nestjs-inertia codegen',
+    autoFix: () => runCodegen({ cwd }),
   });
 
   // 3. tsconfig paths
-  const tsconfig = readJson(join(cwd, 'tsconfig.json'));
+  const tsconfigPath = join(cwd, 'tsconfig.json');
+  const tsconfig = readJson(tsconfigPath);
   const paths = (tsconfig?.compilerOptions as Record<string, unknown>)?.paths as
     | Record<string, string[]>
     | undefined;
   checks.push({
     name: 'tsconfig.json has @/* path alias',
     pass: !!paths?.['@/*'],
-    fix: 'Add to tsconfig.json compilerOptions.paths: { "@/*": ["./src/*"] }',
+    fix: 'Add @/* path alias to tsconfig.json',
+    autoFix: () =>
+      writeJsonField(tsconfigPath, ['compilerOptions', 'paths'], { '@/*': ['./src/*'] }),
   });
 
   // 4. Inertia tsconfig (optional)
-  const inertiaTsconfig = readJson(join(cwd, 'tsconfig.inertia.json'));
+  const inertiaTsconfigPath = join(cwd, 'tsconfig.inertia.json');
+  const inertiaTsconfig = readJson(inertiaTsconfigPath);
   if (inertiaTsconfig) {
     const inertiaPaths = (inertiaTsconfig.compilerOptions as Record<string, unknown>)?.paths as
       | Record<string, string[]>
       | undefined;
+    const missingTilde = !inertiaPaths?.['~/*'];
+    const missingCodegen = !inertiaPaths?.['~codegen/*'];
     checks.push({
       name: 'tsconfig.inertia.json has ~/* and ~codegen/* aliases',
-      pass: !!inertiaPaths?.['~/*'] && !!inertiaPaths?.['~codegen/*'],
-      fix: 'Add paths: { "~/*": ["inertia/*"], "~codegen/*": [".nestjs-inertia/*"] }',
+      pass: !missingTilde && !missingCodegen,
+      fix: 'Add ~/* and ~codegen/* path aliases',
+      autoFix: () => {
+        const additions: Record<string, string[]> = {};
+        if (missingTilde) additions['~/*'] = ['inertia/*'];
+        if (missingCodegen) additions['~codegen/*'] = ['.nestjs-inertia/*'];
+        writeJsonField(inertiaTsconfigPath, ['compilerOptions', 'paths'], additions);
+      },
     });
   }
 
@@ -80,7 +134,7 @@ export async function runDoctor(opts: { cwd: string }): Promise<number> {
     checks.push({
       name: 'vite.config.ts has resolve.alias',
       pass: viteContent.includes('resolve') && viteContent.includes('alias'),
-      fix: 'Add resolve.alias with @→src, ~→inertia, ~codegen→.nestjs-inertia',
+      fix: 'Add resolve.alias to vite.config.ts (manual — complex file)',
     });
     checks.push({
       name: 'vite.config.ts references nestjs-inertia',
@@ -93,6 +147,25 @@ export async function runDoctor(opts: { cwd: string }): Promise<number> {
   }
 
   // 6. Package versions
+  const requiredPkgs = [
+    '@dudousxd/nestjs-inertia',
+    '@dudousxd/nestjs-inertia-codegen',
+    '@dudousxd/nestjs-inertia-client',
+  ];
+  const missingRequired = requiredPkgs.filter((pkg) => !getPackageVersion(cwd, pkg));
+  checks.push({
+    name: 'Core packages installed (core + codegen + client)',
+    pass: missingRequired.length === 0,
+    fix: `Missing: ${missingRequired.join(', ')}`,
+    autoFix:
+      missingRequired.length > 0
+        ? () => {
+            const addCmd = pm === 'npm' ? 'install' : 'add';
+            execFileSync(pm, [addCmd, ...missingRequired], { cwd, stdio: 'inherit' });
+          }
+        : undefined,
+  });
+
   const libPackages = [
     '@dudousxd/nestjs-inertia',
     '@dudousxd/nestjs-inertia-codegen',
@@ -103,19 +176,6 @@ export async function runDoctor(opts: { cwd: string }): Promise<number> {
   const versions = libPackages.map((pkg) => ({ pkg, version: getPackageVersion(cwd, pkg) }));
   const installed = versions.filter((v) => v.version !== null);
   const uniqueVersions = new Set(installed.map((v) => v.version));
-
-  const requiredPkgs = [
-    '@dudousxd/nestjs-inertia',
-    '@dudousxd/nestjs-inertia-codegen',
-    '@dudousxd/nestjs-inertia-client',
-  ];
-  const missingRequired = requiredPkgs.filter((pkg) => !getPackageVersion(cwd, pkg));
-  checks.push({
-    name: 'Core packages installed (core + codegen + client)',
-    pass: missingRequired.length === 0,
-    fix: missingRequired.length > 0 ? `Missing: ${missingRequired.join(', ')}` : undefined,
-  });
-
   if (installed.length > 1) {
     checks.push({
       name: 'All packages on same version',
@@ -142,48 +202,85 @@ export async function runDoctor(opts: { cwd: string }): Promise<number> {
     checks.push({
       name: `@inertiajs/${inertiaFramework} is v3+`,
       pass: majorVersion >= 3,
-      fix: `Current: v${inertiaVersion}. Run: pnpm add @inertiajs/${inertiaFramework}@^3.0.0`,
+      fix: `Current: v${inertiaVersion}`,
+      autoFix:
+        majorVersion < 3
+          ? () => {
+              const addCmd = pm === 'npm' ? 'install' : 'add';
+              execFileSync(pm, [addCmd, `@inertiajs/${inertiaFramework}@^3.0.0`], {
+                cwd,
+                stdio: 'inherit',
+              });
+            }
+          : undefined,
     });
   }
 
   // 8. .gitignore
   if (checkFileExists(cwd, '.gitignore')) {
-    const gitignore = readFileSync(join(cwd, '.gitignore'), 'utf8');
+    const gitignorePath = join(cwd, '.gitignore');
+    const gitignore = readFileSync(gitignorePath, 'utf8');
     checks.push({
       name: '.gitignore includes .nestjs-inertia/',
       pass: gitignore.includes('.nestjs-inertia'),
       fix: 'Add .nestjs-inertia/ to .gitignore',
+      autoFix: () => appendFileSync(gitignorePath, '\n.nestjs-inertia/\n'),
     });
   }
 
   // 9. Build scripts
-  const pkgJson = readJson(join(cwd, 'package.json'));
+  const pkgJsonPath = join(cwd, 'package.json');
+  const pkgJson = readJson(pkgJsonPath);
   const scripts = (pkgJson?.scripts as Record<string, string>) ?? {};
   checks.push({
     name: 'package.json has build:client script',
     pass: !!scripts['build:client'],
-    fix: 'Add: "build:client": "vite build"',
+    fix: 'Add build:client script',
+    autoFix: () => writeJsonField(pkgJsonPath, ['scripts'], { 'build:client': 'vite build' }),
   });
 
-  // Print results
+  // Print results + auto-fix
   console.log('');
-  console.log('\x1b[1mnestjs-inertia doctor\x1b[0m');
+  console.log(`\x1b[1mnestjs-inertia doctor${fix ? ' --fix' : ''}\x1b[0m`);
   console.log('');
 
   let hasFailures = false;
+  let fixed = 0;
+
   for (const check of checks) {
-    const icon = check.pass ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
-    console.log(`  ${icon} ${check.name}`);
-    if (!check.pass && check.fix) {
-      console.log(`    \x1b[2m${check.fix}\x1b[0m`);
-      hasFailures = true;
+    if (check.pass) {
+      console.log(`  \x1b[32m✓\x1b[0m ${check.name}`);
+      continue;
     }
+
+    if (fix && check.autoFix) {
+      try {
+        check.autoFix();
+        console.log(`  \x1b[34m⚡\x1b[0m ${check.name} \x1b[34m(fixed)\x1b[0m`);
+        fixed++;
+        continue;
+      } catch (err) {
+        console.log(`  \x1b[31m✗\x1b[0m ${check.name} \x1b[31m(auto-fix failed)\x1b[0m`);
+        if (check.fix) console.log(`    \x1b[2m${check.fix}\x1b[0m`);
+        hasFailures = true;
+        continue;
+      }
+    }
+
+    console.log(`  \x1b[31m✗\x1b[0m ${check.name}`);
+    if (check.fix) {
+      const hint = check.autoFix ? `${check.fix} (fixable with --fix)` : check.fix;
+      console.log(`    \x1b[2m${hint}\x1b[0m`);
+    }
+    hasFailures = true;
   }
 
   console.log('');
-  if (hasFailures) {
-    console.log(`\x1b[33m${checks.filter((c) => !c.pass).length} issue(s) found\x1b[0m`);
-  } else {
+  const failCount = checks.filter((c) => !c.pass).length - fixed;
+  if (fixed > 0) console.log(`\x1b[34m${fixed} issue(s) auto-fixed\x1b[0m`);
+  if (failCount > 0) {
+    console.log(`\x1b[33m${failCount} issue(s) remaining\x1b[0m`);
+  } else if (!hasFailures) {
     console.log('\x1b[32mAll checks passed!\x1b[0m');
   }
   console.log('');

@@ -27,10 +27,13 @@ export async function run(argv: string[]): Promise<number> {
       await runInit({ cwd: process.cwd() });
     });
 
-  cli.command('doctor', 'Diagnose your nestjs-inertia setup').action(async () => {
-    const code = await runDoctor({ cwd: process.cwd() });
-    process.exitCode = code;
-  });
+  cli
+    .command('doctor', 'Diagnose your nestjs-inertia setup')
+    .option('--fix', 'Auto-fix issues where possible')
+    .action(async (opts: { fix?: boolean }) => {
+      const code = await runDoctor({ cwd: process.cwd(), fix: Boolean(opts.fix) });
+      process.exitCode = code;
+    });
 
   cli.help();
   cli.version(VERSION);
