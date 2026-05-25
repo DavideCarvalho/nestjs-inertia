@@ -1,5 +1,14 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.4.1
+
+### Patch Changes
+
+- [`15b8d5a`](https://github.com/DavideCarvalho/nestjs-inertia/commit/15b8d5ace084307fd5e2f7e502085f83d13a3632) - Infer page props from default export via Parameters, no ComponentProps export needed. Fix React-not-defined in vitest by using explicit createElement.
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@1.4.1
+
 ## 2.0.0
 
 ### Minor Changes
