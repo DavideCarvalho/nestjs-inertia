@@ -88,8 +88,8 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
       pagesDebounceTimer = undefined;
       try {
         await generate(config);
-      } catch {
-        // Swallow errors in watch mode
+      } catch (err) {
+        console.error('[nestjs-inertia-codegen] Pages generation failed:', err instanceof Error ? err.message : err);
       }
       onChange?.();
     }, PAGES_DEBOUNCE_MS);
@@ -129,8 +129,8 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
         if (hasContracts) {
           await emitApi(routes, config.codegen.outDir);
         }
-      } catch {
-        // Swallow errors in watch mode
+      } catch (err) {
+        console.error('[nestjs-inertia-codegen] Contracts generation failed:', err instanceof Error ? err.message : err);
       }
       onChange?.();
     }, config.contracts.debounceMs);
