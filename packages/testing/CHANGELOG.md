@@ -1,5 +1,12 @@
 # Changelog — @dudousxd/nestjs-inertia-testing
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dudousxd/nestjs-inertia@2.0.0
+
 ## 1.4.1
 
 ### Patch Changes
