@@ -7,8 +7,12 @@ import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
  * permitted. Absolute URLs to other hosts throw an error.
  */
 function validateLocationUrl(url: string): string {
-  // Relative URLs are always safe
-  if (url.startsWith('/')) return url;
+  // Relative URLs starting with a single / are safe
+  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  // Reject protocol-relative URLs (//evil.com/path)
+  if (url.startsWith('//')) {
+    throw new Error(`[nestjs-inertia] location() rejected protocol-relative URL: ${url}`);
+  }
   // Attempt to parse as absolute URL
   try {
     const parsed = new URL(url);
@@ -23,8 +27,11 @@ function validateLocationUrl(url: string): string {
     );
   } catch (err) {
     if (err instanceof TypeError) {
-      // URL() threw — not a valid absolute URL; treat as relative
-      return url;
+      // Not a valid absolute URL — only allow paths that look like relative URLs
+      if (/^[a-zA-Z0-9]/.test(url) || url.startsWith('.')) {
+        return url;
+      }
+      throw new Error(`[nestjs-inertia] location() rejected unrecognized URL format: ${url}`);
     }
     throw err;
   }
