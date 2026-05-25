@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -197,19 +197,21 @@ async function patchGitignore(gitignorePath: string): Promise<void> {
 export function installDeps(pkgManager: PackageManager, deps: string[], dev: boolean): void {
   if (deps.length === 0) return;
 
-  const flag = dev ? (pkgManager === 'npm' ? '--save-dev' : '-D') : '';
-  const cmd =
-    pkgManager === 'npm'
-      ? `npm install ${flag} ${deps.join(' ')}`
-      : pkgManager === 'yarn'
-        ? `yarn add ${flag} ${deps.join(' ')}`
-        : `pnpm add ${flag} ${deps.join(' ')}`;
+  const args: string[] = [];
+  if (pkgManager === 'npm') {
+    args.push('install');
+    if (dev) args.push('--save-dev');
+  } else {
+    args.push('add');
+    if (dev) args.push('-D');
+  }
+  args.push(...deps);
 
   logPatched(deps.join(', '), 'installed');
   try {
-    execSync(cmd, { stdio: 'inherit' });
+    execFileSync(pkgManager, args, { stdio: 'inherit' });
   } catch {
-    logWarning(`Failed to install deps. Run manually:\n    ${cmd}`);
+    logWarning(`Failed to install: ${deps.join(', ')}`);
   }
 }
 
