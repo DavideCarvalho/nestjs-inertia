@@ -1,7 +1,9 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI, security]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -11,11 +13,38 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     permissions:
       contents: write
       pull-requests: write
       id-token: write
     steps:
+      - name: Check CI and security status
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha;
+            const checks = ['CI', 'security'];
+            for (const name of checks) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: `${name === 'CI' ? 'ci' : 'security'}.yml`,
+                head_sha: sha,
+                per_page: 1,
+              });
+              const run = runs.data.workflow_runs[0];
+              if (!run || run.conclusion !== 'success') {
+                core.setFailed(`${name} workflow did not succeed for ${sha}`);
+                return;
+              }
+            }
+            core.info('CI and security checks passed');
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -27,7 +56,6 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run build --filter='./packages/*'
-      - run: pnpm exec turbo run test --filter='./packages/*'
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
