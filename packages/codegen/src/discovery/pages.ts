@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { relative } from 'node:path';
+import { join, relative } from 'node:path';
 import fg from 'fast-glob';
 
 export interface DiscoveredPage {
@@ -19,10 +19,15 @@ export interface DiscoverPagesOptions {
 export async function discoverPages(opts: DiscoverPagesOptions): Promise<DiscoveredPage[]> {
   const files = await fg(opts.glob, { cwd: opts.cwd, absolute: true });
   files.sort();
+  // Extract the static prefix from the glob to make page names relative to the pages directory
+  // e.g. glob 'inertia/pages/**/*.tsx' → pagesBase 'inertia/pages'
+  const globStatic = opts.glob.split('*')[0]?.replace(/\/$/, '') ?? '';
+  const pagesBase = join(opts.cwd, globStatic);
   const out: DiscoveredPage[] = [];
   for (const file of files) {
     const rel = relative(opts.cwd, file);
-    const name = computeName(rel, opts.componentNameStrategy);
+    const nameRel = relative(pagesBase, file);
+    const name = computeName(nameRel, opts.componentNameStrategy);
     const source = await readFile(file, 'utf8');
     const propsSource = extractPropsSource(source, opts.propsExport);
     out.push({ name, absolutePath: file, relativePath: rel, propsSource });
