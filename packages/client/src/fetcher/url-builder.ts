@@ -12,9 +12,12 @@ export interface BuildUrlOptions {
  *   buildUrl('/users', {}, 'https://api.test')                             → 'https://api.test/users'
  */
 export function buildUrl(path: string, opts: BuildUrlOptions = {}, baseUrl?: string): string {
+  // Ensure path starts with / to prevent malformed URLs when baseUrl is provided
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
   // Interpolate path params — encodeURIComponent prevents path traversal
   // e.g. { id: '../admin' } → '/users/..%2Fadmin' not '/users/../admin'
-  let resolved = path.replace(/:(\w+)/g, (_match, key: string) => {
+  let resolved = normalizedPath.replace(/:(\w+)/g, (_match, key: string) => {
     const val = opts.params?.[key];
     if (val === undefined || val === null) {
       throw new Error(`Missing param: ${key}`);
