@@ -106,8 +106,27 @@ export default function nestInertia(options: NestInertiaPluginOptions = {}): Plu
     },
   };
 
+  const codegenHmr: Plugin = {
+    name: 'nestjs-inertia:codegen-hmr',
+    configureServer(server) {
+      const codegenDir = resolve(process.cwd(), '.nestjs-inertia');
+      const { watcher } = server;
+      watcher.add(codegenDir);
+      watcher.on('change', (file) => {
+        if (!file.startsWith(codegenDir)) return;
+        const mods = server.moduleGraph.getModulesByFile(file);
+        if (mods) {
+          for (const mod of mods) {
+            server.moduleGraph.invalidateModule(mod);
+          }
+        }
+        server.ws.send({ type: 'full-reload' });
+      });
+    },
+  };
+
   if (options.skipFrameworkPlugin) {
-    return [configurer];
+    return [configurer, codegenHmr];
   }
 
   const frameworkPlugin = options.react
@@ -116,5 +135,5 @@ export default function nestInertia(options: NestInertiaPluginOptions = {}): Plu
       ? loadFrameworkPlugin('vue')
       : loadFrameworkPlugin('svelte');
 
-  return [configurer, frameworkPlugin];
+  return [configurer, frameworkPlugin, codegenHmr];
 }
