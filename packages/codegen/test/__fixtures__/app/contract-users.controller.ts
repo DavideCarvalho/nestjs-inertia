@@ -17,5 +17,3 @@ export class ContractUsersController {
     return [];
   }
 }
-
-// touched

@@ -42,10 +42,7 @@ export function discoverSharedProps(
     const forRootCall = findForRootCall(sourceFile);
     if (!forRootCall) return null;
 
-    const shareProperty = findShareProperty(forRootCall);
-    if (!shareProperty) return null;
-
-    const initializer = shareProperty.getInitializer();
+    const initializer = findShareInitializer(forRootCall);
     if (!initializer) return null;
 
     return extractShareType(initializer, sourceFile, project);
@@ -81,9 +78,10 @@ function findForRootCall(sourceFile: SourceFile): Node | null {
 }
 
 /**
- * Extract the `share` property assignment from the first argument of `forRoot(...)`.
+ * Extract the initializer of the `share` property from the first argument of `forRoot(...)`.
+ * Returns the initializer node (the value assigned to `share`), or null if not found.
  */
-function findShareProperty(forRootCall: Node): Node | null {
+function findShareInitializer(forRootCall: Node): Node | null {
   if (!Node.isCallExpression(forRootCall)) return null;
 
   const args = forRootCall.getArguments();
@@ -92,7 +90,7 @@ function findShareProperty(forRootCall: Node): Node | null {
 
   for (const prop of firstArg.getProperties()) {
     if (Node.isPropertyAssignment(prop) && prop.getName() === 'share') {
-      return prop;
+      return prop.getInitializer() ?? null;
     }
   }
 

@@ -155,3 +155,106 @@ type FullRequest = Route.Request<'users.create'>;
 | `Route.Params<K>` | Params type for route `K` |
 | `Route.Error<K>` | Error type for route `K` |
 | `Route.Request<K>` | Full request shape (`{ body, query, params }`) |
+
+---
+
+## `navigate()`
+
+Type-safe wrapper around Inertia's `router.visit()` with route name autocomplete:
+
+```tsx
+import { navigate } from '~codegen/api';
+
+// Route name autocompleted, params required when route has :id
+navigate('users.show', { params: { id: '42' } });
+navigate('showDashboard.show');
+
+// With Inertia visit options
+navigate('users.list', { preserveState: true, replace: true });
+```
+
+---
+
+## Prefetch on hover
+
+Pass `prefetch` and `queryClient` to `<Link>` to prefetch query data on mouse enter:
+
+```tsx
+import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@dudousxd/nestjs-inertia-client/react';
+import { api } from '~codegen/api';
+
+const qc = useQueryClient();
+
+<Link
+  route="users.list"
+  prefetch={api.users.list.queryOptions()}
+  queryClient={qc}
+>
+  All Users
+</Link>
+```
+
+Prefetches once on first hover. No duplicate requests.
+
+---
+
+## `useTypedReload()`
+
+Typed partial reload with prop name autocomplete:
+
+```tsx
+import { useTypedReload } from '@dudousxd/nestjs-inertia-client/react';
+
+function Dashboard() {
+  const reload = useTypedReload<'Dashboard'>();
+
+  return (
+    <button onClick={() => reload({ only: ['users'] })}>
+      Refresh users
+    </button>
+  );
+}
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `only` | `Array<keyof PageProps>` | Only reload these props |
+| `except` | `Array<keyof PageProps>` | Reload all props except these |
+| `preserveScroll` | `boolean` | Keep scroll position |
+| `preserveState` | `boolean` | Keep component state |
+
+---
+
+## Typed shared props
+
+The codegen reads `InertiaModule.forRoot({ share: ... })` and generates `InertiaSharedProps` automatically. Two approaches:
+
+**Named function (recommended):** export the share function and the codegen uses `ReturnType<import(...)>`:
+
+```ts
+// src/shared-props.ts
+export async function getSharedProps(req: Request) {
+  return {
+    auth: req.user ? { id: req.user.id, name: req.user.name } : null,
+  };
+}
+
+// src/app.module.ts
+InertiaModule.forRoot({ share: getSharedProps })
+```
+
+Generated type stays in sync automatically (same as controller response types).
+
+**Inline arrow:** the codegen extracts properties from the return value:
+
+```ts
+InertiaModule.forRoot({
+  share: (req) => ({
+    auth: req.user ?? null,
+    flash: {},
+  }),
+})
+```
+
+`usePage().props` now includes shared props with full type safety.

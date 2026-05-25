@@ -3,15 +3,7 @@
   "changelog": ["@changesets/changelog-github", { "repo": "DavideCarvalho/nestjs-inertia" }],
   "commit": false,
   "fixed": [],
-  "linked": [
-    [
-      "@dudousxd/nestjs-inertia",
-      "@dudousxd/nestjs-inertia-vite",
-      "@dudousxd/nestjs-inertia-testing",
-      "@dudousxd/nestjs-inertia-codegen",
-      "@dudousxd/nestjs-inertia-client"
-    ]
-  ],
+  "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
