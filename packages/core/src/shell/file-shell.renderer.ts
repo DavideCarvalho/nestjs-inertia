@@ -76,14 +76,12 @@ export class FileBasedShellRenderer implements ShellRenderer {
       inertia: inertiaHtml,
       inertiaHead: ssrHead,
       vite: (entry: string) => {
-        if (!/^[\w\-./]+$/.test(entry))
-          throw new Error(`Invalid vite entry: ${entry}`);
+        if (!/^[\w\-./]+$/.test(entry)) throw new Error(`Invalid vite entry: ${entry}`);
         return processDirectives(`@vite('${entry}')`, directiveCtx);
       },
       viteRefresh: processDirectives('@viteRefresh', directiveCtx),
       asset: (p: string) => {
-        if (!/^[\w\-./]+$/.test(p))
-          throw new Error(`Invalid asset path: ${p}`);
+        if (!/^[\w\-./]+$/.test(p)) throw new Error(`Invalid asset path: ${p}`);
         return processDirectives(`@asset('${p}')`, directiveCtx);
       },
     };

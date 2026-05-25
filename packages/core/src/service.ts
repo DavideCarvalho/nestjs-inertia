@@ -219,6 +219,7 @@ export interface InertiaServiceDeps {
  * Uses interface-class declaration merging so the implementation signature
  * stays simple while callers get type safety.
  */
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: intentional — typed render overloads via interface-class merging
 export interface InertiaService {
   render<K extends keyof InertiaPages>(
     component: K,
@@ -227,6 +228,7 @@ export interface InertiaService {
   render(component: string, props?: Props): Promise<void>;
 }
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: see above
 export class InertiaService {
   private readonly logger = new Logger(InertiaService.name);
   private shared: SharedInput[] = [];
