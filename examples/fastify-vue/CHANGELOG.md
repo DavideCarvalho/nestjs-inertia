@@ -1,5 +1,13 @@
 # @example/fastify-vue
 
+## 0.0.18
+
+### Patch Changes
+
+- Updated dependencies [[`7541d51`](https://github.com/DavideCarvalho/nestjs-inertia/commit/7541d5121a080bda97dae4d756d0e14b5bc65519)]:
+  - @dudousxd/nestjs-inertia-codegen@1.7.0
+  - @dudousxd/nestjs-inertia-client@1.7.0
+
 ## 0.0.17
 
 ### Patch Changes

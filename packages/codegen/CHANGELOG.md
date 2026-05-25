@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.7.0
+
+### Minor Changes
+
+- [`7541d51`](https://github.com/DavideCarvalho/nestjs-inertia/commit/7541d5121a080bda97dae4d756d0e14b5bc65519) - Typed shared props from forRoot({ share }), typed navigate(), prefetch on hover for Link, useTypedReload for partial reloads.
+
 ## 1.6.0
 
 ### Minor Changes
