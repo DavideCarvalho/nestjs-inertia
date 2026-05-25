@@ -1,6 +1,7 @@
 import { cac } from 'cac';
 import { VERSION } from '../index.js';
 import { runCodegen } from './codegen.js';
+import { runDoctor } from './doctor.js';
 import { runInit } from './init.js';
 
 /**
@@ -25,6 +26,11 @@ export async function run(argv: string[]): Promise<number> {
     .action(async () => {
       await runInit({ cwd: process.cwd() });
     });
+
+  cli.command('doctor', 'Diagnose your nestjs-inertia setup').action(async () => {
+    const code = await runDoctor({ cwd: process.cwd() });
+    process.exitCode = code;
+  });
 
   cli.help();
   cli.version(VERSION);
