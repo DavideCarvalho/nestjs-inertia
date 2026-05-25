@@ -4,12 +4,30 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome ci .
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -24,13 +42,106 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Lint
-        run: pnpm exec biome ci .
-      - name: Build all packages (turbo respects topological order)
+      - name: Build packages
         run: pnpm exec turbo run build --filter='./packages/*'
-      - name: Test all packages
+      - name: Test packages
         run: pnpm exec turbo run test --filter='./packages/*'
       - name: Build example
         run: pnpm --filter @example/express-react build
       - name: E2E example smoke
         run: pnpm --filter @example/express-react test
+
+  trivy:
+    name: Trivy scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy scan (SARIF)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          scanners: vuln,secret,misconfig
+          skip-dirs: node_modules,website/dist,website/.astro,packages/*/dist,examples/*/dist
+      - name: Upload to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+      - name: Fail on HIGH+
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          scanners: vuln,secret,misconfig
+          skip-dirs: node_modules,website/dist,website/.astro,packages/*/dist,examples/*/dist
+
+  grype:
+    name: Grype scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grype scan
+        uses: anchore/scan-action@v6
+        id: grype-scan
+        with:
+          path: .
+          fail-build: true
+          severity-cutoff: critical
+          only-fixed: true
+          output-format: sarif
+      - name: Upload to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+          category: grype
+
+  publish:
+    needs: [lint, test, trivy, grype]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run build --filter='./packages/*'
+      - name: Create Release Pull Request or Publish
+        uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          publish: pnpm -r publish --access public --provenance --no-git-checks
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
