@@ -5,7 +5,6 @@ Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed
 [![npm version](https://img.shields.io/npm/v/@dudousxd/nestjs-inertia?label=core)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia)
 [![npm downloads](https://img.shields.io/npm/dm/@dudousxd/nestjs-inertia?label=downloads)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia)
 [![CI](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/ci.yml/badge.svg)](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/ci.yml)
-[![Security](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/security.yml/badge.svg)](https://github.com/DavideCarvalho/nestjs-inertia/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Provenance](https://img.shields.io/badge/provenance-verified-blue)](https://www.npmjs.com/package/@dudousxd/nestjs-inertia)
 
@@ -17,7 +16,7 @@ Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed
 | [`@dudousxd/nestjs-inertia-vite`](packages/vite/README.md) | Vite dev/build helpers + plugin |
 | [`@dudousxd/nestjs-inertia-testing`](packages/testing/README.md) | `expectInertia` matchers + fakes + TestingModule |
 | [`@dudousxd/nestjs-inertia-codegen`](packages/codegen/README.md) | Typed pages + routes + `api.ts` via `nestjs-inertia codegen` |
-| [`@dudousxd/nestjs-inertia-client`](packages/client/README.md) | Tuyau-style typed HTTP client (Contract + createFetcher + SSR hydration) |
+| [`@dudousxd/nestjs-inertia-client`](packages/client/README.md) | Tuyau-style typed HTTP client (`@As` + `createFetcher` + `<Link>` + SSR hydration) |
 
 ## Examples
 
@@ -29,7 +28,7 @@ Three end-to-end example apps demonstrate different adapter + frontend combinati
 | [`examples/fastify-vue/`](examples/fastify-vue/) | Fastify + Vue 3 + Vite | `pnpm --filter @example/fastify-vue dev` |
 | [`examples/express-svelte/`](examples/express-svelte/) | Express + Svelte 5 + Vite | `pnpm --filter @example/express-svelte dev` |
 
-`express-react` is the canonical reference that exercises all five packages including the typed `<Link>` component and `@ApplyContract` codegen.
+`express-react` is the canonical reference that exercises all five packages including the typed `<Link>` component and codegen (`queryOptions`, `mutationOptions`, `queryKey`).
 
 To run any example:
 
