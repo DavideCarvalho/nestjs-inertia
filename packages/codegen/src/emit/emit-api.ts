@@ -245,7 +245,9 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           lines.push(
             `${pad}  queryKey: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) => query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
           );
-          lines.push(`${pad}  queryOptions: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) =>`);
+          lines.push(
+            `${pad}  queryOptions: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) =>`,
+          );
           lines.push(`${pad}    _queryOptions({`);
           lines.push(
             `${pad}      queryKey: query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
@@ -255,7 +257,9 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           );
           lines.push(`${pad}    }),`);
           // infiniteQueryOptions for GET with params
-          lines.push(`${pad}  infiniteQueryOptions: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) => ({`);
+          lines.push(
+            `${pad}  infiniteQueryOptions: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) => ({`,
+          );
           lines.push(
             `${pad}    queryKey: query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
           );

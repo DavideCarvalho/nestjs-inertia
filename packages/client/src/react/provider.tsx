@@ -1,4 +1,4 @@
-import { type ReactNode, createElement, createContext, useContext } from 'react';
+import { type ReactNode, createContext, createElement, useContext } from 'react';
 
 type RouteResolver = (
   name: string,

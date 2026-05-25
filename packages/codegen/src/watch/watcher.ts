@@ -89,7 +89,10 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
       try {
         await generate(config);
       } catch (err) {
-        console.error('[nestjs-inertia-codegen] Pages generation failed:', err instanceof Error ? err.message : err);
+        console.error(
+          '[nestjs-inertia-codegen] Pages generation failed:',
+          err instanceof Error ? err.message : err,
+        );
       }
       onChange?.();
     }, PAGES_DEBOUNCE_MS);
@@ -130,7 +133,10 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
           await emitApi(routes, config.codegen.outDir);
         }
       } catch (err) {
-        console.error('[nestjs-inertia-codegen] Contracts generation failed:', err instanceof Error ? err.message : err);
+        console.error(
+          '[nestjs-inertia-codegen] Contracts generation failed:',
+          err instanceof Error ? err.message : err,
+        );
       }
       onChange?.();
     }, config.contracts.debounceMs);

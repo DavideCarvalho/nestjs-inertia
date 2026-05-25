@@ -612,7 +612,9 @@ describe('emitApi', () => {
       ];
       await emitApi(getNoParams, outDir);
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toContain(`infiniteQueryOptions: (query?: ApiRouter["users"]["list"]['query'])`);
+      expect(content).toContain(
+        `infiniteQueryOptions: (query?: ApiRouter["users"]["list"]['query'])`,
+      );
     });
 
     it('GET route with params: infiniteQueryOptions(params, query?)', async () => {
@@ -633,7 +635,9 @@ describe('emitApi', () => {
       ];
       await emitApi(getWithParams, outDir);
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toContain(`infiniteQueryOptions: (params: ApiRouter["fleet"]["getVesselTrail"]['params']`);
+      expect(content).toContain(
+        `infiniteQueryOptions: (params: ApiRouter["fleet"]["getVesselTrail"]['params']`,
+      );
       expect(content).toContain(`query?: ApiRouter["fleet"]["getVesselTrail"]['query']`);
     });
 
@@ -817,7 +821,9 @@ describe('emitApi', () => {
     it('GET route with params: queryOptions takes (params, query?) signature', async () => {
       await emitApi(getRouteWithPathParam, outDir);
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toContain(`queryOptions: (params: ApiRouter["fleet"]["getVesselTrail"]['params']`);
+      expect(content).toContain(
+        `queryOptions: (params: ApiRouter["fleet"]["getVesselTrail"]['params']`,
+      );
       expect(content).toContain(`query?: ApiRouter["fleet"]["getVesselTrail"]['query']`);
     });
 

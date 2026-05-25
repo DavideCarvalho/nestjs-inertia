@@ -50,7 +50,7 @@ function writeJsonField(filePath: string, dotPath: string[], value: unknown): vo
   } else {
     target[lastKey] = value;
   }
-  writeFileSync(filePath, JSON.stringify(obj, null, 2) + '\n', 'utf8');
+  writeFileSync(filePath, `${JSON.stringify(obj, null, 2)}\n`, 'utf8');
 }
 
 function getPackageVersion(cwd: string, pkg: string): string | null {

@@ -1,6 +1,6 @@
 import type { RegistryRoutes } from '@dudousxd/nestjs-inertia';
 import { Link as InertiaLink } from '@inertiajs/react';
-import { createElement, type ComponentProps, type ReactNode } from 'react';
+import { type ComponentProps, type ReactNode, createElement } from 'react';
 import { useInertiaRoutes } from './provider.js';
 
 type AnyRoutes = RegistryRoutes;
