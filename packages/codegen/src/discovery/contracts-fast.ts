@@ -9,6 +9,7 @@ import {
   type ClassDeclaration,
   type InterfaceDeclaration,
   type MethodDeclaration,
+  type PropertyDeclaration,
   Node,
   Project,
   type SourceFile,
@@ -685,14 +686,14 @@ function extractApplyFilterInfo(
     const resolved = findType(filterClassName, sourceFile, project);
     if (resolved && resolved.kind === 'class') {
       const classDecl = resolved.decl as ClassDeclaration;
-      const props = classDecl.getProperties();
-      if (props.length === 0) return null;
-      const fieldNames: string[] = [];
-      for (const prop of props) {
-        const propName = prop.getName();
-        if (propName.startsWith('$') || propName.startsWith('_')) continue;
-        fieldNames.push(propName);
+      let fieldNames = extractClassPropertyNames(classDecl);
+
+      // autoFields: if the filter class has no properties, resolve fields
+      // from the entity referenced in @Filterable({ entity: X })
+      if (fieldNames.length === 0) {
+        fieldNames = extractFilterableEntityFields(classDecl, project);
       }
+
       if (fieldNames.length === 0) return null;
       const fieldsUnion = fieldNames.map((f) => JSON.stringify(f)).join(' | ');
       return {
@@ -702,6 +703,151 @@ function extractApplyFilterInfo(
     }
   }
   return null;
+}
+
+const RELATION_DECORATORS = new Set(['OneToMany', 'ManyToOne', 'ManyToMany', 'OneToOne']);
+
+/**
+ * Recursively collect entity fields including dot-notation relation fields.
+ * e.g. for PipelineRun with tasks: OneToMany<Task>, produces:
+ *   ["id", "name", "status", ..., "tasks.id", "tasks.name", ...]
+ */
+function collectEntityFields(
+  entityDecl: ClassDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+  prefix: string,
+  visited: Set<string>,
+): string[] {
+  const entityName = entityDecl.getName() ?? '';
+  if (visited.has(entityName)) return [];
+  visited.add(entityName);
+
+  const fields: string[] = [];
+  for (const prop of entityDecl.getProperties()) {
+    const name = prop.getName();
+    if (name.startsWith('$') || name.startsWith('_') || name.startsWith('[')) continue;
+    if (prop.isStatic()) continue;
+
+    const fullName = prefix ? `${prefix}.${name}` : name;
+    const isRelation = prop.getDecorators().some((d) => RELATION_DECORATORS.has(d.getName()));
+
+    if (isRelation) {
+      const relEntity = resolveRelationEntity(prop, sourceFile, project);
+      if (relEntity) {
+        fields.push(...collectEntityFields(relEntity, sourceFile, project, fullName, visited));
+      }
+    } else {
+      fields.push(fullName);
+    }
+  }
+  return fields;
+}
+
+/**
+ * Given a relation property (e.g. `tasks = new Collection<Task>(this)`),
+ * resolve the target entity class declaration.
+ */
+function resolveRelationEntity(
+  prop: PropertyDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): ClassDeclaration | null {
+  // Try from decorator argument: @OneToMany({ entity: () => Task, ... })
+  for (const dec of prop.getDecorators()) {
+    if (!RELATION_DECORATORS.has(dec.getName())) continue;
+    const args = dec.getArguments();
+    if (args.length === 0) continue;
+    const arg = args[0];
+    if (Node.isObjectLiteralExpression(arg)) {
+      const entityProp = arg.getProperty('entity');
+      if (entityProp && Node.isPropertyAssignment(entityProp)) {
+        const init = entityProp.getInitializer();
+        // () => Task
+        if (init && Node.isArrowFunction(init)) {
+          const body = init.getBody();
+          if (Node.isIdentifier(body)) {
+            const resolved = findType(body.getText(), prop.getSourceFile(), project);
+            if (resolved?.kind === 'class') return resolved.decl as ClassDeclaration;
+          }
+        }
+      }
+    }
+    // @ManyToOne(() => Task)
+    if (Node.isArrowFunction(arg)) {
+      const body = arg.getBody();
+      if (Node.isIdentifier(body)) {
+        const resolved = findType(body.getText(), prop.getSourceFile(), project);
+        if (resolved?.kind === 'class') return resolved.decl as ClassDeclaration;
+      }
+    }
+  }
+  return null;
+}
+
+function extractClassPropertyNames(classDecl: ClassDeclaration): string[] {
+  const names: string[] = [];
+  for (const prop of classDecl.getProperties()) {
+    const name = prop.getName();
+    if (name.startsWith('$') || name.startsWith('_')) continue;
+    names.push(name);
+  }
+  return names;
+}
+
+/**
+ * When a filter class uses `@Filterable({ entity: X, autoFields: true })`,
+ * resolve entity X and extract its property names (fields decorated with
+ * `@Property`, `@PrimaryKey`, `@Enum`, etc. — skipping relations).
+ */
+function extractFilterableEntityFields(
+  filterClass: ClassDeclaration,
+  project: Project,
+): string[] {
+  const filterableDecorator = filterClass.getDecorators().find((d) => d.getName() === 'Filterable');
+  if (!filterableDecorator) return [];
+  const args = filterableDecorator.getArguments();
+  if (args.length === 0) return [];
+
+  const optionsArg = args[0];
+  if (!Node.isObjectLiteralExpression(optionsArg)) return [];
+
+  const entityProp = optionsArg.getProperty('entity');
+  if (!entityProp || !Node.isPropertyAssignment(entityProp)) return [];
+
+  const entityInit = entityProp.getInitializer();
+  if (!entityInit || !Node.isIdentifier(entityInit)) return [];
+
+  const entityName = entityInit.getText();
+  const filterSourceFile = filterClass.getSourceFile();
+  const resolvedEntity = findType(entityName, filterSourceFile, project);
+  if (!resolvedEntity || resolvedEntity.kind !== 'class') return [];
+
+  const fields = collectEntityFields(resolvedEntity.decl as ClassDeclaration, filterSourceFile, project, '', new Set());
+
+  // Also include keys declared via @Relations({ rel: { keys: [...] } })
+  const relationsDecorator = filterClass.getDecorators().find((d) => d.getName() === 'Relations');
+  if (relationsDecorator) {
+    const relArgs = relationsDecorator.getArguments();
+    if (relArgs.length > 0 && Node.isObjectLiteralExpression(relArgs[0])) {
+      for (const relProp of relArgs[0].getProperties()) {
+        if (!Node.isPropertyAssignment(relProp)) continue;
+        const relInit = relProp.getInitializer();
+        if (!relInit || !Node.isObjectLiteralExpression(relInit)) continue;
+        const keysProp = relInit.getProperty('keys');
+        if (!keysProp || !Node.isPropertyAssignment(keysProp)) continue;
+        const keysInit = keysProp.getInitializer();
+        if (!keysInit || !Node.isArrayLiteralExpression(keysInit)) continue;
+        for (const el of keysInit.getElements()) {
+          if (Node.isStringLiteral(el)) {
+            fields.push(el.getLiteralValue());
+          }
+        }
+      }
+    }
+  }
+
+  return fields;
 }
 
 /**
@@ -1164,6 +1310,7 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               queryRef: dtoContract?.queryRef,
               bodyRef: dtoContract?.bodyRef,
               responseRef: dtoContract?.responseRef,
+              filterFields: dtoContract?.filterFields ?? null,
             },
           },
         });

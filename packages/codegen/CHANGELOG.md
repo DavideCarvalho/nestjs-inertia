@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.7.2
+
+### Patch Changes
+
+- Support `autoFields` in `@Filterable` — when the filter class has no explicit properties, the codegen resolves fields from the entity class referenced in `@Filterable({ entity: X })`. Traverses relations recursively to generate dot-notation fields (e.g. `tasks.status`). Also reads `@Relations` decorator keys.
+
 ## 1.7.1
 
 ### Patch Changes

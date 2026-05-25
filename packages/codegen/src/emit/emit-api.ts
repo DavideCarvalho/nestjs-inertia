@@ -331,6 +331,12 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           );
         }
         lines.push(`${pad}    }),`);
+        if (c.contractSource.filterFields?.length) {
+          const fieldsUnion = c.contractSource.filterFields
+            .map((f) => JSON.stringify(f))
+            .join(' | ');
+          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${fieldsUnion}>(),`);
+        }
         lines.push(`${pad}},`);
       }
     } else {
