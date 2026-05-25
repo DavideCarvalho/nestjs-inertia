@@ -144,6 +144,89 @@ describe('Vue Link component', () => {
   });
 });
 
+// ---------- prefetch-on-hover tests ----------
+describe('Vue Link prefetch on hover', () => {
+  it('calls queryClient.prefetchQuery on mouseenter when prefetch is provided', async () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([{ id: 1 }]),
+    };
+
+    const wrapper = mount(Link, {
+      props: { route: 'users.list', prefetch: prefetchOpts, queryClient },
+      slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    const a = wrapper.find('[data-testid="inertia-link"]');
+    await a.trigger('mouseenter');
+
+    expect(prefetchQuery).toHaveBeenCalledTimes(1);
+    expect(prefetchQuery).toHaveBeenCalledWith(prefetchOpts);
+  });
+
+  it('only prefetches once even after multiple hovers', async () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([]),
+    };
+
+    const wrapper = mount(Link, {
+      props: { route: 'users.list', prefetch: prefetchOpts, queryClient },
+      slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    const a = wrapper.find('[data-testid="inertia-link"]');
+    await a.trigger('mouseenter');
+    await a.trigger('mouseenter');
+    await a.trigger('mouseenter');
+
+    expect(prefetchQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not prefetch when prefetch prop is not provided', async () => {
+    const prefetchQuery = vi.fn();
+    const queryClient = { prefetchQuery } as unknown as import('@tanstack/query-core').QueryClient;
+
+    const wrapper = mount(Link, {
+      props: { route: 'users.list', queryClient },
+      slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    const a = wrapper.find('[data-testid="inertia-link"]');
+    await a.trigger('mouseenter');
+
+    expect(prefetchQuery).not.toHaveBeenCalled();
+  });
+
+  it('does not prefetch when queryClient is not provided', async () => {
+    const prefetchOpts = {
+      queryKey: ['users', 'list'] as const,
+      queryFn: () => Promise.resolve([]),
+    };
+
+    const wrapper = mount(Link, {
+      props: { route: 'users.list', prefetch: prefetchOpts },
+      slots: { default: 'Users' },
+      global: {
+        provide: { [INERTIA_ROUTES_KEY as unknown as symbol]: makeResolver() },
+      },
+    });
+    const a = wrapper.find('[data-testid="inertia-link"]');
+    // Should not throw - gracefully skips prefetch
+    await a.trigger('mouseenter');
+  });
+});
+
 // ---------- type-level smoke tests ----------
 describe('type smoke (runtime placeholder)', () => {
   it('compiles without error when routeParams is omitted for a parameterless route', () => {
