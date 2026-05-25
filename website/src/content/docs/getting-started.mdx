@@ -25,19 +25,19 @@ Then install your framework's Inertia adapter and Vite plugin:
 <Tabs>
   <TabItem label="React">
     ```bash
-    pnpm add @inertiajs/react react react-dom
+    pnpm add @inertiajs/react@^3.0.0 react react-dom
     pnpm add -D @types/react @types/react-dom @vitejs/plugin-react
     ```
   </TabItem>
   <TabItem label="Vue 3">
     ```bash
-    pnpm add @inertiajs/vue3 vue
+    pnpm add @inertiajs/vue3@^3.0.0 vue
     pnpm add -D @vitejs/plugin-vue
     ```
   </TabItem>
   <TabItem label="Svelte 5">
     ```bash
-    pnpm add @inertiajs/svelte svelte
+    pnpm add @inertiajs/svelte@^3.0.0 svelte
     pnpm add -D @sveltejs/vite-plugin-svelte
     ```
   </TabItem>
@@ -184,7 +184,7 @@ The shell file created by `init` uses three special directives. These are the ke
 
 | Directive | What it emits |
 |---|---|
-| `@inertia` | `<div id="app"></div>` plus `<script type="application/json">{page data}</script>`. The page JSON is XSS-safe escaped. |
+| `@inertia` | `<div id="app"></div>` plus `<script data-page="app" type="application/json">{page data}</script>`. The page JSON is XSS-safe escaped. |
 | `@inertiaHead` | SSR `<head>` tags (title, meta) when SSR is enabled. Empty string in CSR-only mode. |
 | `@vite('entry')` | In dev: `<script src="/@vite/client">` (HMR) + React Refresh preamble + entry script. In prod: reads the Vite manifest and emits the hashed asset URL + CSS link. |
 
@@ -266,6 +266,8 @@ The codegen reads:
 
 No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
 
+> **No return type annotation needed.** The codegen uses `ReturnType<import(...)>` to infer the response type directly from the controller method. Whether you annotate `list(): Promise<PostDto[]>` or let TypeScript infer it, the generated types are correct.
+
 > **Advanced:** If you prefer explicit Zod schemas (runtime validation + type extraction), see the [defineContract + @ApplyContract docs](/nestjs-inertia/guides/codegen/#applycontract-example). Both paths work — DTOs are zero-config, Zod is explicit.
 
 ---
@@ -281,7 +283,7 @@ your-project/
 ├── .nestjs-inertia/
 │   ├── pages.d.ts     ← typed page component map
 │   ├── routes.ts      ← Route.* and Path.* typed route constants
-│   ├── api.ts         ← typed API surface from controller DTOs + @ApiResponse
+│   ├── api.ts         ← queryOptions(), mutationOptions(), queryKey() for every route
 │   └── index.d.ts     ← barrel re-export
 ```
 
@@ -297,6 +299,31 @@ See the [Codegen guide](/nestjs-inertia/guides/codegen/) for full configuration 
 
 ---
 
+### Using the generated API
+
+The generated `api.ts` provides `queryOptions()`, `mutationOptions()`, and `queryKey()` for every route — powered by [TanStack Query](https://tanstack.com/query).
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+// Queries
+const { data } = useQuery(api.posts.list.queryOptions());
+const { data } = useQuery(api.posts.list.queryOptions({ page: 2 }));
+
+// Mutations
+const create = useMutation(api.posts.create.mutationOptions());
+await create.mutateAsync({ title: 'Hello', body: '...' });
+
+// Cache invalidation (typed key)
+const queryClient = useQueryClient();
+queryClient.invalidateQueries({ queryKey: api.posts.list.queryKey() });
+```
+
+Response types are inferred automatically from the controller method via `ReturnType<import(...)>` — no explicit return type annotations needed.
+
+---
+
 ### Typed `<Link>` component
 
 Wire the route resolver in your frontend entry, then use `<Link>` in any page component.
@@ -306,7 +333,7 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
     ```tsx
     // inertia/app.tsx — add InertiaRouteProvider
     import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
-    import { route } from '../.nestjs-inertia/routes.js';
+    import { route } from '~codegen/routes';
 
     // Inside setup:
     createRoot(el!).render(
@@ -329,7 +356,7 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
     ```ts
     // inertia/app.ts — provide the route resolver
     import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
-    import { route } from '../.nestjs-inertia/routes.js';
+    import { route } from '~codegen/routes';
 
     // Inside setup:
     app.provide(INERTIA_ROUTES_KEY, route);
@@ -349,7 +376,7 @@ Wire the route resolver in your frontend entry, then use `<Link>` in any page co
   <TabItem label="Svelte 5">
     ```ts
     // inertia/app.ts — pass resolver as Svelte context
-    import { route } from '../.nestjs-inertia/routes.js';
+    import { route } from '~codegen/routes';
     const appContext = new Map([['inertia-routes', route]]);
     // In setup: mount(App, { target: el, props, context: appContext });
     ```
@@ -373,14 +400,14 @@ See the [Typed Link guide](/nestjs-inertia/guides/typed-link/) for full `<Link>`
 The generated `api.ts` exports a `Route` namespace with helper types that let you extract request/response shapes for any named endpoint.
 
 ```ts
-import type { Route } from '../.nestjs-inertia/api';
+import type { Route } from '~codegen/api';
 
 type PostList      = Route.Response<'posts.list'>;
 type PostListQuery = Route.Query<'posts.list'>;
 type PostShowParams = Route.Params<'posts.show'>;
 ```
 
-These types are derived entirely from the Zod schemas passed to `defineContract` — they stay in sync automatically.
+These types are derived from your controller method signatures via `ReturnType<import(...)>` — they stay in sync automatically without explicit type annotations.
 
 See the [Typed Client guide](/nestjs-inertia/guides/typed-client/) for `createFetcher` and SSR hydration.
 
@@ -470,6 +497,47 @@ my-nestjs-app/
 ├── vite.config.ts                ← (created by init)
 └── package.json
 ```
+
+---
+
+### Recommended tsconfig aliases
+
+For clean imports between frontend, backend, and codegen output, add these path aliases:
+
+**`tsconfig.json`** (or `tsconfig.inertia.json` if you have a separate frontend config):
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["src/*"],
+      "~/*": ["inertia/*"],
+      "~codegen/*": [".nestjs-inertia/*"]
+    }
+  }
+}
+```
+
+**`vite.config.ts`**:
+
+```ts
+import { resolve } from 'node:path';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '~': resolve(__dirname, 'inertia'),
+      '~codegen': resolve(__dirname, '.nestjs-inertia'),
+    },
+  },
+});
+```
+
+This lets you write:
+- `import { api } from '~codegen/api'` instead of relative paths
+- `import { SomeService } from '@/some/service'` for backend imports
+- `import { MyComponent } from '~/components/MyComponent'` for frontend imports
 
 ---
 
