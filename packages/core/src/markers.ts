@@ -1,6 +1,13 @@
 import { createInertiaDecorator } from './decorator/inertia.decorator.js';
+import type { InertiaPages } from './types/registry.js';
 
 const MARKER = Symbol('inertia.marker');
+
+/**
+ * Resolves to valid page names when codegen has augmented `InertiaPages`,
+ * otherwise falls back to `string` for backwards compatibility.
+ */
+type PageName = keyof InertiaPages extends never ? string : keyof InertiaPages & string;
 
 export type MarkerKind = 'always' | 'optional' | 'defer' | 'merge' | 'once';
 
@@ -20,7 +27,7 @@ function make<T>(
 }
 
 // Inertia(component) acts as a decorator AND retains namespace methods.
-function inertiaDecorator(component: string): MethodDecorator {
+function inertiaDecorator(component: PageName): MethodDecorator {
   return createInertiaDecorator(component);
 }
 
@@ -63,7 +70,7 @@ function merge<T>(
 }
 
 // Attach namespace methods to the function via Object.assign
-type InertiaFn = typeof inertiaDecorator & {
+type InertiaFn = ((component: PageName) => MethodDecorator) & {
   always: typeof always;
   optional: typeof optional;
   lazy: typeof lazy;

@@ -574,4 +574,194 @@ describe('emitApi', () => {
       expect(content).not.toContain('@tanstack/query-core');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // URL params support in queryOptions / mutationOptions
+  // ---------------------------------------------------------------------------
+
+  describe('URL params support', () => {
+    const routeWithPathParam: RouteDescriptor[] = [
+      {
+        method: 'PATCH',
+        path: '/api/v1/crew/users/:id',
+        name: 'crew.updateCrew',
+        params: [{ name: 'id', source: 'path' }],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{ name: string }',
+            response: '{ id: string; name: string }',
+          },
+        },
+      },
+    ];
+
+    const getRouteWithPathParam: RouteDescriptor[] = [
+      {
+        method: 'GET',
+        path: '/api/v1/fleet/vessels/:id/trail',
+        name: 'fleet.getVesselTrail',
+        params: [{ name: 'id', source: 'path' }],
+        contract: {
+          contractSource: {
+            query: '{ from?: string }',
+            body: null,
+            response: 'Array<{ lat: number; lng: number }>',
+          },
+        },
+      },
+    ];
+
+    const routeWithMultipleParams: RouteDescriptor[] = [
+      {
+        method: 'GET',
+        path: '/api/v1/fleet/vessels/:vesselId/trips/:tripId',
+        name: 'fleet.getTrip',
+        params: [
+          { name: 'vesselId', source: 'path' },
+          { name: 'tripId', source: 'path' },
+        ],
+        contract: {
+          contractSource: {
+            query: null,
+            body: null,
+            response: '{ id: string }',
+          },
+        },
+      },
+    ];
+
+    const routeWithNoParams: RouteDescriptor[] = [
+      {
+        method: 'POST',
+        path: '/api/v1/crew/users',
+        name: 'crew.createCrew',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{ name: string }',
+            response: '{ id: string }',
+          },
+        },
+      },
+    ];
+
+    // --- ApiRouter params field ---
+
+    it('route with :id param generates params: { id: string } in ApiRouter', async () => {
+      await emitApi(routeWithPathParam, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('params: { id: string }');
+    });
+
+    it('route without params generates params: never in ApiRouter', async () => {
+      await emitApi(routeWithNoParams, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('params: never');
+    });
+
+    it('route with multiple path params generates params with all keys', async () => {
+      await emitApi(routeWithMultipleParams, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('params: { vesselId: string; tripId: string }');
+    });
+
+    it('only path params are included (query/body/header source excluded)', async () => {
+      const routeWithMixedSources: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/items/:id',
+          name: 'items.get',
+          params: [
+            { name: 'id', source: 'path' },
+            { name: 'filter', source: 'query' },
+            { name: 'authToken', source: 'header' },
+          ],
+          contract: {
+            contractSource: { query: null, body: null, response: 'unknown' },
+          },
+        },
+      ];
+      await emitApi(routeWithMixedSources, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('params: { id: string }');
+      expect(content).not.toContain('filter: string');
+      expect(content).not.toContain('authToken: string');
+    });
+
+    // --- GET routes with params ---
+
+    it('GET route with params: queryOptions takes (params, query?) signature', async () => {
+      await emitApi(getRouteWithPathParam, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain(`queryOptions: (params: ApiRouter["fleet"]["getVesselTrail"]['params']`);
+      expect(content).toContain(`query?: ApiRouter["fleet"]["getVesselTrail"]['query']`);
+    });
+
+    it('GET route with params: queryKey includes params', async () => {
+      await emitApi(getRouteWithPathParam, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('["fleet.getVesselTrail", params, query] as const');
+      expect(content).toContain('["fleet.getVesselTrail", params] as const');
+    });
+
+    it('GET route with params: queryFn passes params to route()', async () => {
+      await emitApi(getRouteWithPathParam, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('route("fleet.getVesselTrail" as never, params as never)');
+    });
+
+    it('GET route without params: queryOptions keeps (query?) signature', async () => {
+      const getNoParams: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/users',
+          name: 'users.list',
+          params: [],
+          contract: {
+            contractSource: {
+              query: '{ active?: boolean }',
+              body: null,
+              response: 'Array<{ id: string }>',
+            },
+          },
+        },
+      ];
+      await emitApi(getNoParams, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain(`queryOptions: (query?: ApiRouter["users"]["list"]['query'])`);
+      // params: never should appear in the ApiRouter type but not in function signatures
+      expect(content).toContain('params: never');
+      expect(content).toContain('route("users.list" as never)');
+      // Should NOT have params in the queryOptions/queryKey function signatures
+      expect(content).not.toMatch(/queryOptions:\s*\(params:/);
+      expect(content).not.toMatch(/queryKey:\s*\(params:/);
+    });
+
+    // --- Mutation routes with params ---
+
+    it('mutation route with params: mutationFn takes input: { params, body }', async () => {
+      await emitApi(routeWithPathParam, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain(
+        `mutationFn: (input: { params: ApiRouter["crew"]["updateCrew"]['params']; body: ApiRouter["crew"]["updateCrew"]['body'] })`,
+      );
+    });
+
+    it('mutation route with params: passes input.params to route() and input.body to fetcher', async () => {
+      await emitApi(routeWithPathParam, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('route("crew.updateCrew" as never, input.params as never)');
+      expect(content).toContain('{ body: input.body }');
+    });
+
+    it('mutation route without params: mutationFn keeps (body) signature', async () => {
+      await emitApi(routeWithNoParams, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain(`mutationFn: (body: ApiRouter["crew"]["createCrew"]['body'])`);
+      expect(content).toContain('route("crew.createCrew" as never)');
+      expect(content).toContain('{ body }');
+    });
+  });
 });

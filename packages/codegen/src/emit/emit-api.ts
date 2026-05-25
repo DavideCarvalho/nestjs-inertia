@@ -70,6 +70,7 @@ type LeafEntry = {
   method: string;
   name: string;
   path: string;
+  params: Array<{ name: string; source: string }>;
   controllerRef?: ControllerRef;
   contractSource: {
     query: string | null | undefined;
@@ -135,6 +136,27 @@ function insertIntoTree(
 }
 
 // ---------------------------------------------------------------------------
+// Params helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a TypeScript type literal for path params.
+ * Returns 'never' when the route has no path params.
+ */
+function buildParamsType(params: Array<{ name: string; source: string }>): string {
+  const pathParams = params.filter((p) => p.source === 'path');
+  if (pathParams.length === 0) return 'never';
+  return `{ ${pathParams.map((p) => `${p.name}: string`).join('; ')} }`;
+}
+
+/**
+ * Check whether a route has any path params.
+ */
+function hasPathParams(params: Array<{ name: string; source: string }>): boolean {
+  return params.some((p) => p.source === 'path');
+}
+
+// ---------------------------------------------------------------------------
 // Code generation helpers
 // ---------------------------------------------------------------------------
 
@@ -183,10 +205,11 @@ function emitRouterTypeBlock(
               : bodyRef.name
             : (c.contractSource.body ?? 'never');
       const response = buildResponseType(c, outDir);
+      const params = buildParamsType(c.params);
       const safeMethod = JSON.stringify(method);
       const safeUrl = JSON.stringify(c.path);
       lines.push(
-        `${pad}${objKey}: { method: ${safeMethod}; url: ${safeUrl}; query: ${query}; body: ${body}; response: ${response} };`,
+        `${pad}${objKey}: { method: ${safeMethod}; url: ${safeUrl}; params: ${params}; query: ${query}; body: ${body}; response: ${response} };`,
       );
     } else {
       lines.push(`${pad}${objKey}: {`);
@@ -216,29 +239,51 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
 
       if (method === 'GET') {
         const typeAccess = buildRouterTypeAccess(c.name);
+        const withParams = hasPathParams(c.params);
         lines.push(`${pad}${objKey}: {`);
-        lines.push(
-          `${pad}  queryKey: (query?: ${typeAccess}['query']) => query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
-        );
-        lines.push(`${pad}  queryOptions: (query?: ${typeAccess}['query']) =>`);
-        lines.push(`${pad}    _queryOptions({`);
-        lines.push(
-          `${pad}      queryKey: query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
-        );
-        lines.push(
-          `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query }),`,
-        );
+        if (withParams) {
+          lines.push(
+            `${pad}  queryKey: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) => query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
+          );
+          lines.push(`${pad}  queryOptions: (params: ${typeAccess}['params'], query?: ${typeAccess}['query']) =>`);
+          lines.push(`${pad}    _queryOptions({`);
+          lines.push(
+            `${pad}      queryKey: query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
+          );
+          lines.push(
+            `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query }),`,
+          );
+        } else {
+          lines.push(
+            `${pad}  queryKey: (query?: ${typeAccess}['query']) => query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
+          );
+          lines.push(`${pad}  queryOptions: (query?: ${typeAccess}['query']) =>`);
+          lines.push(`${pad}    _queryOptions({`);
+          lines.push(
+            `${pad}      queryKey: query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
+          );
+          lines.push(
+            `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query }),`,
+          );
+        }
         lines.push(`${pad}    }),`);
         lines.push(`${pad}},`);
       } else {
         const typeAccess = buildRouterTypeAccess(c.name);
+        const withParams = hasPathParams(c.params);
         lines.push(`${pad}${objKey}: {`);
         lines.push(`${pad}  queryKey: () => [${flatName}] as const,`);
         lines.push(`${pad}  mutationOptions: () =>`);
         lines.push(`${pad}    _mutationOptions({`);
-        lines.push(
-          `${pad}      mutationFn: (body: ${typeAccess}['body']) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { body }),`,
-        );
+        if (withParams) {
+          lines.push(
+            `${pad}      mutationFn: (input: { params: ${typeAccess}['params']; body: ${typeAccess}['body'] }) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never, input.params as never) || ${safePath}, { body: input.body }),`,
+          );
+        } else {
+          lines.push(
+            `${pad}      mutationFn: (body: ${typeAccess}['body']) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { body }),`,
+          );
+        }
         lines.push(`${pad}    }),`);
         lines.push(`${pad}},`);
       }
@@ -361,6 +406,7 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
       method: r.method,
       name: name,
       path: r.path,
+      params: r.params,
       controllerRef: r.controllerRef,
       contractSource: c.contractSource,
     };

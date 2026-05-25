@@ -70,6 +70,47 @@ describe('emitPages', () => {
     expect(content).toContain('InertiaPages');
   });
 
+  describe('InertiaPageName union type', () => {
+    it('emits InertiaPageName union with all page names', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('export type InertiaPageName =');
+      expect(content).toContain('"Dashboard"');
+      expect(content).toContain('"users/Detail"');
+      expect(content).toContain('"nopprops/Bare"');
+    });
+
+    it('emits InertiaPageName as never when no pages exist', async () => {
+      await emitPages([], outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('export type InertiaPageName = never;');
+    });
+  });
+
+  describe('module augmentation for @dudousxd/nestjs-inertia', () => {
+    it('emits declare module augmentation block', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain("declare module '@dudousxd/nestjs-inertia'");
+    });
+
+    it('augments InertiaPages with all discovered page names mapped to true', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('Dashboard: true;');
+      expect(content).toContain('"users/Detail": true;');
+      expect(content).toContain('"nopprops/Bare": true;');
+    });
+
+    it('augmentation contains interface InertiaPages inside declare module', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      // Verify the structure: declare module wrapping interface InertiaPages
+      const moduleBlock = content.slice(content.indexOf("declare module '@dudousxd/nestjs-inertia'"));
+      expect(moduleBlock).toContain('interface InertiaPages {');
+    });
+  });
+
   // L-3: JSON.stringify properly escapes unsafe characters in component names
   describe('L-3: JSON.stringify escaping', () => {
     it('escapes backslashes in page names', async () => {
@@ -91,14 +132,17 @@ describe('emitPages', () => {
       expect(content).toContain('"foo\\"bar"');
     });
 
-    it('simple identifier names are not quoted', async () => {
+    it('simple identifier names are not quoted in interface keys', async () => {
       const p: DiscoveredPage[] = [
         { name: 'Dashboard', absolutePath: '/x.tsx', relativePath: 'x.tsx', propsSource: null },
       ];
       await emitPages(p, outDir);
       const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
       expect(content).toContain('  Dashboard: unknown;');
-      expect(content).not.toContain('"Dashboard"');
+      // The key should be unquoted in both the props interface and the augmentation interface
+      expect(content).toContain('  Dashboard: true;');
+      // But it IS quoted in the InertiaPageName union (JSON.stringify always quotes)
+      expect(content).toContain('"Dashboard"');
     });
   });
 });

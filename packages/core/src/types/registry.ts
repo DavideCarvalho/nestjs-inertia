@@ -18,3 +18,15 @@ export interface InertiaRegistry {}
 export type RegistryRoutes = InertiaRegistry extends { routes: infer R }
   ? R
   : Record<string, unknown>;
+
+/**
+ * Empty interface for module augmentation by codegen.
+ * When codegen runs, it augments this interface with `{ 'PageName': true; ... }`
+ * entries for every discovered page. The `Inertia()` decorator uses `keyof InertiaPages`
+ * to restrict its argument to valid page names.
+ *
+ * Without codegen (empty interface): `keyof InertiaPages` is `never`, and the
+ * decorator falls back to accepting any `string`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface InertiaPages {}
