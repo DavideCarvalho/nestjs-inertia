@@ -671,7 +671,7 @@ describe('emitApi', () => {
     it('infiniteQueryOptions queryFn spreads query with page override', async () => {
       await emitApi(routesWithContract, outDir);
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toContain('...query, page: pageParam');
+      expect(content).toContain('query != null ? query : {}), page: pageParam');
     });
 
     it('infiniteQueryOptions uses same queryKey as queryOptions', async () => {

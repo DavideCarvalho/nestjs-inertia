@@ -260,7 +260,7 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
             `${pad}    queryKey: query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
           );
           lines.push(
-            `${pad}    queryFn: ({ pageParam }: { pageParam: number }) => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query: { ...query, page: pageParam } }),`,
+            `${pad}    queryFn: ({ pageParam }: { pageParam: number }) => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query: { ...(query != null ? query : {}), page: pageParam } as Record<string, unknown> }),`,
           );
           lines.push(`${pad}    initialPageParam: 1,`);
           lines.push(`${pad}    getNextPageParam: (lastPage: ${typeAccess}['response']) => {`);
@@ -290,7 +290,7 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
             `${pad}    queryKey: query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
           );
           lines.push(
-            `${pad}    queryFn: ({ pageParam }: { pageParam: number }) => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query: { ...query, page: pageParam } }),`,
+            `${pad}    queryFn: ({ pageParam }: { pageParam: number }) => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query: { ...(query != null ? query : {}), page: pageParam } as Record<string, unknown> }),`,
           );
           lines.push(`${pad}    initialPageParam: 1,`);
           lines.push(`${pad}    getNextPageParam: (lastPage: ${typeAccess}['response']) => {`);
