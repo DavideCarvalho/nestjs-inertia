@@ -26,9 +26,25 @@ export interface FastDiscoveryOptions {
   tsconfig?: string;
 }
 
-// Set during discoverContractsFast
-let _projectRoot = '';
-let _tsconfigPaths: Record<string, string[]> | null = null;
+/**
+ * Discovery context — scoped per `discoverContractsFast` invocation.
+ * Saved/restored around each call to prevent cross-call corruption
+ * when concurrent invocations occur (e.g. in tests or overlapping watcher triggers).
+ */
+export interface DiscoveryContext {
+  projectRoot: string;
+  tsconfigPaths: Record<string, string[]> | null;
+}
+
+let _ctx: DiscoveryContext = { projectRoot: '', tsconfigPaths: null };
+
+// Backwards-compatible accessors for internal functions
+function _projectRoot(): string {
+  return _ctx.projectRoot;
+}
+function _tsconfigPaths(): Record<string, string[]> | null {
+  return _ctx.tsconfigPaths;
+}
 const _debug = process.env.NESTJS_INERTIA_DEBUG === '1';
 function dbg(...args: unknown[]) {
   if (_debug) console.log('[codegen:debug]', ...args);
@@ -90,11 +106,18 @@ export async function discoverContractsFast(
   }
 
   const routes: RouteDescriptor[] = [];
-  _projectRoot = cwd;
-  _tsconfigPaths = loadTsconfigPaths(tsconfigPath);
 
-  for (const sourceFile of project.getSourceFiles()) {
-    routes.push(...extractFromSourceFile(sourceFile, project));
+  // Save previous context and set current (prevents cross-call corruption)
+  const prevCtx = _ctx;
+  _ctx = { projectRoot: cwd, tsconfigPaths: loadTsconfigPaths(tsconfigPath) };
+
+  try {
+    for (const sourceFile of project.getSourceFiles()) {
+      routes.push(...extractFromSourceFile(sourceFile, project));
+    }
+  } finally {
+    // Restore previous context so concurrent callers are not affected
+    _ctx = prevCtx;
   }
 
   return routes;
@@ -403,19 +426,20 @@ function resolveModuleSpecifier(
   }
 
   // Try to resolve path aliases via tsconfig paths (read directly from JSON)
-  const baseUrl = _projectRoot;
+  const baseUrl = _projectRoot();
+  const tsconfigPaths = _tsconfigPaths();
 
   dbg(
     'resolveModuleSpecifier',
     moduleSpecifier,
     'paths:',
-    JSON.stringify(_tsconfigPaths),
+    JSON.stringify(tsconfigPaths),
     'baseUrl:',
     baseUrl,
   );
 
-  if (_tsconfigPaths) {
-    for (const [pattern, mappings] of Object.entries(_tsconfigPaths)) {
+  if (tsconfigPaths) {
+    for (const [pattern, mappings] of Object.entries(tsconfigPaths)) {
       const prefix = pattern.replace('*', '');
       if (moduleSpecifier.startsWith(prefix)) {
         const rest = moduleSpecifier.slice(prefix.length);
