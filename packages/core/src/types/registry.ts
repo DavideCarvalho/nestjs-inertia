@@ -34,3 +34,25 @@ export type RegistryRoutes = InertiaRegistry extends { routes: infer R }
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface InertiaPages {}
+
+/**
+ * Empty interface for module augmentation by codegen.
+ * When codegen runs and discovers a `share` function in `InertiaModule.forRoot()`,
+ * it augments this interface with the inferred return type properties.
+ *
+ * `usePage()` consumers can then access shared props in a type-safe way.
+ *
+ * Without codegen (empty interface): shared props are untyped and default to
+ * `Record<string, unknown>`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface InertiaSharedProps {}
+
+/**
+ * Helper type that merges page-specific props with shared props.
+ * When `InertiaSharedProps` is augmented by codegen, all shared props become
+ * available on every page's props type.
+ *
+ * Without codegen: `InertiaSharedProps` is `{}`, so this is effectively just `T`.
+ */
+export type PageProps<T = Record<string, unknown>> = T & InertiaSharedProps;

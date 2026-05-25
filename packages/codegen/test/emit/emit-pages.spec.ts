@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DiscoveredPage } from '../../src/discovery/pages.js';
+import type { SharedPropsResult } from '../../src/discovery/shared-props.js';
 import { emitPages } from '../../src/emit/emit-pages.js';
 
 describe('emitPages', () => {
@@ -158,6 +159,76 @@ describe('emitPages', () => {
         `Dashboard: Parameters<typeof import('${importPath}').default>[0];`,
       );
       expect(content).toContain('"Dashboard"');
+    });
+  });
+
+  describe('InertiaSharedProps augmentation', () => {
+    it('does not emit InertiaSharedProps when sharedProps is null', async () => {
+      await emitPages(pages, outDir, { sharedProps: null });
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).not.toContain('InertiaSharedProps');
+    });
+
+    it('does not emit InertiaSharedProps when sharedProps option is omitted', async () => {
+      await emitPages(pages, outDir);
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).not.toContain('InertiaSharedProps');
+    });
+
+    it('emits InertiaSharedProps interface with properties', async () => {
+      const sharedProps: SharedPropsResult = {
+        typeString: '{ auth: { id: string; name: string } | null; flash: Record<string, string> }',
+        properties: [
+          { name: 'auth', type: '{ id: string; name: string } | null' },
+          { name: 'flash', type: 'Record<string, string>' },
+        ],
+        isImportRef: false,
+      };
+      await emitPages(pages, outDir, { sharedProps });
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+
+      expect(content).toContain('interface InertiaSharedProps {');
+      expect(content).toContain('auth: { id: string; name: string } | null;');
+      expect(content).toContain('flash: Record<string, string>;');
+    });
+
+    it('InertiaSharedProps is inside the declare module block', async () => {
+      const sharedProps: SharedPropsResult = {
+        typeString: '{ locale: string }',
+        properties: [{ name: 'locale', type: 'string' }],
+        isImportRef: false,
+      };
+      await emitPages(pages, outDir, { sharedProps });
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      const moduleBlock = content.slice(
+        content.indexOf("declare module '@dudousxd/nestjs-inertia'"),
+      );
+      expect(moduleBlock).toContain('interface InertiaSharedProps {');
+      expect(moduleBlock).toContain('locale: string;');
+    });
+
+    it('does not emit InertiaSharedProps when properties is null (isImportRef case emits extends)', async () => {
+      const sharedProps: SharedPropsResult = {
+        typeString: "Awaited<ReturnType<typeof import('./shared').getSharedProps>>",
+        properties: null,
+        isImportRef: true,
+      };
+      await emitPages(pages, outDir, { sharedProps });
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('interface InertiaSharedProps extends');
+      expect(content).toContain("Awaited<ReturnType<typeof import('./shared').getSharedProps>>");
+    });
+
+    it('still emits InertiaPages alongside InertiaSharedProps', async () => {
+      const sharedProps: SharedPropsResult = {
+        typeString: '{ locale: string }',
+        properties: [{ name: 'locale', type: 'string' }],
+        isImportRef: false,
+      };
+      await emitPages(pages, outDir, { sharedProps });
+      const content = await readFile(join(outDir, 'pages.d.ts'), 'utf8');
+      expect(content).toContain('interface InertiaPages {');
+      expect(content).toContain('interface InertiaSharedProps {');
     });
   });
 });
