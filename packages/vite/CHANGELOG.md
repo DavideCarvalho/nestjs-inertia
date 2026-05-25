@@ -1,5 +1,14 @@
 # Changelog — @dudousxd/nestjs-inertia-vite
 
+## 1.4.2
+
+### Patch Changes
+
+- [`995cc13`](https://github.com/DavideCarvalho/nestjs-inertia/commit/995cc131b00bcf8aa45d36fc66b9cf9453125efa) - Remove alpha status from README. Add InertiaSharedProps and PageProps exports to core.
+
+- Updated dependencies [[`995cc13`](https://github.com/DavideCarvalho/nestjs-inertia/commit/995cc131b00bcf8aa45d36fc66b9cf9453125efa)]:
+  - @dudousxd/nestjs-inertia@1.4.2
+
 ## 1.4.1
 
 ### Patch Changes
