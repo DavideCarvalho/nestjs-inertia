@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 1.5.1
+
+### Patch Changes
+
+- [`14b181d`](https://github.com/DavideCarvalho/nestjs-inertia/commit/14b181df0439d1fd82af3ace8fddcf73720bffc2) - Fix "process is not defined" in browser by moving server-only exports (ApplyContract, As, ContractValidationPipe) to @dudousxd/nestjs-inertia-client/server subpath. Add useTypedReload for typed partial reloads.
+
 ## 1.4.1
 
 ### Patch Changes
