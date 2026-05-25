@@ -367,7 +367,7 @@ const feat4bCode = `<span class="hl-cm">// Client — inertia/pages/Dashboard.ts
         <div class="feature-full reveal">
           <div class="feature-text" style="margin-top: 0; margin-bottom: 1.5rem;">
             <h3>Props E2E — server to component</h3>
-            <p><code>req.inertia.render()</code> knows what each page expects. The codegen reads <code>ComponentProps</code> from every page file and augments the <code>render</code> signature — so when you pass the wrong props, TypeScript catches it before the code ever runs.</p>
+            <p><code>req.inertia.render()</code> knows what each page expects. The codegen infers props directly from the default export of every page component — no extra type exports needed. When you pass the wrong props, TypeScript catches it before the code ever runs.</p>
           </div>
           <div class="compare">
             <div class="compare-card">
