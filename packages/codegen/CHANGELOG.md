@@ -1,5 +1,16 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 2.0.0
+
+### Minor Changes
+
+- [`f26eeed`](https://github.com/DavideCarvalho/nestjs-inertia/commit/f26eeedda2332be07ac835c9aa1c601396befa3e) - Integrate with @dudousxd/nestjs-filter: detect @ApplyFilter(FilterClass) on controller parameters and generate TypedFilterQuery with typed field names. Routes with filters get a filterQuery() helper that returns a typed FilterQueryBuilder.
+
+### Patch Changes
+
+- Updated dependencies [[`f26eeed`](https://github.com/DavideCarvalho/nestjs-inertia/commit/f26eeedda2332be07ac835c9aa1c601396befa3e)]:
+  - @dudousxd/nestjs-inertia@2.0.0
+
 ## 1.4.1
 
 ### Patch Changes
