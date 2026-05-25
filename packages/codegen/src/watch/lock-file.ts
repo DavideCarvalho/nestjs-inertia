@@ -1,4 +1,5 @@
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
+import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const LOCK_FILE = '.watcher.lock';
@@ -20,6 +21,9 @@ function isProcessAlive(pid: number): boolean {
 /**
  * Try to acquire an exclusive lock for a watcher in `outDir`.
  *
+ * Uses O_CREAT | O_EXCL (via 'wx' flag) for atomic file creation to prevent
+ * TOCTOU race conditions between concurrent processes.
+ *
  * Returns `{ release }` on success.
  * Returns `null` if another live process already holds the lock.
  */
@@ -29,21 +33,29 @@ export async function acquireLock(
   await mkdir(outDir, { recursive: true });
   const lockPath = join(outDir, LOCK_FILE);
 
-  // Check for an existing lock
-  try {
-    const raw = await readFile(lockPath, 'utf8');
-    const existing = JSON.parse(raw) as LockData;
-    if (isProcessAlive(existing.pid)) {
-      // Another live process holds the lock
-      return null;
-    }
-    // Stale lock — fall through to overwrite
-  } catch {
-    // File doesn't exist or is corrupt — fall through to create
-  }
-
   const lockData: LockData = { pid: process.pid, startedAt: new Date().toISOString() };
-  await writeFile(lockPath, `${JSON.stringify(lockData, null, 2)}\n`, 'utf8');
+
+  // Try atomic creation first (O_WRONLY | O_CREAT | O_EXCL)
+  try {
+    const fd = await open(lockPath, 'wx');
+    await fd.writeFile(`${JSON.stringify(lockData, null, 2)}\n`, 'utf8');
+    await fd.close();
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      // File exists — check if holder is alive
+      try {
+        const raw = await readFile(lockPath, 'utf8');
+        const existing = JSON.parse(raw) as LockData;
+        if (isProcessAlive(existing.pid)) return null;
+        // Stale lock — remove and retry
+        await unlink(lockPath);
+        return acquireLock(outDir);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 
   return {
     release: async () => {
