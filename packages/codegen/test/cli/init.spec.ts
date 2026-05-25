@@ -623,19 +623,31 @@ describe('installDeps', () => {
   it('uses "install" command for npm', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
     installDeps('npm', ['some-fake-pkg'], false);
-    expect(execMock).toHaveBeenCalledWith('npm', expect.arrayContaining(['install', 'some-fake-pkg']), expect.anything());
+    expect(execMock).toHaveBeenCalledWith(
+      'npm',
+      expect.arrayContaining(['install', 'some-fake-pkg']),
+      expect.anything(),
+    );
   });
 
   it('uses "add -D" command for pnpm dev deps', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
     installDeps('pnpm', ['some-fake-dev-pkg'], true);
-    expect(execMock).toHaveBeenCalledWith('pnpm', expect.arrayContaining(['add', '-D', 'some-fake-dev-pkg']), expect.anything());
+    expect(execMock).toHaveBeenCalledWith(
+      'pnpm',
+      expect.arrayContaining(['add', '-D', 'some-fake-dev-pkg']),
+      expect.anything(),
+    );
   });
 
   it('uses "add -D" command for yarn dev deps', async () => {
     const { installDeps } = await import('../../src/cli/init.js');
     installDeps('yarn', ['some-fake-yarn-pkg'], true);
-    expect(execMock).toHaveBeenCalledWith('yarn', expect.arrayContaining(['add', '-D', 'some-fake-yarn-pkg']), expect.anything());
+    expect(execMock).toHaveBeenCalledWith(
+      'yarn',
+      expect.arrayContaining(['add', '-D', 'some-fake-yarn-pkg']),
+      expect.anything(),
+    );
   });
 
   it('does nothing when deps array is empty', async () => {
