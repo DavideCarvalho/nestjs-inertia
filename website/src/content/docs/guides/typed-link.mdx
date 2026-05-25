@@ -16,7 +16,7 @@ pnpm add @dudousxd/nestjs-inertia-client
 Running `nestjs-inertia init` scaffolds an augmentation stub in your frontend entry. If you haven't run it yet, add the following to your frontend types file (e.g. `src/inertia.d.ts`):
 
 ```ts
-import type { RouteParamsMap } from './.nestjs-inertia/routes.js';
+import type { RouteParamsMap } from '~codegen/routes';
 
 declare module '@dudousxd/nestjs-inertia' {
   interface InertiaRegistry {
@@ -41,7 +41,7 @@ Wrap your root component (or `App`) with `<InertiaRouteProvider>` in your Inerti
 
 ```tsx
 import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
-import { route } from './.nestjs-inertia/routes.js';
+import { route } from '~codegen/routes';
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 
@@ -62,7 +62,7 @@ Use `app.provide()` at the app level with `INERTIA_ROUTES_KEY`:
 
 ```ts
 import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
-import { route } from './.nestjs-inertia/routes.js';
+import { route } from '~codegen/routes';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { createApp } from 'vue';
 
@@ -80,7 +80,7 @@ createInertiaApp({
 Pass the resolver as Svelte context via `mount()`'s `context` option:
 
 ```ts
-import { route } from './.nestjs-inertia/routes.js';
+import { route } from '~codegen/routes';
 import { createInertiaApp } from '@inertiajs/svelte';
 import { mount } from 'svelte';
 
@@ -159,23 +159,21 @@ The route name is composed from a **class portion** and a **method portion**, jo
 | `@As('users')` | `@As('profile')` | `users.profile` |
 | `@As('users.admin')` | `@As('profile')` | `users.admin.profile` |
 
+The route name is derived automatically from the controller. No `defineContract` or `@ApplyContract` needed:
+
 ```ts
-// Contract definition (server-side) — no name field needed
-import { defineContract } from '@dudousxd/nestjs-inertia-client';
-
-const ShowUser = defineContract({
-  params: z.object({ id: z.string() }),
-  response: z.object({ id: z.string(), name: z.string() }),
-});
-
-// Name is derived from UsersController.show → 'users.show'
-@Get('/users/:id')
-@ApplyContract(ShowUser)
-show() { ... }
+// The codegen reads this and derives route name 'users.show'
+@Controller('/users')
+export class UsersController {
+  @Get(':id')
+  show(@Param('id') id: string) {
+    return this.usersService.findById(id);
+  }
+}
 ```
 
 ```tsx
-// Frontend usage — name comes from auto-derivation
+// Frontend — route name autocompleted, routeParams typed
 <Link route="users.show" routeParams={{ id: user.id }}>View profile</Link>
 ```
 

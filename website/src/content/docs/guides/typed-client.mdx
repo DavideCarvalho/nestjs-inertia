@@ -1,96 +1,91 @@
 ---
 title: Typed Client
-description: Use Contract, @ApplyContract, createFetcher, and SSR hydration from @dudousxd/nestjs-inertia-client.
+description: Auto-generated type-safe API client with queryOptions, mutationOptions, and queryKey — zero configuration.
 ---
 
-`@dudousxd/nestjs-inertia-client` provides a Tuyau-style typed HTTP client that bridges your NestJS backend and frontend with end-to-end type safety.
+## How it works
 
-## Install
+The codegen reads your NestJS controllers and generates a fully typed API client in `.nestjs-inertia/api.ts`. No contracts, no schemas, no manual type definitions — it infers everything from your existing code.
 
-```bash
-pnpm add @dudousxd/nestjs-inertia-client
-```
+Every controller method gets:
+- **`queryOptions()`** (GET routes) — for `useQuery`
+- **`mutationOptions()`** (POST/PUT/PATCH/DELETE routes) — for `useMutation`
+- **`queryKey()`** — for `invalidateQueries` / `setQueryData`
 
-## Declare a Contract
+Response types use `Awaited<ReturnType<import('...').Controller['method']>>` — TypeScript infers the return type directly from your controller method. No explicit return type annotation needed.
 
-A `Contract` describes the type signature of a REST endpoint:
-
-```ts
-import { Contract } from '@dudousxd/nestjs-inertia-client';
-import { z } from 'zod';
-
-const ListUsers = Contract.get('/api/users', {
-  query: z.object({ active: z.boolean().optional() }),
-  response: z.array(z.object({ id: z.string(), name: z.string() })),
-  name: 'users.list',
-});
-```
-
-## Attach with @ApplyContract
-
-```ts
-import { Controller } from '@nestjs/common';
-import { ApplyContract } from '@dudousxd/nestjs-inertia-client';
-
-@Controller()
-export class UsersController {
-  @ApplyContract(ListUsers)
-  list(@Query() q: z.infer<typeof ListUsers.query>) {
-    return this.usersService.list(q);
-  }
-}
-```
-
-Run `pnpm nestjs-inertia codegen` to emit the typed `api.ts` from this contract.
-
-## createFetcher
-
-```ts
-import { createFetcher } from '@dudousxd/nestjs-inertia-client';
-import type { InertiaApi } from './.nestjs-inertia/api.js';
-
-const api = createFetcher<InertiaApi>({ baseURL: '' });
-
-// TypeScript knows the query shape and response type:
-const users = await api['users.list']({ query: { active: true } });
-```
-
-## TanStack Query integration
-
-Codegen emits `queryOptions` / `mutationOptions` helpers for TanStack Query v5:
+## Queries
 
 ```tsx
-// React
 import { useQuery } from '@tanstack/react-query';
-import { api } from './.nestjs-inertia/api';
+import { api } from '~codegen/api';
 
-const { data } = useQuery(api['users.list'].queryOptions({ active: true }));
-```
+// Simple query
+const { data: crew } = useQuery(api.crew.getCrew.queryOptions());
 
-The same `queryOptions` object works with Vue Query and Svelte Query — zero framework-specific adapters needed.
+// Query with params
+const { data: posts } = useQuery(api.posts.list.queryOptions({ page: 2 }));
 
-## SSR hydration
-
-```ts
-import { hydrateClientFromInertia } from '@dudousxd/nestjs-inertia-client/ssr';
-import { createServer } from '@inertiajs/react/server';
-
-export default createServer(async (page) => {
-  const queryClient = hydrateClientFromInertia(page);
-  return createInertiaApp({ /* ... */ });
+// Conditional query (spread pattern)
+const { data } = useQuery({
+  ...api.users.show.queryOptions(),
+  enabled: !!userId,
 });
 ```
 
-`hydrateClientFromInertia` initialises a TanStack Query `QueryClient` from the Inertia initial-page payload so the client can rehydrate without a redundant network request.
+## Mutations
+
+```tsx
+import { useMutation } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+const createPost = useMutation(api.posts.create.mutationOptions());
+
+// Body is fully typed from the controller's @Body() parameter
+await createPost.mutateAsync({ title: 'Hello', content: '...' });
+```
+
+## Cache invalidation
+
+```tsx
+import { useQueryClient } from '@tanstack/react-query';
+import { api } from '~codegen/api';
+
+const queryClient = useQueryClient();
+
+// Typed key — no magic strings
+queryClient.invalidateQueries({ queryKey: api.crew.getCrew.queryKey() });
+
+// With params
+queryClient.invalidateQueries({ queryKey: api.posts.list.queryKey({ page: 2 }) });
+```
+
+## Route helper
+
+For parameterized URLs (e.g. `/users/:id`), use the `route()` function with `fetcher`:
+
+```ts
+import { fetcher } from '~codegen/api';
+import { route } from '~codegen/routes';
+
+// When mutationOptions() can't handle URL params
+const result = await fetcher.patch(route('crew.updateCrew', { id: userId }), {
+  body: { name: 'New Name' },
+});
+```
 
 ## Route.* type helpers
 
-```ts
-import type { Route } from './.nestjs-inertia/api';
+Extract request/response types from any route:
 
-export type ComponentProps = {
-  users: Route.Response<'users.list'>; // reuses the server type
-};
+```ts
+import type { Route } from '~codegen/api';
+
+type CrewData = Route.Response<'crew.getCrew'>;
+type CreateBody = Route.Body<'posts.create'>;
+type ListQuery = Route.Query<'posts.list'>;
 ```
 
-All helpers: `Route.Response<K>`, `Route.Body<K>`, `Route.Query<K>`, `Route.Params<K>`, `Route.Error<K>`, `Route.Request<K>`.
+## Advanced: defineContract + @ApplyContract
+
+For cases where you want explicit Zod schemas with runtime validation (not just type extraction), you can still use the contract pattern. See the [Codegen guide](/nestjs-inertia/guides/codegen/#applycontract-example).
