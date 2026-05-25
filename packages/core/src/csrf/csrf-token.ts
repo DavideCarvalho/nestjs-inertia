@@ -26,8 +26,12 @@ export function generateCsrfToken(secret: string, context?: string): string {
  * rather than throwing, avoiding a timing oracle on length.
  */
 export function timingSafeEqualSafe(a: Buffer, b: Buffer): boolean {
-  if (a.byteLength !== b.byteLength) return false;
-  return timingSafeEqual(a, b);
+  const maxLen = Math.max(a.byteLength, b.byteLength);
+  const aPadded = Buffer.alloc(maxLen);
+  const bPadded = Buffer.alloc(maxLen);
+  a.copy(aPadded);
+  b.copy(bPadded);
+  return timingSafeEqual(aPadded, bPadded) && a.byteLength === b.byteLength;
 }
 
 /**
