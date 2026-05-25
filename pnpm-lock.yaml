@@ -17,6 +17,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.27.0
         version: 2.31.0(@types/node@20.19.41)
+      '@dudousxd/nestjs-filter-client':
+        specifier: 1.0.2
+        version: 1.0.2
       '@swc/core':
         specifier: ^1.15.40
         version: 1.15.40
@@ -880,6 +883,10 @@ packages:
   '@ctrl/tinycolor@4.2.0':
     resolution: {integrity: sha512-kzyuwOAQnXJNLS9PSyrk0CWk35nWJW/zl/6KvnTBMFK65gm7U1/Z5BqjxeapjZCIhQcM/DsrEmcbRwDyXyXK4A==}
     engines: {node: '>=14'}
+
+  '@dudousxd/nestjs-filter-client@1.0.2':
+    resolution: {integrity: sha512-t+oru5KVu/gh0EztoiOQX+eR9xZrlUlhkYKRLdy7qPQBUcbdslM5toY/RKtU3rdYCqH//M6gK4LFL5zjwUR45g==}
+    engines: {node: '>=20'}
 
   '@emnapi/runtime@1.10.0':
     resolution: {integrity: sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA==}
@@ -6124,6 +6131,8 @@ snapshots:
   '@csstools/css-tokenizer@4.0.0': {}
 
   '@ctrl/tinycolor@4.2.0': {}
+
+  '@dudousxd/nestjs-filter-client@1.0.2': {}
 
   '@emnapi/runtime@1.10.0':
     dependencies:

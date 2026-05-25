@@ -687,20 +687,15 @@ function extractApplyFilterQueryType(
       const classDecl = resolved.decl as ClassDeclaration;
       const props = classDecl.getProperties();
       if (props.length === 0) return null;
-      const lines: string[] = [];
+      const fieldNames: string[] = [];
       for (const prop of props) {
         const propName = prop.getName();
         if (propName.startsWith('$') || propName.startsWith('_')) continue;
-        const isOptional = prop.hasQuestionToken();
-        const propTypeNode = prop.getTypeNode();
-        let propType = 'unknown';
-        if (propTypeNode) {
-          propType = resolveTypeNodeToString(propTypeNode, resolved.file, project, 3);
-        }
-        lines.push(`${propName}${isOptional ? '?' : ''}: ${propType}`);
+        fieldNames.push(propName);
       }
-      if (lines.length === 0) return null;
-      return `{ ${lines.join('; ')} }`;
+      if (fieldNames.length === 0) return null;
+      const fieldsUnion = fieldNames.map((f) => JSON.stringify(f)).join(' | ');
+      return `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${fieldsUnion}>`;
     }
   }
   return null;
