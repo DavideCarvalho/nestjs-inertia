@@ -9,9 +9,9 @@ import {
   type ClassDeclaration,
   type InterfaceDeclaration,
   type MethodDeclaration,
-  type PropertyDeclaration,
   Node,
   Project,
+  type PropertyDeclaration,
   type SourceFile,
   SyntaxKind,
   type TypeNode,
@@ -674,7 +674,7 @@ function extractApplyFilterInfo(
   method: MethodDeclaration,
   sourceFile: SourceFile,
   project: Project,
-): { queryType: string; fieldNames: string[] } | null {
+): { queryType: string; fieldNames: string[]; source: 'body' | 'query' } | null {
   for (const param of method.getParameters()) {
     const filterDecorator = param.getDecorators().find((d) => d.getName() === 'ApplyFilter');
     if (!filterDecorator) continue;
@@ -682,6 +682,20 @@ function extractApplyFilterInfo(
     if (args.length === 0) continue;
     const filterClassArg = args[0];
     if (!filterClassArg || !Node.isIdentifier(filterClassArg)) continue;
+
+    // Read { source: "body" | "query" } from second argument
+    let source: 'body' | 'query' = 'query';
+    const optionsArg = args[1];
+    if (optionsArg && Node.isObjectLiteralExpression(optionsArg)) {
+      const sourceProp = optionsArg.getProperty('source');
+      if (sourceProp && Node.isPropertyAssignment(sourceProp)) {
+        const init = sourceProp.getInitializer();
+        if (init && Node.isStringLiteral(init) && init.getLiteralValue() === 'body') {
+          source = 'body';
+        }
+      }
+    }
+
     const filterClassName = filterClassArg.getText();
     const resolved = findType(filterClassName, sourceFile, project);
     if (resolved && resolved.kind === 'class') {
@@ -699,6 +713,7 @@ function extractApplyFilterInfo(
       return {
         queryType: `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${fieldsUnion}>`,
         fieldNames,
+        source,
       };
     }
   }
@@ -800,10 +815,7 @@ function extractClassPropertyNames(classDecl: ClassDeclaration): string[] {
  * resolve entity X and extract its property names (fields decorated with
  * `@Property`, `@PrimaryKey`, `@Enum`, etc. — skipping relations).
  */
-function extractFilterableEntityFields(
-  filterClass: ClassDeclaration,
-  project: Project,
-): string[] {
+function extractFilterableEntityFields(filterClass: ClassDeclaration, project: Project): string[] {
   const filterableDecorator = filterClass.getDecorators().find((d) => d.getName() === 'Filterable');
   if (!filterableDecorator) return [];
   const args = filterableDecorator.getArguments();
@@ -823,7 +835,13 @@ function extractFilterableEntityFields(
   const resolvedEntity = findType(entityName, filterSourceFile, project);
   if (!resolvedEntity || resolvedEntity.kind !== 'class') return [];
 
-  const fields = collectEntityFields(resolvedEntity.decl as ClassDeclaration, filterSourceFile, project, '', new Set());
+  const fields = collectEntityFields(
+    resolvedEntity.decl as ClassDeclaration,
+    filterSourceFile,
+    project,
+    '',
+    new Set(),
+  );
 
   // Also include keys declared via @Relations({ rel: { keys: [...] } })
   const relationsDecorator = filterClass.getDecorators().find((d) => d.getName() === 'Relations');
@@ -1028,9 +1046,20 @@ export function extractDtoContract(
   responseRef?: TypeRef | null;
   filterFields?: string[] | null;
 } | null {
-  const body = extractBodyType(method, sourceFile, project);
+  let body = extractBodyType(method, sourceFile, project);
   const filterInfo = extractApplyFilterInfo(method, sourceFile, project);
-  const query = extractQueryType(method, sourceFile, project) ?? filterInfo?.queryType ?? null;
+  let query = extractQueryType(method, sourceFile, project);
+
+  // Place filter type on the correct field based on @ApplyFilter source
+  if (filterInfo) {
+    const bodyType = "import('@dudousxd/nestjs-filter-client').FilterQueryResult";
+    if (filterInfo.source === 'body') {
+      body = body ?? bodyType;
+    } else {
+      query = query ?? filterInfo.queryType;
+    }
+  }
+
   const paramsType = extractParamsType(method, sourceFile, project);
   const response = extractResponseType(method, sourceFile, project);
 
@@ -1101,6 +1130,7 @@ export function extractDtoContract(
     bodyRef,
     responseRef,
     filterFields: filterInfo?.fieldNames ?? null,
+    filterSource: filterInfo?.source ?? null,
   };
 }
 
@@ -1311,6 +1341,7 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               bodyRef: dtoContract?.bodyRef,
               responseRef: dtoContract?.responseRef,
               filterFields: dtoContract?.filterFields ?? null,
+              filterSource: dtoContract?.filterSource ?? null,
             },
           },
         });

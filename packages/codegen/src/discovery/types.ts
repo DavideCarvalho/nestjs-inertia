@@ -12,6 +12,7 @@ export interface ContractSource {
   bodyRef?: TypeRef | null;
   responseRef?: TypeRef | null;
   filterFields?: string[] | null;
+  filterSource?: 'body' | 'query' | null;
 }
 
 export interface ContractDescriptor {

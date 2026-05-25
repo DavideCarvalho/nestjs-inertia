@@ -80,6 +80,7 @@ type LeafEntry = {
     bodyRef?: TypeRef | null;
     responseRef?: TypeRef | null;
     filterFields?: string[] | null;
+    filterSource?: 'body' | 'query' | null;
   };
 };
 
@@ -336,6 +337,13 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
             .map((f) => JSON.stringify(f))
             .join(' | ');
           lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${fieldsUnion}>(),`);
+          lines.push(`${pad}  queryOptions: (body: ${typeAccess}['body']) =>`);
+          lines.push(`${pad}    _queryOptions({`);
+          lines.push(`${pad}      queryKey: [${flatName}, body] as const,`);
+          lines.push(
+            `${pad}      queryFn: () => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never${withParams ? ', input.params as never' : ''}) || ${safePath}, { body }),`,
+          );
+          lines.push(`${pad}    }),`);
         }
         lines.push(`${pad}},`);
       }
@@ -393,7 +401,7 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
 
   // Import TanStack Query helpers (aliased to avoid name collision with generated api methods)
   const tqImports: string[] = [];
-  if (hasGetRoutes) tqImports.push('queryOptions as _queryOptions');
+  if (hasGetRoutes || hasFilters) tqImports.push('queryOptions as _queryOptions');
   if (hasMutationRoutes) tqImports.push('mutationOptions as _mutationOptions');
   if (tqImports.length > 0) {
     lines.push(`import { ${tqImports.join(', ')} } from '@tanstack/react-query';`);
