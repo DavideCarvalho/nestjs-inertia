@@ -1,21 +1,41 @@
+import { builtinModules } from 'node:module';
 import { defineConfig } from 'tsup';
 
 const external = [
+  // Node built-ins (e.g. path, fs, http, crypto …)
+  ...builtinModules,
+  ...builtinModules.map((m) => `node:${m}`),
+
+  // NestJS / framework peers
   '@nestjs/common',
   '@nestjs/core',
   '@nestjs/platform-express',
   '@nestjs/platform-fastify',
   'rxjs',
   'reflect-metadata',
+
+  // Monorepo siblings
   '@dudousxd/nestjs-inertia',
   '@dudousxd/nestjs-inertia-codegen',
   '@dudousxd/nestjs-inertia-client',
   '@dudousxd/nestjs-inertia-vite',
   '@dudousxd/nestjs-inertia-testing',
+
+  // Vite ecosystem peers
   'vite',
   '@vitejs/plugin-react',
   '@vitejs/plugin-vue',
   '@sveltejs/vite-plugin-svelte',
+
+  // Runtime deps that must NOT be bundled (CJS packages)
+  'express',
+  'body-parser',
+  'depd',
+  'cookie-parser',
+  'ejs',
+  'pug',
+  'handlebars',
+  'liquidjs',
 ];
 
 const entry = {
