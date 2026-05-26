@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-vite",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Vite integration for @dudousxd/nestjs-inertia — dev middleware, prod static serving, plugin.",
   "license": "MIT",
   "repository": {
@@ -25,7 +25,11 @@
       "require": "./dist/plugin/plugin.cjs"
     }
   },
-  "files": ["dist/", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
