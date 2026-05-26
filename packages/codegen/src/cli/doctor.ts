@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runCodegen } from './codegen.js';
-import { patchNestCliJson, runInit } from './init.js';
+import { patchNestCliJson, patchTsconfigExclude, runInit } from './init.js';
 
 interface Check {
   name: string;
@@ -127,7 +127,24 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 4. Codegen output
+  // 4. Entry point exists at the correct path
+  const entryExtensions = ['tsx', 'ts'];
+  const correctEntryExists = entryExtensions.some((ext) =>
+    checkFileExists(cwd, `inertia/app/client.${ext}`),
+  );
+  const legacyEntryExists = entryExtensions.some((ext) =>
+    checkFileExists(cwd, `inertia/app.${ext}`),
+  );
+  checks.push({
+    name: 'Entry point at inertia/app/client.tsx (matches Vite plugin default)',
+    pass: correctEntryExists,
+    fix: legacyEntryExists
+      ? 'Move inertia/app.tsx → inertia/app/client.tsx (the Vite plugin resolves inertia/app/client.tsx by default)'
+      : 'Run: nestjs-inertia init',
+    autoFix: !correctEntryExists ? () => runInit({ cwd }) : undefined,
+  });
+
+  // 5. Codegen output
   const hasApi = checkFileExists(cwd, '.nestjs-inertia/api.ts');
   const hasRoutes = checkFileExists(cwd, '.nestjs-inertia/routes.ts');
   const hasPages = checkFileExists(cwd, '.nestjs-inertia/pages.d.ts');
@@ -152,7 +169,24 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
       writeJsonField(tsconfigPath, ['compilerOptions', 'paths'], { '@/*': ['./src/*'] }),
   });
 
-  // 6. Inertia tsconfig (optional)
+  // 6. tsconfig.json and tsconfig.build.json exclude inertia/ from server build
+  const inertiaDir = foundShellDir ?? 'inertia';
+  for (const tsconfigFile of ['tsconfig.json', 'tsconfig.build.json']) {
+    const tsc = readJson(join(cwd, tsconfigFile));
+    if (!tsc) continue; // file doesn't exist, skip
+    const excl = (tsc.exclude ?? []) as string[];
+    const excludesIt = excl.includes(inertiaDir);
+    checks.push({
+      name: `${tsconfigFile} excludes ${inertiaDir}/ from server compilation`,
+      pass: excludesIt,
+      fix: `Add "${inertiaDir}" to ${tsconfigFile} exclude array (Vite-only APIs like import.meta.glob break nest build)`,
+      autoFix: () => {
+        patchTsconfigExclude(cwd, inertiaDir, tsconfigFile);
+      },
+    });
+  }
+
+  // 7. Inertia tsconfig (optional)
   const inertiaTsconfigPath = join(cwd, 'tsconfig.inertia.json');
   const inertiaTsconfig = readJson(inertiaTsconfigPath);
   if (inertiaTsconfig) {

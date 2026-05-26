@@ -164,9 +164,9 @@ describe('detectFramework', () => {
 // ---------------------------------------------------------------------------
 
 describe('runInit with React', () => {
-  it('creates inertia/app.tsx with createInertiaApp', async () => {
+  it('creates inertia/app/client.tsx with createInertiaApp', async () => {
     await runInitInTmpDir('react');
-    const content = await readFile(join(tmpBase, 'inertia', 'app.tsx'), 'utf8');
+    const content = await readFile(join(tmpBase, 'inertia', 'app', 'client.tsx'), 'utf8');
     expect(content).toContain('createInertiaApp');
     expect(content).toContain("'@inertiajs/react'");
     expect(content).toContain('createRoot');
@@ -184,7 +184,7 @@ describe('runInit with React', () => {
     const content = await readFile(join(tmpBase, 'inertia', 'index.html'), 'utf8');
     expect(content).toContain('@inertia');
     expect(content).toContain('@inertiaHead');
-    expect(content).toContain("@vite('inertia/app.tsx')");
+    expect(content).toContain("@vite('inertia/app/client.tsx')");
   });
 
   it('creates vite.config.ts referencing react: true', async () => {
@@ -214,9 +214,9 @@ describe('runInit with React', () => {
 // ---------------------------------------------------------------------------
 
 describe('runInit with Vue', () => {
-  it('creates inertia/app.ts with Vue createInertiaApp', async () => {
+  it('creates inertia/app/client.ts with Vue createInertiaApp', async () => {
     await runInitInTmpDir('vue');
-    const content = await readFile(join(tmpBase, 'inertia', 'app.ts'), 'utf8');
+    const content = await readFile(join(tmpBase, 'inertia', 'app', 'client.ts'), 'utf8');
     expect(content).toContain("'@inertiajs/vue3'");
     expect(content).toContain('createApp');
   });
@@ -240,10 +240,10 @@ describe('runInit with Vue', () => {
     expect(content).toContain('inertia/pages/**/*.vue');
   });
 
-  it('creates inertia/index.html with app.ts script src', async () => {
+  it('creates inertia/index.html with app/client.ts script src', async () => {
     await runInitInTmpDir('vue');
     const content = await readFile(join(tmpBase, 'inertia', 'index.html'), 'utf8');
-    expect(content).toContain('app.ts');
+    expect(content).toContain('app/client.ts');
   });
 });
 
@@ -252,9 +252,9 @@ describe('runInit with Vue', () => {
 // ---------------------------------------------------------------------------
 
 describe('runInit with Svelte', () => {
-  it('creates inertia/app.ts with Svelte createInertiaApp', async () => {
+  it('creates inertia/app/client.ts with Svelte createInertiaApp', async () => {
     await runInitInTmpDir('svelte');
-    const content = await readFile(join(tmpBase, 'inertia', 'app.ts'), 'utf8');
+    const content = await readFile(join(tmpBase, 'inertia', 'app', 'client.ts'), 'utf8');
     expect(content).toContain("'@inertiajs/svelte'");
     expect(content).toContain('mount');
   });
@@ -848,6 +848,87 @@ describe('patchNestCliJson', () => {
     const { patchNestCliJson } = await import('../../src/cli/init.js');
     const result = patchNestCliJson(join(tmpBase, 'nonexistent-dir'), 'inertia');
     expect(result).toBe('skipped');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchTsconfigExclude
+// ---------------------------------------------------------------------------
+
+describe('patchTsconfigExclude', () => {
+  it('adds inertia to exclude array in tsconfig.json', async () => {
+    const { patchTsconfigExclude } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'tsconfig.json');
+    writeFileSync(filePath, JSON.stringify({ compilerOptions: {}, exclude: ['dist'] }, null, 2), 'utf8');
+
+    const result = patchTsconfigExclude(tmpBase, 'inertia');
+    expect(result).toBe('patched');
+
+    const content = JSON.parse(await readFile(filePath, 'utf8'));
+    expect(content.exclude).toContain('inertia');
+    expect(content.exclude).toContain('dist');
+  });
+
+  it('creates exclude array when missing', async () => {
+    const { patchTsconfigExclude } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'tsconfig.json');
+    writeFileSync(filePath, JSON.stringify({ compilerOptions: {} }, null, 2), 'utf8');
+
+    const result = patchTsconfigExclude(tmpBase, 'inertia');
+    expect(result).toBe('patched');
+
+    const content = JSON.parse(await readFile(filePath, 'utf8'));
+    expect(content.exclude).toContain('inertia');
+  });
+
+  it('returns already when inertia is already excluded', async () => {
+    const { patchTsconfigExclude } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'tsconfig.json');
+    writeFileSync(filePath, JSON.stringify({ compilerOptions: {}, exclude: ['inertia'] }, null, 2), 'utf8');
+
+    const result = patchTsconfigExclude(tmpBase, 'inertia');
+    expect(result).toBe('already');
+  });
+
+  it('returns skipped when file does not exist', async () => {
+    const { patchTsconfigExclude } = await import('../../src/cli/init.js');
+    const result = patchTsconfigExclude(join(tmpBase, 'nonexistent-dir'), 'inertia');
+    expect(result).toBe('skipped');
+  });
+
+  it('patches tsconfig.build.json when filename is provided', async () => {
+    const { patchTsconfigExclude } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'tsconfig.build.json');
+    writeFileSync(filePath, JSON.stringify({ extends: './tsconfig.json', exclude: ['dist', 'test'] }, null, 2), 'utf8');
+
+    const result = patchTsconfigExclude(tmpBase, 'inertia', 'tsconfig.build.json');
+    expect(result).toBe('patched');
+
+    const content = JSON.parse(await readFile(filePath, 'utf8'));
+    expect(content.exclude).toContain('inertia');
+    expect(content.exclude).toContain('dist');
+    expect(content.exclude).toContain('test');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runInit patches both tsconfigs
+// ---------------------------------------------------------------------------
+
+describe('runInit — tsconfig patching', () => {
+  it('patches both tsconfig.json and tsconfig.build.json', async () => {
+    mkdirSync(join(tmpBase, 'src'), { recursive: true });
+    writeFileSync(join(tmpBase, 'src', 'app.module.ts'), MINIMAL_APP_MODULE, 'utf8');
+    writeFileSync(join(tmpBase, 'src', 'main.ts'), MINIMAL_MAIN_TS, 'utf8');
+    writeFileSync(join(tmpBase, 'tsconfig.json'), JSON.stringify({ compilerOptions: {} }, null, 2), 'utf8');
+    writeFileSync(join(tmpBase, 'tsconfig.build.json'), JSON.stringify({ extends: './tsconfig.json', exclude: ['dist'] }, null, 2), 'utf8');
+
+    await runInitInTmpDir('react');
+
+    const tsconfig = JSON.parse(await readFile(join(tmpBase, 'tsconfig.json'), 'utf8'));
+    const tsconfigBuild = JSON.parse(await readFile(join(tmpBase, 'tsconfig.build.json'), 'utf8'));
+    expect(tsconfig.exclude).toContain('inertia');
+    expect(tsconfigBuild.exclude).toContain('inertia');
   });
 });
 

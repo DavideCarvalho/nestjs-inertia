@@ -426,7 +426,7 @@ function htmlShellTemplate(framework: Framework, _engine: TemplateEngine): strin
 </head>
 <body>
   @inertia
-  @vite('inertia/app.${ext}')
+  @vite('inertia/app/client.${ext}')
 </body>
 </html>
 `;
@@ -458,8 +458,8 @@ import { createInertiaApp } from '@inertiajs/react';
 
 createInertiaApp({
   resolve: (name) => {
-    const pages = import.meta.glob('./pages/*.tsx', { eager: true });
-    return (pages as Record<string, unknown>)[\`./pages/\${name}.tsx\`];
+    const pages = import.meta.glob('../pages/**/*.tsx', { eager: true });
+    return (pages as Record<string, unknown>)[\`../pages/\${name}.tsx\`];
   },
   setup({ el, App, props }) {
     createRoot(el!).render(<App {...props} />);
@@ -474,8 +474,8 @@ import { createInertiaApp } from '@inertiajs/vue3';
 
 createInertiaApp({
   resolve: (name) => {
-    const pages = import.meta.glob('./pages/*.vue', { eager: true });
-    return (pages as Record<string, unknown>)[\`./pages/\${name}.vue\`];
+    const pages = import.meta.glob('../pages/**/*.vue', { eager: true });
+    return (pages as Record<string, unknown>)[\`../pages/\${name}.vue\`];
   },
   setup({ el, App, props, plugin }) {
     createApp({ render: () => h(App, props) }).use(plugin).mount(el!);
@@ -490,8 +490,8 @@ import { createInertiaApp } from '@inertiajs/svelte';
 
 createInertiaApp({
   resolve: (name) => {
-    const pages = import.meta.glob('./pages/*.svelte', { eager: true });
-    return (pages as Record<string, unknown>)[\`./pages/\${name}.svelte\`];
+    const pages = import.meta.glob('../pages/**/*.svelte', { eager: true });
+    return (pages as Record<string, unknown>)[\`../pages/\${name}.svelte\`];
   },
   setup({ el, App, props }) {
     mount(App, { target: el!, props });
@@ -555,6 +555,33 @@ export class HomeController {
   }
 }
 `;
+
+/**
+ * Patch `tsconfig.json` to exclude `inertia/` from the server-side TypeScript compilation.
+ * Without this, `nest build` fails because `inertia/` files use Vite-only APIs like
+ * `import.meta.glob` that are invalid in a Node.js/CommonJS context.
+ */
+export function patchTsconfigExclude(cwd: string, dir: string, filename = 'tsconfig.json'): 'patched' | 'already' | 'skipped' {
+  const filePath = join(cwd, filename);
+  let raw: string;
+  try {
+    raw = readFileSync(filePath, 'utf8');
+  } catch {
+    return 'skipped';
+  }
+
+  // Strip single-line comments for JSON.parse, but keep the original for rewrite
+  const stripped = raw.replace(/\/\/.*$/gm, '');
+  const json = JSON.parse(stripped) as Record<string, unknown>;
+  const exclude = (json.exclude ?? []) as string[];
+
+  if (exclude.includes(dir)) return 'already';
+
+  exclude.push(dir);
+  json.exclude = exclude;
+  writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`, 'utf8');
+  return 'patched';
+}
 
 /**
  * Patch `nest-cli.json` so `nest build` copies the shell template into `dist/`.
@@ -643,9 +670,9 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
   await handleViteConfig(cwd, framework);
 
   await writeIfNotExists(
-    join(cwd, 'inertia', `app.${entryExt}`),
+    join(cwd, 'inertia', 'app', `client.${entryExt}`),
     entryPointTemplate(framework),
-    `inertia/app.${entryExt}`,
+    `inertia/app/client.${entryExt}`,
   );
 
   await writeIfNotExists(
@@ -702,6 +729,21 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
     );
   } else {
     logWarning('nest-cli.json not found — copy the shell template into dist/ manually');
+  }
+
+  // Patch tsconfig.json and tsconfig.build.json to exclude the inertia/ dir
+  // from the server build. tsconfig.build.json's own `exclude` array overrides
+  // the base tsconfig.json when present, so both must be patched.
+  for (const tsconfigFile of ['tsconfig.json', 'tsconfig.build.json']) {
+    const result = patchTsconfigExclude(cwd, shellDir, tsconfigFile);
+    if (result === 'patched') {
+      logPatched(tsconfigFile, `excluded ${shellDir}/ from server compilation`);
+    } else if (result === 'already') {
+      console.log(
+        `  ${cyan('→')} ${tsconfigFile} ${dim(`(${shellDir}/ already excluded, skipped)`)}`,
+      );
+    }
+    // 'skipped' = file doesn't exist, silently move on
   }
 
   await patchGitignore(join(cwd, '.gitignore'));
