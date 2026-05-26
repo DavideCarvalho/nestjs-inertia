@@ -426,7 +426,7 @@ function htmlShellTemplate(framework: Framework, _engine: TemplateEngine): strin
 </head>
 <body>
   @inertia
-  @vite('inertia/app/client.${ext}')
+  @vite('app/client.${ext}')
 </body>
 </html>
 `;

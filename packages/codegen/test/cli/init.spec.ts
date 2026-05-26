@@ -184,7 +184,7 @@ describe('runInit with React', () => {
     const content = await readFile(join(tmpBase, 'inertia', 'index.html'), 'utf8');
     expect(content).toContain('@inertia');
     expect(content).toContain('@inertiaHead');
-    expect(content).toContain("@vite('inertia/app/client.tsx')");
+    expect(content).toContain("@vite('app/client.tsx')");
   });
 
   it('creates vite.config.ts referencing react: true', async () => {
