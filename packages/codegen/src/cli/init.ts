@@ -560,10 +560,7 @@ export class HomeController {
  * Patch `nest-cli.json` so `nest build` copies the shell template into `dist/`.
  * Without this, Docker images that only ship `dist/` would be missing the rootView file.
  */
-export function patchNestCliJson(
-  cwd: string,
-  shellDir: string,
-): 'patched' | 'already' | 'skipped' {
+export function patchNestCliJson(cwd: string, shellDir: string): 'patched' | 'already' | 'skipped' {
   const filePath = join(cwd, 'nest-cli.json');
   let raw: string;
   try {
