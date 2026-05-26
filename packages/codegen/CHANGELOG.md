@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.8.0
+
+### Minor Changes
+
+- [`4e7b807`](https://github.com/DavideCarvalho/nestjs-inertia/commit/4e7b807c8cbe4d8f003b5edfa76588d89cfb00c3) - init: configure nest-cli.json to copy shell template to dist/ and use resolve(\_\_dirname) for rootView so Docker images that only ship dist/ include the template. doctor: validate shell template exists and nest-cli.json asset config is present.
+
 ## 1.7.2
 
 ### Patch Changes
