@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runCodegen } from './codegen.js';
-import { runInit } from './init.js';
+import { patchNestCliJson, runInit } from './init.js';
 
 interface Check {
   name: string;
@@ -81,7 +81,53 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     autoFix: () => runInit({ cwd }),
   });
 
-  // 2. Codegen output
+  // 2. Shell template exists
+  const shellExtensions = ['html', 'htm', 'hbs', 'ejs', 'pug', 'liquid'];
+  const shellDirs = ['inertia', 'views'];
+  let foundShellPath: string | null = null;
+  let foundShellDir: string | null = null;
+  for (const dir of shellDirs) {
+    for (const ext of shellExtensions) {
+      const candidates = [`${dir}/index.${ext}`, `${dir}/shell.${ext}`];
+      for (const candidate of candidates) {
+        if (checkFileExists(cwd, candidate)) {
+          foundShellPath = candidate;
+          foundShellDir = dir;
+          break;
+        }
+      }
+      if (foundShellPath) break;
+    }
+    if (foundShellPath) break;
+  }
+  checks.push({
+    name: 'Shell template (rootView) exists',
+    pass: !!foundShellPath,
+    fix: 'Run: nestjs-inertia init (creates inertia/index.html)',
+    autoFix: () => runInit({ cwd }),
+  });
+
+  // 3. nest-cli.json copies shell template to dist/
+  if (foundShellDir) {
+    const nestCliPath = join(cwd, 'nest-cli.json');
+    const nestCli = readJson(nestCliPath);
+    const compiler = (nestCli?.compilerOptions ?? {}) as Record<string, unknown>;
+    const assets = (compiler.assets ?? []) as Array<string | Record<string, unknown>>;
+    const hasCopy = assets.some((a) => {
+      if (typeof a === 'string') return a.includes(foundShellDir!);
+      return String(a.include ?? '').includes(foundShellDir!);
+    });
+    checks.push({
+      name: `nest-cli.json copies ${foundShellDir}/ to dist/ (needed for Docker)`,
+      pass: hasCopy,
+      fix: `Add asset entry for ${foundShellDir}/ in nest-cli.json compilerOptions.assets`,
+      autoFix: () => {
+        patchNestCliJson(cwd, foundShellDir!);
+      },
+    });
+  }
+
+  // 4. Codegen output
   const hasApi = checkFileExists(cwd, '.nestjs-inertia/api.ts');
   const hasRoutes = checkFileExists(cwd, '.nestjs-inertia/routes.ts');
   const hasPages = checkFileExists(cwd, '.nestjs-inertia/pages.d.ts');
@@ -92,7 +138,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     autoFix: () => runCodegen({ cwd }),
   });
 
-  // 3. tsconfig paths
+  // 5. tsconfig paths
   const tsconfigPath = join(cwd, 'tsconfig.json');
   const tsconfig = readJson(tsconfigPath);
   const paths = (tsconfig?.compilerOptions as Record<string, unknown>)?.paths as
@@ -106,7 +152,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
       writeJsonField(tsconfigPath, ['compilerOptions', 'paths'], { '@/*': ['./src/*'] }),
   });
 
-  // 4. Inertia tsconfig (optional)
+  // 6. Inertia tsconfig (optional)
   const inertiaTsconfigPath = join(cwd, 'tsconfig.inertia.json');
   const inertiaTsconfig = readJson(inertiaTsconfigPath);
   if (inertiaTsconfig) {
@@ -128,7 +174,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 5. Vite config
+  // 7. Vite config
   if (checkFileExists(cwd, 'vite.config.ts')) {
     const viteContent = readFileSync(join(cwd, 'vite.config.ts'), 'utf8');
     checks.push({
@@ -146,7 +192,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 6. Package versions
+  // 8. Package versions
   const requiredPkgs = [
     '@dudousxd/nestjs-inertia',
     '@dudousxd/nestjs-inertia-codegen',
@@ -184,7 +230,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 7. Inertia.js version
+  // 9. Inertia.js version
   const inertiaReact = getPackageVersion(cwd, '@inertiajs/react');
   const inertiaVue = getPackageVersion(cwd, '@inertiajs/vue3');
   const inertiaSvelte = getPackageVersion(cwd, '@inertiajs/svelte');
@@ -216,7 +262,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 8. .gitignore
+  // 10. .gitignore
   if (checkFileExists(cwd, '.gitignore')) {
     const gitignorePath = join(cwd, '.gitignore');
     const gitignore = readFileSync(gitignorePath, 'utf8');
@@ -228,7 +274,7 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 9. Build scripts
+  // 11. Build scripts
   const pkgJsonPath = join(cwd, 'package.json');
   const pkgJson = readJson(pkgJsonPath);
   const scripts = (pkgJson?.scripts as Record<string, string>) ?? {};

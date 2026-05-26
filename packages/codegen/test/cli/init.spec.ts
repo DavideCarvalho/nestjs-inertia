@@ -453,7 +453,9 @@ describe('patchAppModule', () => {
 
     const content = await readFile(filePath, 'utf8');
     expect(content).toContain("import { InertiaModule } from '@dudousxd/nestjs-inertia'");
+    expect(content).toContain("import { resolve } from 'node:path'");
     expect(content).toContain('InertiaModule.forRoot(');
+    expect(content).toContain("resolve(__dirname, '../inertia/index.html')");
   });
 
   it('adds HomeController import and registration', async () => {
@@ -802,6 +804,50 @@ export class AppModule {}
 
     const result = patchAppModule(filePath, 'inertia/index.html');
     expect(result).toBe('patched');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchNestCliJson
+// ---------------------------------------------------------------------------
+
+describe('patchNestCliJson', () => {
+  it('adds asset entry for shell directory', async () => {
+    const { patchNestCliJson } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'nest-cli.json');
+    writeFileSync(filePath, JSON.stringify({ compilerOptions: { assets: [] } }, null, 2), 'utf8');
+
+    const result = patchNestCliJson(tmpBase, 'inertia');
+    expect(result).toBe('patched');
+
+    const content = JSON.parse(await readFile(filePath, 'utf8'));
+    const assets = content.compilerOptions.assets;
+    expect(assets).toHaveLength(1);
+    expect(assets[0].include).toBe('../inertia/**/*');
+    expect(assets[0].outDir).toBe('dist/inertia');
+  });
+
+  it('returns already when asset entry exists', async () => {
+    const { patchNestCliJson } = await import('../../src/cli/init.js');
+    const filePath = join(tmpBase, 'nest-cli.json');
+    writeFileSync(
+      filePath,
+      JSON.stringify(
+        { compilerOptions: { assets: [{ include: '../inertia/**/*', outDir: 'dist/inertia' }] } },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+
+    const result = patchNestCliJson(tmpBase, 'inertia');
+    expect(result).toBe('already');
+  });
+
+  it('returns skipped when nest-cli.json does not exist', async () => {
+    const { patchNestCliJson } = await import('../../src/cli/init.js');
+    const result = patchNestCliJson(join(tmpBase, 'nonexistent-dir'), 'inertia');
+    expect(result).toBe('skipped');
   });
 });
 

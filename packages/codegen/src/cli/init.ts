@@ -295,12 +295,18 @@ export function patchAppModule(
       content = `${content.slice(0, insertAt)}import { InertiaModule } from '@dudousxd/nestjs-inertia';\n${content.slice(insertAt)}`;
     }
 
+    // Ensure `resolve` from node:path is imported (needed for rootView)
+    if (!content.includes("from 'node:path'") && !content.includes('from "node:path"')) {
+      const insertAt2 = findAfterLastImport(content);
+      content = `${content.slice(0, insertAt2)}import { resolve } from 'node:path';\n${content.slice(insertAt2)}`;
+    }
+
     // Find `imports: [` and insert after the opening bracket
     const importsMatch = content.match(/imports\s*:\s*\[/);
     if (importsMatch?.index !== undefined) {
       const bracketPos = content.indexOf('[', importsMatch.index) + 1;
       const indent = '    ';
-      content = `${content.slice(0, bracketPos)}\n${indent}InertiaModule.forRoot({\n${indent}  rootView: '${rootView}',\n${indent}}),${content.slice(bracketPos)}`;
+      content = `${content.slice(0, bracketPos)}\n${indent}InertiaModule.forRoot({\n${indent}  rootView: resolve(__dirname, '../${rootView}'),\n${indent}}),${content.slice(bracketPos)}`;
       changed = true;
     }
   }
@@ -550,6 +556,43 @@ export class HomeController {
 }
 `;
 
+/**
+ * Patch `nest-cli.json` so `nest build` copies the shell template into `dist/`.
+ * Without this, Docker images that only ship `dist/` would be missing the rootView file.
+ */
+export function patchNestCliJson(
+  cwd: string,
+  shellDir: string,
+): 'patched' | 'already' | 'skipped' {
+  const filePath = join(cwd, 'nest-cli.json');
+  let raw: string;
+  try {
+    raw = readFileSync(filePath, 'utf8');
+  } catch {
+    return 'skipped';
+  }
+
+  const json = JSON.parse(raw) as Record<string, unknown>;
+  const compiler = (json.compilerOptions ?? {}) as Record<string, unknown>;
+  const assets = (compiler.assets ?? []) as Array<string | Record<string, unknown>>;
+
+  const alreadyHas = assets.some((a) => {
+    if (typeof a === 'string') return a.includes(shellDir);
+    return String(a.include ?? '').includes(shellDir);
+  });
+  if (alreadyHas) return 'already';
+
+  assets.push({
+    include: `../${shellDir}/**/*`,
+    outDir: `dist/${shellDir}`,
+    watchAssets: true,
+  });
+  compiler.assets = assets;
+  json.compilerOptions = compiler;
+  writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`, 'utf8');
+  return 'patched';
+}
+
 // ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
@@ -649,6 +692,19 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
     console.log(`  ${cyan('→')} src/main.ts ${dim('(setupInertiaVite already present, skipped)')}`);
   } else {
     logWarning('src/main.ts not found — add setupInertiaVite() manually');
+  }
+
+  // Patch nest-cli.json so `nest build` copies the shell template into dist/
+  const shellDir = rootView.split('/')[0]!; // e.g. "inertia" from "inertia/index.html"
+  const nestCliResult = patchNestCliJson(cwd, shellDir);
+  if (nestCliResult === 'patched') {
+    logPatched('nest-cli.json', `added asset copy for ${shellDir}/ → dist/${shellDir}/`);
+  } else if (nestCliResult === 'already') {
+    console.log(
+      `  ${cyan('→')} nest-cli.json ${dim(`(${shellDir}/ asset already configured, skipped)`)}`,
+    );
+  } else {
+    logWarning('nest-cli.json not found — copy the shell template into dist/ manually');
   }
 
   await patchGitignore(join(cwd, '.gitignore'));
