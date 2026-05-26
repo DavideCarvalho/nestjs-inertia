@@ -68,6 +68,42 @@ await createPost.mutateAsync({ title: 'Hello', content: 'World' });
 
 ---
 
+## Auth headers
+
+Inject auth headers into every fetcher request. The callback runs per-request so tokens are always fresh.
+
+**React — `headers` prop on `InertiaRouteProvider`:**
+
+```tsx
+import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
+import { route } from '~codegen/routes';
+import { getToken } from '~/lib/auth/getToken';
+
+const headers = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+// In your root layout:
+<InertiaRouteProvider routes={route} headers={headers}>
+  <App />
+</InertiaRouteProvider>
+```
+
+**Vue / Svelte / vanilla JS — `setGlobalHeaders`:**
+
+```ts
+import { setGlobalHeaders } from '@dudousxd/nestjs-inertia-client';
+
+setGlobalHeaders(() => ({
+  Authorization: `Bearer ${keycloak.token}`,
+}));
+```
+
+Works with any auth provider — Keycloak, Auth0, Firebase, API keys, CSRF tokens, or custom headers.
+
+---
+
 ## Cache invalidation
 
 ```tsx
