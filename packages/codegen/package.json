@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-codegen",
-  "version": "1.7.2",
+  "version": "1.8.0",
   "description": "CLI + programmatic API to generate typed artifacts from a NestJS + Inertia.js app.",
   "license": "MIT",
   "repository": {
@@ -23,7 +23,12 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "bin", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
