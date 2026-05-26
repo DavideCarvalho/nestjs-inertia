@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-vite
 
+## 1.4.3
+
+### Patch Changes
+
+- [`22ece7b`](https://github.com/DavideCarvalho/nestjs-inertia/commit/22ece7bbda97a4db5302677c19314e8663e07e50) - Fix: externalize express, body-parser, and Node built-ins from bundle to prevent "Dynamic require of path is not supported" crash on Node 26.
+
 ## 1.4.2
 
 ### Patch Changes
