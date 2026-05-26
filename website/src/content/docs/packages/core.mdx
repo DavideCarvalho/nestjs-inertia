@@ -50,8 +50,10 @@ Implements the [Inertia.js](https://inertiajs.com/) protocol as a NestJS module.
 ## Minimal setup
 
 ```ts
+import { resolve } from 'node:path';
+
 InertiaModule.forRoot({
-  rootView: 'inertia/root.html',
+  rootView: resolve(__dirname, '../inertia/root.html'),
   version: '1',
 })
 ```

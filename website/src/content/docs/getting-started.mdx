@@ -128,19 +128,24 @@ If `init` cannot find or parse your `app.module.ts` or `main.ts` (non-standard s
 **`src/app.module.ts`** -- register `InertiaModule` and `HomeController`:
 
 ```ts
+import { resolve } from 'node:path';
 import { InertiaModule } from '@dudousxd/nestjs-inertia';
 import { HomeController } from './home.controller.js';
 
 @Module({
   imports: [
     InertiaModule.forRoot({
-      rootView: 'inertia/index.html',
+      rootView: resolve(__dirname, '../inertia/index.html'),
     }),
   ],
   controllers: [HomeController],
 })
 export class AppModule {}
 ```
+
+<Aside type="tip" title="Why resolve(__dirname)?">
+  The compiled code runs from `dist/src/`, not the project root. Using `resolve(__dirname, '..')` ensures the path resolves correctly both locally and in Docker (where only `dist/` is shipped). The `init` command also patches `nest-cli.json` to copy the shell template into `dist/` during build.
+</Aside>
 
 **`src/main.ts`** -- wire Vite after `NestFactory.create`:
 
@@ -295,6 +300,10 @@ pnpm exec nestjs-inertia codegen
 pnpm exec tsc --noEmit
 pnpm run build
 ```
+
+<Aside type="caution" title="Docker deployments">
+  If your Dockerfile only copies `dist/` to the runtime image, the shell template (e.g. `inertia/index.html`) won't be available. The `init` command patches `nest-cli.json` to copy it into `dist/` during `nest build`, and generates `rootView` with `resolve(__dirname, ...)` so the path resolves correctly from the compiled output. Run `nestjs-inertia doctor` to verify your setup.
+</Aside>
 
 See the [Codegen guide](/nestjs-inertia/guides/codegen/) for full configuration and generated file reference.
 

@@ -31,8 +31,8 @@ Static-analysis CLI that reads your NestJS controllers and Inertia page componen
 |--------------|-------------|
 | `nestjs-inertia codegen` | One-shot generation |
 | `nestjs-inertia codegen --watch` | Watch mode; re-generates on file changes |
-| `nestjs-inertia init` | Scaffold config, HTML shell, Vite config, entry point |
-| `nestjs-inertia doctor` | Diagnose tsconfig paths, package versions, codegen output, Vite config |
+| `nestjs-inertia init` | Scaffold config, HTML shell, Vite config, entry point, patch `nest-cli.json` for Docker |
+| `nestjs-inertia doctor` | Diagnose shell template, `nest-cli.json` assets, tsconfig paths, package versions, codegen output, Vite config |
 | `nestjs-inertia doctor --fix` | Auto-fix diagnosable issues |
 | `defineConfig(config)` | Type-safe config helper |
 | `generate(config)` | Programmatic API |
@@ -48,5 +48,22 @@ Static-analysis CLI that reads your NestJS controllers and Inertia page componen
 | `api.ts` | `queryOptions()`, `mutationOptions()`, `queryKey()`, `infiniteQueryOptions()` per route |
 
 Response types use `ReturnType<import(...)>`. Page props use `Parameters<typeof import(...).default>[0]`.
+
+## Doctor checks
+
+`nestjs-inertia doctor` validates your project setup. All checks with a fix icon can be auto-fixed with `--fix`:
+
+| Check | Auto-fixable |
+|-------|:---:|
+| `nestjs-inertia.config.ts` exists | Yes |
+| Shell template (rootView) file exists | Yes |
+| `nest-cli.json` copies shell template to `dist/` (Docker) | Yes |
+| `.nestjs-inertia/` codegen output exists | Yes |
+| `tsconfig.json` has `@/*` path alias | Yes |
+| Core packages installed and on same version | Yes |
+| `@inertiajs/*` is v3+ | Yes |
+| `.gitignore` includes `.nestjs-inertia/` | Yes |
+| `package.json` has `build:client` script | Yes |
+| `vite.config.ts` has `resolve.alias` and nestInertia plugin | No |
 
 See [Codegen guide](/nestjs-inertia/guides/codegen/) for full configuration and output reference.
