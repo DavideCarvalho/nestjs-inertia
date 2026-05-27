@@ -19,6 +19,22 @@ export interface UserConfig {
     moduleEntry: string;
     tsconfig?: string;
   } | null;
+  /**
+   * Custom fetcher configuration. When `importPath` is set, the codegen
+   * imports `fetcher` from that path instead of generating `createFetcher()`.
+   * This lets users configure baseUrl, headers, plugins (e.g. superjson).
+   *
+   * @example
+   * // nestjs-inertia.config.ts
+   * fetcher: { importPath: '~/lib/api' }
+   *
+   * // inertia/lib/api.ts
+   * import { createFetcher } from '@dudousxd/nestjs-inertia-client';
+   * export const fetcher = createFetcher({ baseUrl: '/api' });
+   */
+  fetcher?: {
+    importPath: string;
+  };
 }
 
 export interface ScopeConfig {
@@ -55,4 +71,5 @@ export interface ResolvedConfig {
   scopes: Record<string, ScopeConfig>;
   codegen: ResolvedCodegenConfig;
   app: ResolvedAppConfig | null;
+  fetcher: { importPath: string } | null;
 }

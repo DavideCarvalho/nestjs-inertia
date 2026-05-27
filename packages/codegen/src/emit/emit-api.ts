@@ -7,9 +7,13 @@ import type { ControllerRef, RouteDescriptor, TypeRef } from '../discovery/types
  * - GET routes get `queryOptions`
  * - POST/PUT/PATCH/DELETE routes get `mutationOptions`
  */
-export async function emitApi(routes: RouteDescriptor[], outDir: string): Promise<void> {
+export async function emitApi(
+  routes: RouteDescriptor[],
+  outDir: string,
+  fetcherImportPath?: string,
+): Promise<void> {
   await mkdir(outDir, { recursive: true });
-  const content = buildApiFile(routes, outDir);
+  const content = buildApiFile(routes, outDir, fetcherImportPath);
   await writeFile(join(outDir, 'api.ts'), content, 'utf8');
 }
 
@@ -370,7 +374,7 @@ function buildRouterTypeAccess(name: string): string {
 // Main builder
 // ---------------------------------------------------------------------------
 
-function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
+function buildApiFile(routes: RouteDescriptor[], outDir?: string, fetcherImportPath?: string): string {
   const contracted = routes.filter((r) => r.contract);
 
   // Collect all type refs for import generation
@@ -416,7 +420,11 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
   lines.push(
     "import { route, ROUTES, type RouteName, type ExtractParams, type RouteParams } from './routes.js';",
   );
-  lines.push("import { createFetcher } from '@dudousxd/nestjs-inertia-client';");
+  if (fetcherImportPath) {
+    lines.push(`import { fetcher } from '${fetcherImportPath}';`);
+  } else {
+    lines.push("import { createFetcher } from '@dudousxd/nestjs-inertia-client';");
+  }
 
   // Emit type imports from source files.
   // When two different files export the same type name, alias the duplicate
@@ -442,7 +450,9 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
     }
   }
   lines.push('');
-  lines.push('export const fetcher = createFetcher();');
+  if (!fetcherImportPath) {
+    lines.push('export const fetcher = createFetcher();');
+  }
   lines.push('');
 
   if (contracted.length === 0) {

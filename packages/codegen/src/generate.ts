@@ -74,6 +74,6 @@ export async function generate(
   await emitIndex(config.codegen.outDir, hasContracts);
 
   if (hasContracts) {
-    await emitApi(routes, config.codegen.outDir);
+    await emitApi(routes, config.codegen.outDir, config.fetcher?.importPath);
   }
 }

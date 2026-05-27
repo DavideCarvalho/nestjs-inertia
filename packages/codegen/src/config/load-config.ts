@@ -96,6 +96,7 @@ function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
       cwd: resolvedCwd,
     },
     app,
+    fetcher: userConfig.fetcher ?? null,
   };
 }
 
