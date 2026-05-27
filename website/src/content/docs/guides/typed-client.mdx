@@ -68,36 +68,41 @@ await createPost.mutateAsync({ title: 'Hello', content: 'World' });
 
 ---
 
-## Auth headers
+## Fetcher setup
 
-Inject auth headers into every fetcher request. The callback runs per-request so tokens are always fresh.
+The codegen imports `fetcher` from `~/lib/api` (your file, not generated). You create the fetcher instance with your own `baseUrl`, headers, and plugins — like Tuyau's `createTuyau`.
 
-**React — `headers` prop on `InertiaRouteProvider`:**
-
-```tsx
-import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
-import { route } from '~codegen/routes';
-import { getToken } from '~/lib/auth/getToken';
-
-const headers = () => {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-// In your root layout:
-<InertiaRouteProvider routes={route} headers={headers}>
-  <App />
-</InertiaRouteProvider>
-```
-
-**Vue / Svelte / vanilla JS — `setGlobalHeaders`:**
+Create `inertia/lib/api.ts`:
 
 ```ts
-import { setGlobalHeaders } from '@dudousxd/nestjs-inertia-client';
+import { createFetcher, setGlobalHeaders } from '@dudousxd/nestjs-inertia-client';
+import { getToken } from './auth/getToken';
 
-setGlobalHeaders(() => ({
-  Authorization: `Bearer ${keycloak.token}`,
-}));
+// Auth headers injected on every request
+setGlobalHeaders(() => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+});
+
+export const fetcher = createFetcher({
+  baseUrl: '/api',  // prefix for all API routes
+});
+```
+
+The codegen then generates:
+```ts
+// .nestjs-inertia/api.ts (generated — do not edit)
+import { fetcher } from '~/lib/api';  // YOUR fetcher
+// ... queryOptions, mutationOptions using your fetcher
+```
+
+To customize the import path, set `fetcher.importPath` in the codegen config:
+```ts
+// nestjs-inertia.config.ts
+export default defineConfig({
+  pages: { glob: 'inertia/pages/**/*.tsx' },
+  fetcher: { importPath: '@/my-custom-api' },
+});
 ```
 
 Works with any auth provider — Keycloak, Auth0, Firebase, API keys, CSRF tokens, or custom headers.
@@ -158,7 +163,7 @@ The codegen reads `meta.page` and `meta.lastPage` from the response to derive `g
 For manual fetcher calls, use `route()` from the generated routes:
 
 ```ts
-import { fetcher } from '~codegen/api';
+import { fetcher } from '~/lib/api';
 import { route } from '~codegen/routes';
 
 const result = await fetcher.patch(route('crew.updateCrew', { id: userId }), {

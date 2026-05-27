@@ -424,11 +424,8 @@ function buildApiFile(
   lines.push(
     "import { route, ROUTES, type RouteName, type ExtractParams, type RouteParams } from './routes.js';",
   );
-  if (fetcherImportPath) {
-    lines.push(`import { fetcher } from '${fetcherImportPath}';`);
-  } else {
-    lines.push("import { createFetcher } from '@dudousxd/nestjs-inertia-client';");
-  }
+  const resolvedFetcherPath = fetcherImportPath ?? '~/lib/api';
+  lines.push(`import { fetcher } from '${resolvedFetcherPath}';`);
 
   // Emit type imports from source files.
   // When two different files export the same type name, alias the duplicate
@@ -452,10 +449,6 @@ function buildApiFile(
       }
       lines.push(`import type { ${specifiers.join(', ')} } from '${relPath}';`);
     }
-  }
-  lines.push('');
-  if (!fetcherImportPath) {
-    lines.push('export const fetcher = createFetcher();');
   }
   lines.push('');
 

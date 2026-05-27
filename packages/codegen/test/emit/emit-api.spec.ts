@@ -61,19 +61,19 @@ describe('emitApi', () => {
   it('includes required imports', async () => {
     await emitApi(routesWithContract, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-    expect(content).toContain("from '@dudousxd/nestjs-inertia-client'");
     expect(content).not.toContain('@tanstack/query-core');
     expect(content).toContain("from '@tanstack/react-query'");
     expect(content).toContain('_queryOptions');
     expect(content).toContain('_mutationOptions');
     expect(content).toContain("from './routes.js'");
-    expect(content).toContain("from '@dudousxd/nestjs-inertia-client'");
+    expect(content).toContain("import { fetcher } from '~/lib/api'");
   });
 
-  it('exports fetcher singleton', async () => {
-    await emitApi(routesWithContract, outDir);
+  it('imports fetcher from custom path when provided', async () => {
+    await emitApi(routesWithContract, outDir, '@/my-custom-api');
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-    expect(content).toContain('export const fetcher = createFetcher()');
+    expect(content).toContain("import { fetcher } from '@/my-custom-api'");
+    expect(content).not.toContain('createFetcher');
   });
 
   // --- ApiRouter: nested shape ---
