@@ -859,7 +859,11 @@ describe('patchTsconfigExclude', () => {
   it('adds inertia to exclude array in tsconfig.json', async () => {
     const { patchTsconfigExclude } = await import('../../src/cli/init.js');
     const filePath = join(tmpBase, 'tsconfig.json');
-    writeFileSync(filePath, JSON.stringify({ compilerOptions: {}, exclude: ['dist'] }, null, 2), 'utf8');
+    writeFileSync(
+      filePath,
+      JSON.stringify({ compilerOptions: {}, exclude: ['dist'] }, null, 2),
+      'utf8',
+    );
 
     const result = patchTsconfigExclude(tmpBase, 'inertia');
     expect(result).toBe('patched');
@@ -884,7 +888,11 @@ describe('patchTsconfigExclude', () => {
   it('returns already when inertia is already excluded', async () => {
     const { patchTsconfigExclude } = await import('../../src/cli/init.js');
     const filePath = join(tmpBase, 'tsconfig.json');
-    writeFileSync(filePath, JSON.stringify({ compilerOptions: {}, exclude: ['inertia'] }, null, 2), 'utf8');
+    writeFileSync(
+      filePath,
+      JSON.stringify({ compilerOptions: {}, exclude: ['inertia'] }, null, 2),
+      'utf8',
+    );
 
     const result = patchTsconfigExclude(tmpBase, 'inertia');
     expect(result).toBe('already');
@@ -899,7 +907,11 @@ describe('patchTsconfigExclude', () => {
   it('patches tsconfig.build.json when filename is provided', async () => {
     const { patchTsconfigExclude } = await import('../../src/cli/init.js');
     const filePath = join(tmpBase, 'tsconfig.build.json');
-    writeFileSync(filePath, JSON.stringify({ extends: './tsconfig.json', exclude: ['dist', 'test'] }, null, 2), 'utf8');
+    writeFileSync(
+      filePath,
+      JSON.stringify({ extends: './tsconfig.json', exclude: ['dist', 'test'] }, null, 2),
+      'utf8',
+    );
 
     const result = patchTsconfigExclude(tmpBase, 'inertia', 'tsconfig.build.json');
     expect(result).toBe('patched');
@@ -920,8 +932,16 @@ describe('runInit — tsconfig patching', () => {
     mkdirSync(join(tmpBase, 'src'), { recursive: true });
     writeFileSync(join(tmpBase, 'src', 'app.module.ts'), MINIMAL_APP_MODULE, 'utf8');
     writeFileSync(join(tmpBase, 'src', 'main.ts'), MINIMAL_MAIN_TS, 'utf8');
-    writeFileSync(join(tmpBase, 'tsconfig.json'), JSON.stringify({ compilerOptions: {} }, null, 2), 'utf8');
-    writeFileSync(join(tmpBase, 'tsconfig.build.json'), JSON.stringify({ extends: './tsconfig.json', exclude: ['dist'] }, null, 2), 'utf8');
+    writeFileSync(
+      join(tmpBase, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: {} }, null, 2),
+      'utf8',
+    );
+    writeFileSync(
+      join(tmpBase, 'tsconfig.build.json'),
+      JSON.stringify({ extends: './tsconfig.json', exclude: ['dist'] }, null, 2),
+      'utf8',
+    );
 
     await runInitInTmpDir('react');
 

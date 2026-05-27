@@ -561,7 +561,11 @@ export class HomeController {
  * Without this, `nest build` fails because `inertia/` files use Vite-only APIs like
  * `import.meta.glob` that are invalid in a Node.js/CommonJS context.
  */
-export function patchTsconfigExclude(cwd: string, dir: string, filename = 'tsconfig.json'): 'patched' | 'already' | 'skipped' {
+export function patchTsconfigExclude(
+  cwd: string,
+  dir: string,
+  filename = 'tsconfig.json',
+): 'patched' | 'already' | 'skipped' {
   const filePath = join(cwd, filename);
   let raw: string;
   try {
