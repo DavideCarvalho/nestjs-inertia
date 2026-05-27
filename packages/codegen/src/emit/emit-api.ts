@@ -374,7 +374,11 @@ function buildRouterTypeAccess(name: string): string {
 // Main builder
 // ---------------------------------------------------------------------------
 
-function buildApiFile(routes: RouteDescriptor[], outDir?: string, fetcherImportPath?: string): string {
+function buildApiFile(
+  routes: RouteDescriptor[],
+  outDir?: string,
+  fetcherImportPath?: string,
+): string {
   const contracted = routes.filter((r) => r.contract);
 
   // Collect all type refs for import generation
