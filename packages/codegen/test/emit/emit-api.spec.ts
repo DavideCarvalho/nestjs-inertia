@@ -66,7 +66,7 @@ describe('emitApi', () => {
     expect(content).toContain('_queryOptions');
     expect(content).toContain('_mutationOptions');
     expect(content).toContain("from './routes.js'");
-    expect(content).toContain("import { fetcher } from '~/lib/api'");
+    expect(content).toContain("import { fetcher } from '@/lib/api'");
   });
 
   it('imports fetcher from custom path when provided', async () => {

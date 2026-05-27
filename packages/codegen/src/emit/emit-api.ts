@@ -424,7 +424,7 @@ function buildApiFile(
   lines.push(
     "import { route, ROUTES, type RouteName, type ExtractParams, type RouteParams } from './routes.js';",
   );
-  const resolvedFetcherPath = fetcherImportPath ?? '~/lib/api';
+  const resolvedFetcherPath = fetcherImportPath ?? '@/lib/api';
   lines.push(`import { fetcher } from '${resolvedFetcherPath}';`);
 
   // Emit type imports from source files.
