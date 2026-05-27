@@ -418,14 +418,27 @@ function buildApiFile(routes: RouteDescriptor[], outDir?: string): string {
   );
   lines.push("import { createFetcher } from '@dudousxd/nestjs-inertia-client';");
 
-  // Emit type imports from source files
+  // Emit type imports from source files.
+  // When two different files export the same type name, alias the duplicate
+  // to avoid `Identifier has already been declared` parse errors.
   if (importsByFile.size > 0 && outDir) {
     lines.push('');
+    const emittedNames = new Set<string>();
     for (const [filePath, names] of importsByFile) {
       let relPath = relative(outDir, filePath).replace(/\.ts$/, '');
       if (!relPath.startsWith('.')) relPath = `./${relPath}`;
-      const sortedNames = [...names].sort();
-      lines.push(`import type { ${sortedNames.join(', ')} } from '${relPath}';`);
+      const specifiers: string[] = [];
+      for (const name of [...names].sort()) {
+        if (emittedNames.has(name)) {
+          const alias = `${name}_${emittedNames.size}`;
+          specifiers.push(`${name} as ${alias}`);
+          emittedNames.add(alias);
+        } else {
+          specifiers.push(name);
+          emittedNames.add(name);
+        }
+      }
+      lines.push(`import type { ${specifiers.join(', ')} } from '${relPath}';`);
     }
   }
   lines.push('');
