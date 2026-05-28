@@ -862,9 +862,7 @@ export async function runInit(opts: RunInitOptions = {}): Promise<void> {
   if (tsconfigDistResult === 'patched') {
     logPatched('tsconfig.json', 'excluded dist/ from server compilation');
   } else if (tsconfigDistResult === 'already') {
-    console.log(
-      `  ${cyan('→')} tsconfig.json ${dim('(dist/ already excluded, skipped)')}`,
-    );
+    console.log(`  ${cyan('→')} tsconfig.json ${dim('(dist/ already excluded, skipped)')}`);
   }
 
   // 5. Add build scripts to package.json

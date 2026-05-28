@@ -3,11 +3,11 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import { join } from 'node:path';
 import { runCodegen } from './codegen.js';
 import {
+  INERTIA_TSCONFIG_TEMPLATE,
+  TSCONFIG_INERTIA_TEMPLATE,
   patchNestCliJson,
   patchTsconfigExclude,
   runInit,
-  TSCONFIG_INERTIA_TEMPLATE,
-  INERTIA_TSCONFIG_TEMPLATE,
 } from './init.js';
 
 interface Check {
