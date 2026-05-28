@@ -16,8 +16,16 @@ export interface DiscoverPagesOptions {
   componentNameStrategy: 'relative-no-ext' | 'kebab' | ((path: string) => string);
 }
 
+// Files matching these patterns are never treated as Inertia pages even if
+// they sit inside the pages directory and would match the user's glob.
+// Without this filter, vitest test files (`*.test.tsx`) get registered as
+// pages, their imports get pulled into the typecheck graph, and any
+// transitive matcher errors leak into the user's project.
+const NON_PAGE_FILE_RE = /\.(?:test|spec|stories|story)\.(?:tsx?|jsx?|vue|svelte)$/i;
+
 export async function discoverPages(opts: DiscoverPagesOptions): Promise<DiscoveredPage[]> {
-  const files = await fg(opts.glob, { cwd: opts.cwd, absolute: true });
+  const allFiles = await fg(opts.glob, { cwd: opts.cwd, absolute: true });
+  const files = allFiles.filter((f) => !NON_PAGE_FILE_RE.test(f));
   files.sort();
   // Extract the static prefix from the glob to make page names relative to the pages directory
   // e.g. glob 'inertia/pages/**/*.tsx' → pagesBase 'inertia/pages'

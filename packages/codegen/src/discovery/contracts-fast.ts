@@ -382,7 +382,7 @@ function extractParams(
 type TypeDeclResult =
   | { kind: 'class'; decl: ClassDeclaration; file: SourceFile }
   | { kind: 'interface'; decl: InterfaceDeclaration; file: SourceFile }
-  | { kind: 'typeAlias'; text: string }
+  | { kind: 'typeAlias'; typeNode: TypeNode | undefined; file: SourceFile; text: string }
   | { kind: 'enum'; members: string[] };
 
 /**
@@ -398,7 +398,12 @@ function findTypeInFile(name: string, file: SourceFile): TypeDeclResult | null {
   const alias = file.getTypeAlias(name);
   if (alias) {
     const typeNode = alias.getTypeNode();
-    return { kind: 'typeAlias', text: typeNode ? typeNode.getText() : 'unknown' };
+    return {
+      kind: 'typeAlias',
+      typeNode,
+      file,
+      text: typeNode ? typeNode.getText() : 'unknown',
+    };
   }
 
   const enumDecl = file.getEnum(name);
@@ -515,6 +520,27 @@ function resolveTypeNodeToString(
     return `Array<${resolveTypeNodeToString(elementType, sourceFile, project, depth)}>`;
   }
 
+  // Union: A | B | C — resolve each member so named refs get inlined
+  if (Node.isUnionTypeNode(typeNode)) {
+    return typeNode
+      .getTypeNodes()
+      .map((t) => resolveTypeNodeToString(t, sourceFile, project, depth))
+      .join(' | ');
+  }
+
+  // Intersection: A & B — same treatment
+  if (Node.isIntersectionTypeNode(typeNode)) {
+    return typeNode
+      .getTypeNodes()
+      .map((t) => resolveTypeNodeToString(t, sourceFile, project, depth))
+      .join(' & ');
+  }
+
+  // Parenthesized: ( ... ) — unwrap
+  if (Node.isParenthesizedTypeNode(typeNode)) {
+    return `(${resolveTypeNodeToString(typeNode.getTypeNode(), sourceFile, project, depth)})`;
+  }
+
   // TypeReference: Foo, Foo[], Array<Foo>, Promise<Foo>, etc.
   if (Node.isTypeReference(typeNode)) {
     const typeName = typeNode.getTypeName();
@@ -527,6 +553,43 @@ function resolveTypeNodeToString(
     // Server-only types that don't make sense on the client
     if (name === 'StreamableFile' || name === 'Observable' || name === 'ReadableStream')
       return 'unknown';
+
+    // MikroORM Ref/Reference/LoadedReference are server-side wrappers around
+    // related entities. The wire shape is just the referenced entity (or a
+    // shallow `{ id }` projection when not populated). Unwrap to the type
+    // argument so client code sees the plain entity shape.
+    if (
+      name === 'Ref' ||
+      name === 'Reference' ||
+      name === 'LoadedReference' ||
+      name === 'IdentifiedReference'
+    ) {
+      const typeArgs = typeNode.getTypeArguments();
+      const firstTypeArg = typeArgs[0];
+      if (typeArgs.length > 0 && firstTypeArg !== undefined) {
+        return resolveTypeNodeToString(firstTypeArg, sourceFile, project, depth);
+      }
+      return 'unknown';
+    }
+    // MikroORM Collection<T> serializes as an array of T on the wire.
+    if (name === 'Collection') {
+      const typeArgs = typeNode.getTypeArguments();
+      const firstTypeArg = typeArgs[0];
+      if (typeArgs.length > 0 && firstTypeArg !== undefined) {
+        return `Array<${resolveTypeNodeToString(firstTypeArg, sourceFile, project, depth)}>`;
+      }
+      return 'Array<unknown>';
+    }
+    // MikroORM Opt<T> / Loaded<T, ...> — Opt is a marker, Loaded is a wrapper.
+    // Both reduce to T at the JSON wire level.
+    if (name === 'Opt' || name === 'Loaded') {
+      const typeArgs = typeNode.getTypeArguments();
+      const firstTypeArg = typeArgs[0];
+      if (typeArgs.length > 0 && firstTypeArg !== undefined) {
+        return resolveTypeNodeToString(firstTypeArg, sourceFile, project, depth);
+      }
+      return 'unknown';
+    }
 
     // Array<T> generic form
     if (name === 'Array') {
@@ -589,6 +652,12 @@ function expandTypeDecl(result: TypeDeclResult, project: Project, depth: number)
     case 'interface':
       return resolvePropertied(result.decl, result.file, project, depth);
     case 'typeAlias':
+      // Recursively resolve the alias body so that any named types it
+      // references (e.g. `A | B | C`) are expanded inline rather than left
+      // as bare identifiers, which would be undefined in the emitted code.
+      if (result.typeNode) {
+        return resolveTypeNodeToString(result.typeNode, result.file, project, depth);
+      }
       return result.text;
     case 'enum':
       return result.members.join(' | ');

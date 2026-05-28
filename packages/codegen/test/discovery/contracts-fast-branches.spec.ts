@@ -991,20 +991,19 @@ describe('extractDtoContract — primitive keyword return types', () => {
 // resolveTypeNodeToString — type alias without type node
 // ---------------------------------------------------------------------------
 
-describe('extractDtoContract — type alias without type node', () => {
-  it('returns unknown for type alias without explicit type node', () => {
+describe('extractDtoContract — type alias resolution', () => {
+  it('recursively resolves a type alias to its underlying type', () => {
     const { sf, project } = makeSourceFileFromCode(`
-      type MyType = any;
+      type MyType = string;
       class TestController {
-        getData(): MyType { return null; }
+        getData(): MyType { return ''; }
       }
     `);
     const cls = sf.getClassOrThrow('TestController');
     const method = cls.getMethodOrThrow('getData');
     const result = extractDtoContract(method, sf, project);
-    // MyType is a type alias with typeNode 'any' -> text is 'any'
     expect(result).not.toBeNull();
-    expect(result?.response).toBe('any');
+    expect(result?.response).toBe('string');
   });
 });
 

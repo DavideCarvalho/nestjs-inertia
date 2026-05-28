@@ -259,7 +259,7 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
             `${pad}      queryKey: query !== undefined ? [${flatName}, params, query] as const : [${flatName}, params] as const,`,
           );
           lines.push(
-            `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query }),`,
+            `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never, params as never) || ${safePath}, { query: query as Record<string, unknown> | undefined }),`,
           );
           lines.push(`${pad}    }),`);
           // infiniteQueryOptions for GET with params
@@ -291,7 +291,7 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
             `${pad}      queryKey: query !== undefined ? [${flatName}, query] as const : [${flatName}] as const,`,
           );
           lines.push(
-            `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query }),`,
+            `${pad}      queryFn: () => fetcher.get<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { query: query as Record<string, unknown> | undefined }),`,
           );
           lines.push(`${pad}    }),`);
           // infiniteQueryOptions for GET without params
@@ -322,17 +322,30 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
       } else {
         const typeAccess = buildRouterTypeAccess(c.name);
         const withParams = hasPathParams(c.params);
+        // When the controller has no @Body() param the body type resolves to
+        // `never`. Emit the body field as optional so callers can pass just
+        // `{ params }` without manually constructing `{ body: undefined as never }`.
+        const hasBody =
+          !!c.contractSource.bodyRef ||
+          (c.contractSource.body != null && c.contractSource.body !== 'never');
         lines.push(`${pad}${objKey}: {`);
         lines.push(`${pad}  queryKey: () => [${flatName}] as const,`);
         lines.push(`${pad}  mutationOptions: () =>`);
         lines.push(`${pad}    _mutationOptions({`);
         if (withParams) {
+          const bodyField = hasBody
+            ? `body: ${typeAccess}['body']`
+            : `body?: ${typeAccess}['body']`;
           lines.push(
-            `${pad}      mutationFn: (input: { params: ${typeAccess}['params']; body: ${typeAccess}['body'] }) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never, input.params as never) || ${safePath}, { body: input.body }),`,
+            `${pad}      mutationFn: (input: { params: ${typeAccess}['params']; ${bodyField} }) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never, input.params as never) || ${safePath}, { body: input.body }),`,
+          );
+        } else if (hasBody) {
+          lines.push(
+            `${pad}      mutationFn: (body: ${typeAccess}['body']) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { body }),`,
           );
         } else {
           lines.push(
-            `${pad}      mutationFn: (body: ${typeAccess}['body']) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, { body }),`,
+            `${pad}      mutationFn: (_input?: { body?: ${typeAccess}['body'] }) => fetcher.${fetcherMethod}<${typeAccess}['response']>(route(${flatName} as never) || ${safePath}, {}),`,
           );
         }
         lines.push(`${pad}    }),`);
