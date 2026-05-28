@@ -2,7 +2,13 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runCodegen } from './codegen.js';
-import { patchNestCliJson, patchTsconfigExclude, runInit } from './init.js';
+import {
+  patchNestCliJson,
+  patchTsconfigExclude,
+  runInit,
+  TSCONFIG_INERTIA_TEMPLATE,
+  INERTIA_TSCONFIG_TEMPLATE,
+} from './init.js';
 
 interface Check {
   name: string;
@@ -186,27 +192,96 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     });
   }
 
-  // 7. Inertia tsconfig (optional)
-  const inertiaTsconfigPath = join(cwd, 'tsconfig.inertia.json');
-  const inertiaTsconfig = readJson(inertiaTsconfigPath);
-  if (inertiaTsconfig) {
-    const inertiaPaths = (inertiaTsconfig.compilerOptions as Record<string, unknown>)?.paths as
-      | Record<string, string[]>
-      | undefined;
-    const missingTilde = !inertiaPaths?.['~/*'];
-    const missingCodegen = !inertiaPaths?.['~codegen/*'];
+  // 7. Root tsconfig.json excludes `dist` so the server typecheck doesn't
+  // walk compiled artifacts under dist/inertia/* (would surface ~thousands
+  // of phantom errors about unresolved aliases in the compiled tree).
+  {
+    const tsc = readJson(tsconfigPath);
+    const excl = (tsc?.exclude ?? []) as string[];
+    const excludesDist = excl.includes('dist');
     checks.push({
-      name: 'tsconfig.inertia.json has ~/* and ~codegen/* aliases',
-      pass: !missingTilde && !missingCodegen,
-      fix: 'Add ~/* and ~codegen/* path aliases',
+      name: 'tsconfig.json excludes dist/ (avoids phantom errors in compiled output)',
+      pass: excludesDist,
+      fix: 'Add "dist" to tsconfig.json exclude array',
       autoFix: () => {
-        const additions: Record<string, string[]> = {};
-        if (missingTilde) additions['~/*'] = ['inertia/*'];
-        if (missingCodegen) additions['~codegen/*'] = ['.nestjs-inertia/*'];
-        writeJsonField(inertiaTsconfigPath, ['compilerOptions', 'paths'], additions);
+        patchTsconfigExclude(cwd, 'dist', 'tsconfig.json');
       },
     });
   }
+
+  // 8. Dedicated inertia tsconfig — required so the inertia/ tree + codegen
+  // output can be typechecked without breaking the server tsconfig.
+  const inertiaTsconfigPath = join(cwd, 'tsconfig.inertia.json');
+  const inertiaTsconfig = readJson(inertiaTsconfigPath);
+  checks.push({
+    name: 'tsconfig.inertia.json exists',
+    pass: !!inertiaTsconfig,
+    fix: 'Create tsconfig.inertia.json (typechecks inertia/ + .nestjs-inertia/)',
+    autoFix: () => {
+      writeFileSync(inertiaTsconfigPath, TSCONFIG_INERTIA_TEMPLATE, 'utf8');
+    },
+  });
+
+  if (inertiaTsconfig) {
+    const inertiaOpts = (inertiaTsconfig.compilerOptions as Record<string, unknown>) ?? {};
+    const inertiaPaths = (inertiaOpts.paths as Record<string, string[]> | undefined) ?? {};
+    const at = inertiaPaths['@/*'] ?? [];
+    const missingTilde = !inertiaPaths['~/*'];
+    const missingCodegen = !inertiaPaths['~codegen/*'];
+    const missingDualAt = !at.includes('./inertia/*') || !at.includes('./src/*');
+    checks.push({
+      name: 'tsconfig.inertia.json has ~/*, ~codegen/*, and @/* (inertia + src) aliases',
+      pass: !missingTilde && !missingCodegen && !missingDualAt,
+      fix: '@/* must include both ./inertia/* and ./src/* so codegen-resolved controllers + inertia user code both resolve',
+      autoFix: () => {
+        const additions: Record<string, string[]> = {};
+        if (missingDualAt) additions['@/*'] = ['./inertia/*', './src/*'];
+        if (missingTilde) additions['~/*'] = ['./inertia/*'];
+        if (missingCodegen) additions['~codegen/*'] = ['./.nestjs-inertia/*'];
+        writeJsonField(inertiaTsconfigPath, ['compilerOptions', 'paths'], additions);
+      },
+    });
+    // experimentalDecorators is required: codegen api.ts imports controllers
+    // (via Awaited<ReturnType<...>>) which TS has to parse for decorators.
+    checks.push({
+      name: 'tsconfig.inertia.json has experimentalDecorators: true',
+      pass: inertiaOpts.experimentalDecorators === true,
+      fix: 'Set compilerOptions.experimentalDecorators = true',
+      autoFix: () => {
+        writeJsonField(inertiaTsconfigPath, ['compilerOptions', 'experimentalDecorators'], true);
+      },
+    });
+    // Without emitDecoratorMetadata: OFF, every src/ file pulled in
+    // transitively complains with TS1272 unless it uses `import type`.
+    checks.push({
+      name: 'tsconfig.inertia.json has emitDecoratorMetadata: false',
+      pass: inertiaOpts.emitDecoratorMetadata === false,
+      fix: 'Set compilerOptions.emitDecoratorMetadata = false (avoids TS1272 spam from transitively-loaded src/ files)',
+      autoFix: () => {
+        writeJsonField(inertiaTsconfigPath, ['compilerOptions', 'emitDecoratorMetadata'], false);
+      },
+    });
+    // Must include nestjs-inertia.d.ts so the InertiaRegistry augmentation
+    // resolves Link route params, page names, and shared props.
+    const include = (inertiaTsconfig.include as string[] | undefined) ?? [];
+    checks.push({
+      name: 'tsconfig.inertia.json includes nestjs-inertia.d.ts',
+      pass: include.some((p) => p.includes('nestjs-inertia.d.ts')),
+      fix: 'Add "nestjs-inertia.d.ts" to include array (resolves InertiaRegistry augmentation)',
+    });
+  }
+
+  // 9. inertia/tsconfig.json — thin extends so VSCode/editors that walk up
+  // to find the closest tsconfig pick up the inertia-aware aliases.
+  const innerTsconfigPath = join(cwd, 'inertia', 'tsconfig.json');
+  checks.push({
+    name: 'inertia/tsconfig.json exists (VSCode picks up ~codegen alias)',
+    pass: existsSync(innerTsconfigPath),
+    fix: 'Create inertia/tsconfig.json that extends ../tsconfig.inertia.json',
+    autoFix: () => {
+      writeFileSync(innerTsconfigPath, INERTIA_TSCONFIG_TEMPLATE, 'utf8');
+    },
+  });
 
   // 7. Vite config
   if (checkFileExists(cwd, 'vite.config.ts')) {
@@ -317,6 +392,15 @@ export async function runDoctor(opts: { cwd: string; fix?: boolean }): Promise<n
     pass: !!scripts['build:client'],
     fix: 'Add build:client script',
     autoFix: () => writeJsonField(pkgJsonPath, ['scripts'], { 'build:client': 'vite build' }),
+  });
+  checks.push({
+    name: 'package.json has typecheck:inertia script',
+    pass: !!scripts['typecheck:inertia'],
+    fix: 'Add: "typecheck:inertia": "tsc --noEmit -p tsconfig.inertia.json"',
+    autoFix: () =>
+      writeJsonField(pkgJsonPath, ['scripts'], {
+        'typecheck:inertia': 'tsc --noEmit -p tsconfig.inertia.json',
+      }),
   });
 
   // Print results + auto-fix
