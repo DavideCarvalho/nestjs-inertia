@@ -31,10 +31,10 @@
     "@changesets/cli": "^2.27.0",
     "@dudousxd/nestjs-filter-client": "1.0.2",
     "@swc/core": "^1.15.40",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/coverage-v8": "^4.1.0",
     "tsup": "^8.5.1",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.0"
   }
 }
