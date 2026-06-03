@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { suppressPostSendWrites } from '../src/helpers/suppress-post-send-writes.js';
 
-function makeFakeRes(headersSent = false) {
+function makeFakeRes(headersSent = false, writableEnded = false) {
   const calls: string[] = [];
   const res: Record<string, unknown> = {
     headersSent,
+    writableEnded,
     status: vi.fn(() => {
       calls.push('status');
       return res;
@@ -42,7 +43,7 @@ describe('suppressPostSendWrites', () => {
     expect(calls).toEqual(['status', 'json']);
   });
 
-  it('no-ops when headersSent is true', () => {
+  it('no-ops header-dependent methods when headersSent is true', () => {
     const { res, calls } = makeFakeRes(true);
     suppressPostSendWrites(res as never);
     (res as any).status(200);
@@ -69,22 +70,28 @@ describe('suppressPostSendWrites', () => {
     expect(ret).toBe(res);
   });
 
-  it('also no-ops end() when headersSent is true', () => {
-    const calls: string[] = [];
-    const res = {
-      headersSent: true,
-      status: () => res,
-      json: () => res,
-      send: () => res,
-      header: () => res,
-      setHeader: () => res,
-      end: () => {
-        calls.push('end');
-        return res;
-      },
-    };
+  // Streaming responses (SSE/NDJSON/downloads) flush headers first, stream
+  // the body, and only then call end(). end() must therefore stay callable
+  // after headersSent — gating it on headersSent left chunked responses
+  // without their terminator (connection hung until proxy idle timeout).
+  it('still calls end() when headersSent is true but the stream is open', () => {
+    const { res, calls } = makeFakeRes(true, false);
+    suppressPostSendWrites(res as never);
+    (res as any).end();
+    expect(calls).toEqual(['end']);
+  });
+
+  it('no-ops end() once the response has already ended (writableEnded)', () => {
+    const { res, calls } = makeFakeRes(true, true);
     suppressPostSendWrites(res as never);
     (res as any).end();
     expect(calls).toEqual([]);
+  });
+
+  it('returns the response itself on a suppressed end() (chainability)', () => {
+    const { res } = makeFakeRes(true, true);
+    suppressPostSendWrites(res as never);
+    const ret = (res as any).end();
+    expect(ret).toBe(res);
   });
 });
