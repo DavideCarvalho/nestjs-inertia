@@ -16,13 +16,7 @@ type Patchable = {
  * `headersSent` is true, calling any of these would throw
  * ERR_HTTP_HEADERS_SENT — suppressing them is safe and intended.
  */
-const HEADER_DEPENDENT_KEYS = [
-  'status',
-  'json',
-  'send',
-  'header',
-  'setHeader',
-] as const;
+const HEADER_DEPENDENT_KEYS = ['status', 'json', 'send', 'header', 'setHeader'] as const;
 
 export function suppressPostSendWrites(res: Patchable): void {
   for (const key of HEADER_DEPENDENT_KEYS) {
