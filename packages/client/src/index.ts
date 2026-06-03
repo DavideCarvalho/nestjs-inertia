@@ -1,4 +1,4 @@
-export const VERSION = '1.7.3';
+export const VERSION = '1.7.4';
 
 export { createFetcher } from './fetcher/fetcher.js';
 export { setGlobalHeaders } from './fetcher/global-headers.js';
