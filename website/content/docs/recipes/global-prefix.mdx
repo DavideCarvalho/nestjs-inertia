@@ -1,0 +1,95 @@
+---
+title: Using with setGlobalPrefix
+description: How to serve Inertia pages alongside an existing API that uses NestJS setGlobalPrefix — the middleware gap and how to fix it.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+When your NestJS app uses `app.setGlobalPrefix('api')` for its REST endpoints and you add Inertia page routes that should be served **without** the prefix (e.g. `/signin` instead of `/api/signin`), the `InertiaMiddleware` may not run on the excluded routes. This causes a 500 error:
+
+```
+InertiaServiceNotAvailableException: req.inertia is not defined —
+middleware did not run.
+```
+
+## Why it happens
+
+`InertiaModule.forRoot()` registers `InertiaMiddleware` via `forRoutes("{*path}")` inside its own `configure()` method. When you exclude routes from the global prefix, NestJS scopes them differently — the middleware registered by `InertiaModule` may not match these excluded routes.
+
+## The fix
+
+Import `InertiaMiddleware` and register it explicitly in your `AppModule.configure()`, **before** your auth middleware:
+
+<Steps>
+
+<Step>
+### Import the middleware
+
+```ts
+import { InertiaModule, InertiaMiddleware } from '@dudousxd/nestjs-inertia';
+```
+</Step>
+
+<Step>
+### Register it in `configure()`
+
+```ts
+configure(consumer: MiddlewareConsumer) {
+  consumer.apply(InertiaMiddleware).forRoutes('{*splat}');
+  // ... your other middleware (cookie-parser, auth, etc.)
+}
+```
+</Step>
+
+<Step>
+### Exclude page routes from the global prefix
+
+```ts
+app.setGlobalPrefix('api', {
+  exclude: [
+    '/health',
+    '/signin',
+    '/dashboard/{*path}',
+    '/profile',
+    // ... other Inertia page routes
+  ],
+});
+```
+</Step>
+
+</Steps>
+
+<Callout type="info">
+Use `{*path}` (path-to-regexp v8 named splat) in the exclude list, not `(.*)` or `*` — NestJS 11+ requires named parameters.
+</Callout>
+
+## Full example
+
+```ts title="src/app.module.ts"
+import { InertiaModule, InertiaMiddleware } from '@dudousxd/nestjs-inertia';
+
+@Module({
+  imports: [
+    InertiaModule.forRoot({
+      rootView: resolve(__dirname, '../inertia/index.html'),
+    }),
+    // ... your API modules
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(InertiaMiddleware).forRoutes('{*splat}');
+    consumer.apply(cookieParser()).forRoutes('{*splat}');
+    consumer.apply(UserMiddleware).forRoutes('{*splat}');
+  }
+}
+```
+
+```ts title="src/main.ts"
+app.setGlobalPrefix('api', {
+  exclude: ['/health', '/signin', '/dashboard/{*path}'],
+});
+```
+
+This ensures `req.inertia` is available on every route — both API endpoints (where it's harmless) and Inertia page routes (where it's required).

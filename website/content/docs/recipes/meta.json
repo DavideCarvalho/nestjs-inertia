@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["auth-redirect", "file-upload", "global-prefix", "nestjs-filter", "not-found"]
+}

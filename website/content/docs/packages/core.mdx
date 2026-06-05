@@ -1,0 +1,61 @@
+---
+title: "@dudousxd/nestjs-inertia (core)"
+description: Core NestJS module, @Inertia decorator, InertiaService, and version negotiation.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia
+    ```
+  </Tab>
+  <Tab value="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia
+    ```
+  </Tab>
+</Tabs>
+
+Implements the [Inertia.js](https://inertiajs.com/) protocol as a NestJS module. Handles page rendering, version negotiation, shared props, SSR, CSRF, and redirects.
+
+## Exports
+
+| Export | Description |
+|--------|-------------|
+| `InertiaModule.forRoot(options)` | Global module registration; sets root view, version, shared props |
+| `InertiaModule.forRootAsync(options)` | Async variant (`useFactory`, `useClass`, `useExisting`) |
+| `InertiaModule.forFeature(options)` | Register an additional scope with its own view/shared props |
+| `InertiaModule.forFeatureAsync(options)` | Async variant for feature scopes |
+| `@Inertia(component)` | Method decorator; intercepts return value, renders Inertia response |
+| `@UseInertia(scope)` | Controller/method decorator; selects a `forFeature` scope |
+| `InertiaService` | Injectable service for programmatic renders and redirects |
+| `Inertia.always(fn)` | Prop marker; always resolved, even on partial reloads |
+| `Inertia.optional(fn)` | Prop marker; resolved only when explicitly requested |
+| `Inertia.defer(fn, group?)` | Prop marker; deferred to a separate request |
+| `Inertia.merge(fn, opts?)` | Prop marker; appended/prepended on reload |
+| `Inertia.once(fn)` | Prop marker; resolved once, then cached |
+| `ErrorBagInterceptor` | Namespaces `errors` by `X-Inertia-Error-Bag` header |
+| `CsrfCookieInterceptor` | Sets `XSRF-TOKEN` cookie and validates `X-XSRF-TOKEN` |
+| `CsrfGuard` | Guard-based CSRF validation |
+| `RedirectInterceptor` | Converts 302 to 303 for PUT/PATCH/DELETE per Inertia spec |
+| `MethodSpoofMiddleware` | `_method` field support for HTML form method spoofing |
+
+## Minimal setup
+
+```ts
+import { resolve } from 'node:path';
+
+InertiaModule.forRoot({
+  rootView: resolve(__dirname, '../inertia/root.html'),
+  version: '1',
+})
+```
+
+See the [Getting Started](/docs/getting-started) guide for a full bootstrap example.

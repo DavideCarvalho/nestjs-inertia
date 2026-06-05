@@ -1,0 +1,212 @@
+---
+title: Typed Link
+description: Type-safe Link components for React, Vue 3, and Svelte with route-name autocomplete and conditional routeParams.
+sidebar:
+  order: 4
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+```tsx
+<Link route="users.show" routeParams={{ id: '42' }}>View user</Link>
+```
+
+The `@dudousxd/nestjs-inertia-client` package ships typed `<Link>` components for React, Vue 3, and Svelte. Each wraps the corresponding `@inertiajs/*` `Link` but adds a `route` prop autocompleted from your codegen output and a conditionally required `routeParams` prop typed to the exact parameters of that route.
+
+---
+
+## Install
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add @dudousxd/nestjs-inertia-client
+    ```
+  </Tab>
+  <Tab value="npm">
+    ```bash
+    npm install @dudousxd/nestjs-inertia-client
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add @dudousxd/nestjs-inertia-client
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Boot wiring
+
+Each framework uses its idiomatic context/provider pattern to make the `route()` function available to all `<Link>` components in the tree.
+
+<Tabs items={['React', 'Vue 3', 'Svelte']}>
+  <Tab value="React">
+    ```tsx
+    import { InertiaRouteProvider } from '@dudousxd/nestjs-inertia-client/react';
+    import { route } from '~codegen/routes';
+    import { createInertiaApp } from '@inertiajs/react';
+    import { createRoot } from 'react-dom/client';
+
+    createInertiaApp({
+      setup({ el, App, props }) {
+        createRoot(el).render(
+          <InertiaRouteProvider routes={route}>
+            <App {...props} />
+          </InertiaRouteProvider>,
+        );
+      },
+    });
+    ```
+  </Tab>
+  <Tab value="Vue 3">
+    ```ts
+    import { INERTIA_ROUTES_KEY } from '@dudousxd/nestjs-inertia-client/vue';
+    import { route } from '~codegen/routes';
+    import { createInertiaApp } from '@inertiajs/vue3';
+    import { createApp } from 'vue';
+
+    createInertiaApp({
+      setup({ el, App, props }) {
+        const app = createApp(App, props);
+        app.provide(INERTIA_ROUTES_KEY, route);
+        app.mount(el);
+      },
+    });
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```ts
+    import { route } from '~codegen/routes';
+    import { createInertiaApp } from '@inertiajs/svelte';
+    import { mount } from 'svelte';
+
+    const appContext = new Map([['inertia-routes', route]]);
+
+    createInertiaApp({
+      setup({ el, App, props }) {
+        mount(App, { target: el, props, context: appContext });
+      },
+    });
+    ```
+
+    Svelte's `setContext`/`getContext` must be called during component initialization. The `context` option passed to `mount()` is propagated to all child components, including `<Link>` components rendered by Inertia pages.
+  </Tab>
+</Tabs>
+
+---
+
+## Usage
+
+<Tabs items={['React', 'Vue 3', 'Svelte']}>
+  <Tab value="React">
+    ```tsx
+    import { Link } from '@dudousxd/nestjs-inertia-client/react';
+
+    // Route with no params — routeParams is omitted
+    <Link route="users.index">All users</Link>
+
+    // Route with params — routeParams is required and typed
+    <Link route="users.show" routeParams={{ id: '42' }}>View user</Link>
+    ```
+
+    Import from the `/react` subpath. The component accepts all standard `@inertiajs/react` `Link` props plus `route` and `routeParams`.
+  </Tab>
+  <Tab value="Vue 3">
+    ```vue
+    <script setup lang="ts">
+    import { Link } from '@dudousxd/nestjs-inertia-client/vue';
+    </script>
+
+    <template>
+      <!-- Route with no params -->
+      <Link route="users.index">All users</Link>
+
+      <!-- Route with params -->
+      <Link route="users.show" :routeParams="{ id: '42' }">View user</Link>
+    </template>
+    ```
+
+    Import from the `/vue` subpath. The component forwards all `@inertiajs/vue3` `Link` props.
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script lang="ts">
+      import Link from '@dudousxd/nestjs-inertia-client/svelte';
+    </script>
+
+    <!-- Route with no params -->
+    <Link route="users.index">All users</Link>
+
+    <!-- Route with params -->
+    <Link route="users.show" routeParams={{ id: '42' }}>View user</Link>
+    ```
+
+    Import from the `/svelte` subpath. The component wraps `@inertiajs/svelte`'s `Link`.
+  </Tab>
+</Tabs>
+
+---
+
+## How the route name is chosen
+
+The route name is composed from a **class portion** and a **method portion**, joined with a dot.
+
+- **Class portion**: class-level `@As(...)` if present, otherwise the class name with the `Controller` suffix stripped and first letter lowercased.
+- **Method portion**: method-level `@As(...)` if present, otherwise the method name.
+- **Final name**: `${classPortion}.${methodPortion}`
+
+| Class `@As` | Method `@As` | Derived name |
+|-------------|-------------|-------------|
+| absent | absent | `<classNameStripped>.<methodName>` |
+| `@As('users')` | absent | `users.<methodName>` |
+| absent | `@As('profile')` | `<classNameStripped>.profile` |
+| `@As('users')` | `@As('profile')` | `users.profile` |
+| `@As('users.admin')` | `@As('profile')` | `users.admin.profile` |
+
+The codegen reads the controller and derives the route name automatically. No `defineContract` or `@ApplyContract` needed:
+
+```ts
+@Controller('/users')
+export class UsersController {
+  @Get(':id')
+  show(@Param('id') id: string) {
+    return this.usersService.findById(id);
+  }
+}
+```
+
+```tsx
+// Frontend — route name autocompleted, routeParams typed
+<Link route="users.show" routeParams={{ id: user.id }}>View profile</Link>
+```
+
+Override with `@As` at the class or method level:
+
+```ts
+import { As } from '@dudousxd/nestjs-inertia-client';
+
+@Controller('/users')
+@As('users')
+class UsersController {
+  @Get('/:id')
+  @As('profile')   // → 'users.profile'
+  show(@Param('id') id: string) {}
+}
+```
+
+Use the auto-derived name convention (`UsersController.show` -> `users.show`) so that `route('users.show')` and `api.users.show` both point to the same endpoint. One typed URL builder, one typed data fetcher.
+
+---
+
+## Conditional `routeParams`
+
+`routeParams` is typed as a mapped type derived from `RouteParamsMap`:
+
+| Route pattern | `routeParams` | Behavior |
+|--------------|---------------|----------|
+| `/users` (no dynamic segments) | `never` | Must be omitted. TypeScript errors if you pass it. |
+| `/users/:id` (dynamic segments) | `{ id: string }` | Required. TypeScript errors if you omit it. |
+
+All routing mistakes are caught at compile time. No runtime "missing param" errors.

@@ -1,0 +1,180 @@
+---
+title: Testing
+description: Use expectInertia, InertiaTestingModule, and assertInertia to test NestJS Inertia controllers.
+sidebar:
+  order: 5
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+## Install
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add -D @dudousxd/nestjs-inertia-testing
+    ```
+  </Tab>
+  <Tab value="npm">
+    ```bash
+    npm install --save-dev @dudousxd/nestjs-inertia-testing
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add -D @dudousxd/nestjs-inertia-testing
+    ```
+  </Tab>
+</Tabs>
+
+## E2E with supertest
+
+Spins up the real HTTP stack. Best for testing the full Inertia response lifecycle.
+
+```ts
+import * as request from 'supertest';
+import { expectInertia } from '@dudousxd/nestjs-inertia-testing';
+
+it('renders Dashboard with user prop', async () => {
+  const res = await request(app.getHttpServer())
+    .get('/dashboard')
+    .set('X-Inertia', 'true');
+
+  expectInertia(res)
+    .toRenderComponent('Dashboard')
+    .toHaveProp('user.id', 42);
+});
+```
+
+`expectInertia(res)` returns a chainable `InertiaAssertion`. Every method returns `this`, so you can chain as many checks as you want.
+
+## Unit tests with InertiaTestingModule
+
+For fast tests that skip HTTP entirely.
+
+```ts
+import { Test } from '@nestjs/testing';
+import {
+  InertiaTestingModule,
+  createFakeInertiaRequest,
+  expectInertia,
+} from '@dudousxd/nestjs-inertia-testing';
+
+const moduleRef = await Test.createTestingModule({
+  imports: [InertiaTestingModule.forTest()],
+  controllers: [DashboardController],
+  providers: [{ provide: UserService, useValue: mockUsers }],
+}).compile();
+
+const controller = moduleRef.get(DashboardController);
+const fakeReq = createFakeInertiaRequest({ method: 'GET', url: '/dashboard' });
+await controller.show(fakeReq);
+```
+
+`InertiaTestingModule.forTest(options?)` wraps `InertiaModule.forRoot()` with a default `version: 'test-v1'`. Pass any `InertiaModuleOptions` to override.
+
+## assertInertia (raw payloads)
+
+For testing codegen output, JSON fixtures, or any raw Inertia page object.
+
+```ts
+import { assertInertia } from '@dudousxd/nestjs-inertia-testing';
+
+const payload = { component: 'Dashboard', props: { count: 5 }, url: '/dashboard', version: '1' };
+
+assertInertia(payload)
+  .toRenderComponent('Dashboard')
+  .toHaveProp('count', 5);
+```
+
+## Full assertion API
+
+| Method | Description |
+|--------|-------------|
+| `.toRenderComponent(name)` | Component name matches exactly |
+| `.toHaveUrl(url)` | Page URL matches (string or RegExp) |
+| `.toHaveVersion(matcher)` | Asset version matches (string or RegExp) |
+| `.toHaveProp(path, value?)` | Deep prop exists; optionally check value |
+| `.toHavePropMatching(path, regex)` | String prop matches a RegExp |
+| `.toMissProp(path)` | Prop is absent |
+| `.toHaveExactProps(props)` | Full props deep-equality |
+| `.toShareProp(path, value?)` | Alias for `toHaveProp` (reads better for shared props) |
+| `.toHaveDeferredProp(name, group?)` | Prop listed in `deferredProps` |
+| `.toHaveMergeProp(name, opts?)` | Prop listed in `mergeProps` or `deepMergeProps` |
+| `.toHaveAlwaysProp(name)` | Prop present (always-props resolve on every request) |
+| `.toHaveOptionalProp(name)` | Prop present (optional-props resolve when requested) |
+| `.toHaveErrors(errors)` | Validation errors match (string or RegExp values) |
+| `.toHaveErrorBag(bag)` | Named error bag is an object |
+| `.toRedirectTo(url, status?)` | Location header + optional status (302 or 303) |
+| `.toRedirectExternal(url)` | Status 409 + `X-Inertia-Location` header |
+| `.toRenderFullHtml()` | Content-Type includes `html` |
+| `.withSsrHead(pattern)` | SSR head content matches a RegExp |
+| `.pageObject()` | Returns the raw `PageObject` |
+| `.unwrap()` | Returns `{ component, props, url, version }` |
+
+Chained example:
+
+```ts
+expectInertia(res)
+  .toRenderComponent('Dashboard')
+  .toHaveUrl('/dashboard')
+  .toHaveProp('user.name', 'Alice')
+  .toHaveProp('count')
+  .toMissProp('hidden')
+  .toHaveDeferredProp('activity')
+  .toHaveMergeProp('transactions')
+  .toHaveErrors({ email: 'required' });
+```
+
+## Partial reload testing
+
+Set the partial-reload headers, then assert that only the requested props are present.
+
+```ts
+const res = await request(app.getHttpServer())
+  .get('/dashboard')
+  .set('X-Inertia', 'true')
+  .set('X-Inertia-Partial-Component', 'Dashboard')
+  .set('X-Inertia-Partial-Data', 'stats');
+
+expectInertia(res)
+  .toHaveProp('stats')
+  .toMissProp('activity');
+```
+
+## Framework matchers
+
+Register custom matchers so you can write `expect(res).toRenderInertiaComponent('Dashboard')` directly.
+
+<Tabs items={['Vitest', 'Jest']}>
+  <Tab value="Vitest">
+    ```ts
+    // vitest.setup.ts
+    import '@dudousxd/nestjs-inertia-testing/vitest';
+    ```
+  </Tab>
+  <Tab value="Jest">
+    ```ts
+    // jest.setup.ts
+    import '@dudousxd/nestjs-inertia-testing/jest';
+    ```
+  </Tab>
+</Tabs>
+
+### Available matchers
+
+| Matcher | Equivalent assertion |
+|---------|---------------------|
+| `toRenderInertiaComponent(name)` | `.toRenderComponent(name)` |
+| `toHaveInertiaProp(path, value?)` | `.toHaveProp(path, value?)` |
+| `toHaveInertiaUrl(url)` | `.toHaveUrl(url)` |
+| `toHaveInertiaVersion(matcher)` | `.toHaveVersion(matcher)` |
+| `toMissInertiaProp(path)` | `.toMissProp(path)` |
+| `toRedirectInertiaExternal(url)` | `.toRedirectExternal(url)` |
+
+```ts
+// With matchers registered, use native expect syntax:
+expect(res).toRenderInertiaComponent('Dashboard');
+expect(res).toHaveInertiaProp('user.id', 42);
+expect(res).toMissInertiaProp('secret');
+```

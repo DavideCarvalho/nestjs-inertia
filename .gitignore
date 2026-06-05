@@ -11,9 +11,5 @@ pnpm-debug.log*
 .nestjs-inertia/
 !examples/*/.nestjs-inertia/
 
-# Astro build artifacts
-website/.astro/
-website/dist/
-
 # Vite ephemeral build artifacts
 *.timestamp-*.mjs

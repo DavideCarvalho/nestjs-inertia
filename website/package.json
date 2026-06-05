@@ -1,24 +1,35 @@
 {
-  "name": "@website",
+  "name": "website",
   "version": "0.0.0",
   "private": true,
-  "description": "nestjs-inertia documentation site (Astro Starlight)",
+  "description": "nestjs-inertia documentation site (Fumadocs)",
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "build": "next build",
+    "dev": "next dev",
+    "start": "serve out",
+    "types:check": "fumadocs-mdx && next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.39.0",
-    "@astrojs/starlight-tailwind": "^5.0.0",
-    "@tailwindcss/vite": "^4.3.0",
-    "astro": "^6.1.10",
-    "sharp": "^0.33.0",
-    "tailwindcss": "^4.3.0"
+    "@orama/orama": "^3.1.18",
+    "fumadocs-core": "^16.9.3",
+    "fumadocs-mdx": "^15.0.10",
+    "fumadocs-ui": "^16.9.3",
+    "lucide-react": "^1.17.0",
+    "next": "^16.2.7",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwind-merge": "^3.6.0"
   },
-  "engines": {
-    "node": ">=20"
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.15",
+    "serve": "^14.2.6",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^5.4.0"
   }
 }
