@@ -278,6 +278,15 @@ When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.confi
 
 **Running the CLI watcher manually:** `pnpm nestjs-inertia codegen --watch` in a separate terminal gives you explicit control. When both the auto-watcher and the CLI watcher run at the same time, only one holds the lock and generates files; the other logs a warning and becomes a no-op. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically.
 
+**No files generated? Check that the app finished booting.** The auto-watch starts in `onApplicationBootstrap` — it runs only after *every* module finishes initializing. A boot that stalls mid-init (a hung provider factory, an unreachable dependency like a dead local SQS/Redis container, etc.) produces no codegen output and no codegen error. The log tells you which case you're in:
+
+```
+[InertiaModule] Codegen auto-watch will start after application bootstrap. ...   ← logged early (module init)
+[InertiaModule] Codegen auto-watch started (dev mode).                           ← logged once the watcher is live
+```
+
+If you see the first line but never the second, the app hasn't finished booting — fix the stalled dependency (or run `pnpm nestjs-inertia codegen` for a one-shot generation in the meantime).
+
 **Disable auto-watch** (CI or explicit control):
 
 ```ts

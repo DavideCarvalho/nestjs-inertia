@@ -7,6 +7,7 @@ import {
   type NestModule,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
+  type OnModuleInit,
   type Provider,
   RequestMethod,
 } from '@nestjs/common';
@@ -58,7 +59,9 @@ interface CodegenModule {
 }
 
 @Module({})
-export class InertiaModule implements NestModule, OnApplicationBootstrap, OnApplicationShutdown {
+export class InertiaModule
+  implements NestModule, OnModuleInit, OnApplicationBootstrap, OnApplicationShutdown
+{
   /**
    * Shared provider set for both `forRoot` and `forRootAsync`.
    * Does NOT include the options provider(s) — callers prepend those themselves.
@@ -375,6 +378,30 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
     return dynamicImport('@dudousxd/nestjs-inertia-codegen') as Promise<CodegenModule>;
   }
 
+  /**
+   * Whether the codegen auto-watch is eligible to start (cheap, synchronous gates
+   * only — package resolvability and config presence are checked at bootstrap).
+   */
+  private _codegenAutoWatchEnabled(): boolean {
+    if (process.env.NODE_ENV === 'production') return false;
+    if (process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN === '1') return false;
+    if (this.options.codegen?.enabled === false) return false;
+    return true;
+  }
+
+  /**
+   * The auto-watch only starts in `onApplicationBootstrap`, so a boot that stalls
+   * mid-init (hung provider factory, unreachable dependency, …) silently produces
+   * no codegen output. Log a hint early so a stalled boot leaves a trace of WHY
+   * the generated files haven't appeared yet.
+   */
+  onModuleInit(): void {
+    if (!this._codegenAutoWatchEnabled()) return;
+    this.logger.log(
+      'Codegen auto-watch will start after application bootstrap. If this is the last codegen line you see, the app has not finished booting yet.',
+    );
+  }
+
   async onApplicationBootstrap(): Promise<void> {
     // ── Fastify wiring (unchanged) ──────────────────────────────────────────────
     const adapter = this.httpAdapterHost.httpAdapter;
@@ -425,14 +452,8 @@ export class InertiaModule implements NestModule, OnApplicationBootstrap, OnAppl
    */
   private async _startCodegenWatcher(): Promise<void> {
     try {
-      // 1. Skip in production
-      if (process.env.NODE_ENV === 'production') return;
-
-      // 2. Honor kill-switch env var (in addition to options.codegen.enabled === false)
-      if (process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN === '1') return;
-
-      // 3. Skip if explicitly disabled
-      if (this.options.codegen?.enabled === false) return;
+      // 1-3. Production / kill-switch env var / explicitly disabled
+      if (!this._codegenAutoWatchEnabled()) return;
 
       // 4. Lazy-import the codegen package (peer-optional — do not fail if missing).
       //    _resolveCodegenModule() uses a cast to prevent TS from resolving the module

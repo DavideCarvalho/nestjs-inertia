@@ -261,3 +261,78 @@ describe('InertiaModule — codegen auto-bootstrap', () => {
     );
   });
 });
+
+describe('InertiaModule — codegen pending-bootstrap hint (onModuleInit)', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalDisableEnv = process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // biome-ignore lint/performance/noDelete: env var removal needs delete; assigning undefined leaves string "undefined"
+    delete process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    if (originalDisableEnv !== undefined) {
+      process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN = originalDisableEnv;
+    } else {
+      // biome-ignore lint/performance/noDelete: env var removal needs delete; assigning undefined leaves string "undefined"
+      delete process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN;
+    }
+  });
+
+  function spyLog(mod: InertiaModule) {
+    return vi.spyOn(
+      (mod as unknown as { logger: { log: (...a: unknown[]) => void } }).logger,
+      'log',
+    );
+  }
+
+  it('logs "will start after application bootstrap" hint in dev mode', () => {
+    process.env.NODE_ENV = 'development';
+
+    const mod = makeModule({});
+    const loggerLog = spyLog(mod);
+
+    mod.onModuleInit();
+
+    expect(loggerLog).toHaveBeenCalledWith(
+      expect.stringContaining('will start after application bootstrap'),
+    );
+  });
+
+  it('does not log the hint when NODE_ENV === "production"', () => {
+    process.env.NODE_ENV = 'production';
+
+    const mod = makeModule({});
+    const loggerLog = spyLog(mod);
+
+    mod.onModuleInit();
+
+    expect(loggerLog).not.toHaveBeenCalled();
+  });
+
+  it('does not log the hint when codegen.enabled === false', () => {
+    process.env.NODE_ENV = 'development';
+
+    const mod = makeModule({ codegen: { enabled: false } });
+    const loggerLog = spyLog(mod);
+
+    mod.onModuleInit();
+
+    expect(loggerLog).not.toHaveBeenCalled();
+  });
+
+  it('does not log the hint when NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN = '1';
+
+    const mod = makeModule({});
+    const loggerLog = spyLog(mod);
+
+    mod.onModuleInit();
+
+    expect(loggerLog).not.toHaveBeenCalled();
+  });
+});
