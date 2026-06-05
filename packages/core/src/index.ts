@@ -1,4 +1,4 @@
-export const VERSION = '1.4.4';
+export const VERSION = '1.4.5';
 export { ErrorBagInterceptor } from './interceptor/error-bag.interceptor.js';
 export { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 export { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
