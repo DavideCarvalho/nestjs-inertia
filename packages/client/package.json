@@ -48,12 +48,7 @@
       }
     }
   },
-  "files": [
-    "dist",
-    "src/svelte/Link.svelte",
-    "README.md",
-    "CHANGELOG.md"
-  ],
+  "files": ["dist", "src/svelte/Link.svelte", "README.md", "CHANGELOG.md"],
   "scripts": {
     "build": "tsup && cp src/svelte/Link.svelte dist/svelte/Link.svelte",
     "test": "vitest run",
