@@ -9,7 +9,8 @@
       ".turbo/**",
       "coverage/**",
       "**/*.svelte",
-      "**/.nestjs-inertia/**"
+      "**/.nestjs-inertia/**",
+      "website/**"
     ]
   },
   "formatter": {
