@@ -5,6 +5,8 @@ sidebar:
   order: 3
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout';
+
 ```tsx
 import { useQuery } from '@tanstack/react-query';
 import { api } from '~codegen/api';
@@ -184,6 +186,8 @@ type ListQuery = Route.Query<'posts.list'>;
 type ShowParams = Route.Params<'users.show'>;
 type FullRequest = Route.Request<'users.create'>;
 // → { body: { name: string; email: string }; query: never; params: never }
+type RunFields = Route.FilterFields<'pipelineRuns.search'>;
+// → 'status' | 'tasks.name'  (the route's filterable fields, or `never`)
 ```
 
 | Helper | Description |
@@ -194,6 +198,11 @@ type FullRequest = Route.Request<'users.create'>;
 | `Route.Params<K>` | Params type for route `K` |
 | `Route.Error<K>` | Error type for route `K` |
 | `Route.Request<K>` | Full request shape (`{ body, query, params }`) |
+| `Route.FilterFields<K>` | Filterable-field union for route `K` ([nestjs-filter](../recipes/nestjs-filter)), or `never` if the route has no filter |
+
+<Callout type="info">
+  `Route.FilterFields<K>` is a pure type-level helper — it resolves to a string-literal union baked into the generated `ApiRouter`. It does **not** require `@dudousxd/nestjs-filter` (or its client) to be installed; routes without a filter simply resolve to `never`.
+</Callout>
 
 ---
 

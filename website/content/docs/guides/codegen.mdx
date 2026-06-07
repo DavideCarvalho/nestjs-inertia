@@ -373,6 +373,7 @@ type CreateUserRequest = Route.Request<'users.create'>;
 | `Route.Params<K>` | Params type for route `K` |
 | `Route.Error<K>` | Error type for route `K` |
 | `Route.Request<K>` | Full request shape (`{ body, query, params }`) |
+| `Route.FilterFields<K>` | Filterable-field union ([nestjs-filter](../recipes/nestjs-filter)), or `never` |
 
 ### `Path.*` -- by HTTP method + URL pattern
 
@@ -390,6 +391,7 @@ type CreateBody   = Path.Body<'POST', '/api/users'>;
 | `Path.Query<M, U>` | Query type |
 | `Path.Params<M, U>` | Params type |
 | `Path.Error<M, U>` | Error type |
+| `Path.FilterFields<M, U>` | Filterable-field union, or `never` |
 
 ---
 

@@ -146,6 +146,23 @@ api.pipelineRuns.list.filterQuery()
   .contains('foo', 'bar');          // ✗ TypeScript error: 'foo' is not a valid field
 ```
 
+### Field union as a type
+
+Need the filterable-field union on its own — e.g. to validate dynamic column ids from a data-grid before passing them to the builder? Use the [`Route.FilterFields<K>`](../guides/typed-client) helper instead of reaching into the builder with `Parameters<...>`:
+
+```ts
+import type { Route } from '~codegen/api';
+
+type RunFilterField = Route.FilterFields<'pipelineRuns.list'>;
+// → 'status' | 'tasks.name' | ...
+
+function isRunField(id: string): id is RunFilterField {
+  return runFields.includes(id as RunFilterField);
+}
+```
+
+For a route without a filter, `Route.FilterFields<K>` resolves to `never`.
+
 ### Available operators
 
 | Operator | Example |

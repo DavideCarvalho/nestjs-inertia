@@ -214,8 +214,14 @@ function emitRouterTypeBlock(
       const params = buildParamsType(c.params);
       const safeMethod = JSON.stringify(method);
       const safeUrl = JSON.stringify(c.path);
+      // Filterable fields (from @dudousxd/nestjs-filter) as a string-literal
+      // union, or `never` for routes without a filter. Purely type-level — no
+      // runtime dependency on nestjs-filter is introduced by this member.
+      const filterFields = c.contractSource.filterFields?.length
+        ? c.contractSource.filterFields.map((f) => JSON.stringify(f)).join(' | ')
+        : 'never';
       lines.push(
-        `${pad}${objKey}: { method: ${safeMethod}; url: ${safeUrl}; params: ${params}; query: ${query}; body: ${body}; response: ${response} };`,
+        `${pad}${objKey}: { method: ${safeMethod}; url: ${safeUrl}; params: ${params}; query: ${query}; body: ${body}; response: ${response}; filterFields: ${filterFields} };`,
       );
     } else {
       lines.push(`${pad}${objKey}: {`);
@@ -476,6 +482,7 @@ function buildApiFile(
     lines.push('  export type Query<K extends string> = never;');
     lines.push('  export type Params<K extends string> = never;');
     lines.push('  export type Error<K extends string> = never;');
+    lines.push('  export type FilterFields<K extends string> = never;');
     lines.push(
       '  export type Request<K extends string> = { body: never; query: never; params: never };',
     );
@@ -487,6 +494,7 @@ function buildApiFile(
     lines.push('  export type Query<M extends string, U extends string> = never;');
     lines.push('  export type Params<M extends string, U extends string> = never;');
     lines.push('  export type Error<M extends string, U extends string> = never;');
+    lines.push('  export type FilterFields<M extends string, U extends string> = never;');
     lines.push('}');
     lines.push('');
     lines.push('export type NavigateOptions = {');
@@ -573,6 +581,7 @@ function buildApiFile(
   lines.push('  export type Query<K extends string> = ResolveByName<K, "query">;');
   lines.push('  export type Params<K extends string> = ResolveByName<K, "params">;');
   lines.push('  export type Error<K extends string> = ResolveByName<K, "error">;');
+  lines.push('  export type FilterFields<K extends string> = ResolveByName<K, "filterFields">;');
   lines.push('  export type Request<K extends string> = {');
   lines.push('    body: Body<K>;');
   lines.push('    query: Query<K>;');
@@ -597,6 +606,9 @@ function buildApiFile(
   );
   lines.push(
     '  export type Error<M extends string, U extends string> = ResolveByPath<M, U, "error">;',
+  );
+  lines.push(
+    '  export type FilterFields<M extends string, U extends string> = ResolveByPath<M, U, "filterFields">;',
   );
   lines.push('}');
   lines.push('');

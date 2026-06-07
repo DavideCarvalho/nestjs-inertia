@@ -44,6 +44,20 @@ describe('emitApi', () => {
       },
     },
     {
+      method: 'POST',
+      path: '/api/pipeline-runs/search',
+      name: 'pipelineRuns.search',
+      params: [],
+      contract: {
+        contractSource: {
+          query: null,
+          body: null,
+          response: '{ data: Array<{ id: string }> }',
+          filterFields: ['status', 'tasks.name'],
+        },
+      },
+    },
+    {
       // Route without contract — should be ignored in api.ts
       method: 'GET',
       path: '/health',
@@ -343,6 +357,24 @@ describe('emitApi', () => {
       await emitApi(routesWithContract, outDir);
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
       expect(content).toContain('ResolveByPath');
+    });
+
+    it('emits Route.FilterFields and Path.FilterFields helpers', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('export type FilterFields<K extends string> = ResolveByName<K, "filterFields">');
+      expect(content).toContain(
+        'export type FilterFields<M extends string, U extends string> = ResolveByPath<M, U, "filterFields">',
+      );
+    });
+
+    it('ApiRouter leaf carries filterFields as a string union for filtered routes, never otherwise', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      // Filtered route → union of field literals
+      expect(content).toContain('filterFields: "status" | "tasks.name"');
+      // Unfiltered route → never
+      expect(content).toContain('filterFields: never');
     });
   });
 
