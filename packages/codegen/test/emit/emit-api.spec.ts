@@ -362,7 +362,9 @@ describe('emitApi', () => {
     it('emits Route.FilterFields and Path.FilterFields helpers', async () => {
       await emitApi(routesWithContract, outDir);
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
-      expect(content).toContain('export type FilterFields<K extends string> = ResolveByName<K, "filterFields">');
+      expect(content).toContain(
+        'export type FilterFields<K extends string> = ResolveByName<K, "filterFields">',
+      );
       expect(content).toContain(
         'export type FilterFields<M extends string, U extends string> = ResolveByPath<M, U, "filterFields">',
       );
