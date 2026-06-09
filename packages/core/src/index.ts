@@ -12,6 +12,13 @@ export {
   MissingCookieDepException,
   InvalidCsrfTokenException,
 } from './errors/exceptions.js';
+export { InertiaValidationFilter } from './validation/inertia-validation.filter.js';
+export {
+  inertiaValidationExceptionFactory,
+  flattenValidationErrors,
+} from './validation/exception-factory.js';
+export { extractFieldErrors } from './validation/extract-field-errors.js';
+export type { ExtractOptions } from './validation/extract-field-errors.js';
 export { Inertia } from './markers.js';
 export { UseInertia, INERTIA_USE_SCOPE } from './decorator/use-inertia.decorator.js';
 export { featureToken } from './tokens.js';
@@ -46,6 +53,7 @@ export type {
   ViteOptions,
   SsrOptions,
   CodegenOptions,
+  InertiaValidationOptions,
   InertiaModuleOptions,
   InertiaFeatureOptions,
   InertiaOptionsFactory,

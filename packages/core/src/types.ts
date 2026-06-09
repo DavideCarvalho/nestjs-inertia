@@ -70,6 +70,20 @@ export interface CodegenOptions {
   enabled?: boolean | 'auto';
 }
 
+/**
+ * Options controlling the {@link InertiaValidationFilter}, which auto-flashes a
+ * field-keyed error bag and 303-redirects back when validation fails on an
+ * Inertia non-GET request.
+ */
+export interface InertiaValidationOptions {
+  /** Enable the validation filter. Default `false` (additive / non-breaking). */
+  enabled?: boolean;
+  /** Redirect-back target when no `Referer` is present. Default `'/'`. */
+  fallbackRedirect?: string;
+  /** How to combine multiple messages for the same field key. Default `'first'`. */
+  mergeMessages?: 'first' | 'join';
+}
+
 export interface InertiaModuleOptions {
   rootView?: RootView;
   vite?: ViteOptions;
@@ -84,6 +98,7 @@ export interface InertiaModuleOptions {
   /** Hard-disable diagnostics_channel publishing even when a subscriber exists.
    *  Default true. Set false to guarantee no publish in hardened prod. */
   diagnostics?: boolean;
+  validation?: InertiaValidationOptions;
 }
 
 export interface InertiaFeatureOptions extends InertiaModuleOptions {
