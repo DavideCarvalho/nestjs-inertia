@@ -23,6 +23,7 @@ export default defineConfig({
           name: 'jsdom-tests',
           include: [
             'test/react/**/*.spec.{ts,tsx}',
+            'test/react-form/**/*.spec.{ts,tsx}',
             'test/vue/**/*.spec.{ts,tsx}',
             'test/svelte/**/*.spec.{ts,tsx}',
           ],
@@ -34,7 +35,12 @@ export default defineConfig({
         // Node-based tests: fetcher, contract, errors, url-builder, etc.
         test: {
           name: 'node-tests',
-          include: ['test/*.spec.ts', 'test/*.spec.tsx', 'test/ssr/**/*.spec.ts'],
+          include: [
+            'test/*.spec.ts',
+            'test/*.spec.tsx',
+            'test/ssr/**/*.spec.ts',
+            'test/shared/**/*.spec.ts',
+          ],
           environment: 'node',
           pool: 'forks',
         },

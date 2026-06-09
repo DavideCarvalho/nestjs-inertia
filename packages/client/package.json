@@ -29,6 +29,11 @@
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.cjs"
     },
+    "./react-form": {
+      "types": "./dist/react-form/index.d.ts",
+      "import": "./dist/react-form/index.js",
+      "require": "./dist/react-form/index.cjs"
+    },
     "./vue": {
       "types": "./dist/vue/index.d.ts",
       "import": "./dist/vue/index.js",
@@ -65,10 +70,18 @@
     "vue": "^3.4.0",
     "@inertiajs/svelte": "^3.0.0",
     "svelte": "^5.0.0",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "react-hook-form": "^7.50.0",
+    "@hookform/resolvers": "^3.3.0"
   },
   "peerDependenciesMeta": {
     "@tanstack/query-core": {
+      "optional": true
+    },
+    "react-hook-form": {
+      "optional": true
+    },
+    "@hookform/resolvers": {
       "optional": true
     },
     "@inertiajs/react": {
@@ -104,6 +117,8 @@
     "jsdom": "^29.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.50.0",
+    "@hookform/resolvers": "^3.3.0",
     "reflect-metadata": "^0.2.0",
     "typescript": "^5.4.0",
     "@inertiajs/vue3": "^3.0.0",
