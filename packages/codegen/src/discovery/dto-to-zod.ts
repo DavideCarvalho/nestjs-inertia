@@ -224,7 +224,10 @@ function buildPropertySchema(
   // ── Unmappable decorators → warn + comment, keep base ───────────────────
   for (const name of decorators.keys()) {
     if (!KNOWN_DECORATORS.has(name)) {
-      comments.push(`// @${name}: not translatable to zod (server-only)`);
+      // Block comment, not `//` — the schema is emitted on a single line, so a
+      // line comment would swallow the rest of the object literal (the closing
+      // `})` and any following fields), producing invalid TypeScript.
+      comments.push(`/* @${name}: not translatable to zod (server-only) */`);
       if (!ctx.warnedDecorators.has(name)) {
         ctx.warnedDecorators.add(name);
         const msg = `@${name} is not translatable to zod and was skipped (server-only validation).`;

@@ -173,8 +173,22 @@ describe('extractZodFromDto — unmappable decorators', () => {
       'class Dto { @IsString() @IsStrongPassword() password!: string; }',
     );
     expect(text).toContain('z.string()');
-    expect(text).toContain('// @IsStrongPassword: not translatable to zod (server-only)');
+    expect(text).toContain('/* @IsStrongPassword: not translatable to zod (server-only) */');
     expect(warnings.some((w) => w.includes('IsStrongPassword'))).toBe(true);
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses a block comment so the object close + following fields survive', () => {
+    // Regression: schemas are emitted on a single line, so a `//` comment after
+    // an unmappable field swallowed the rest of the line (the `})` and any later
+    // field), producing invalid TypeScript. A block comment must not.
+    const { text } = dtoSchema(
+      'class Dto { @IsString() @IsStrongPassword() password!: string; @IsString() note!: string; }',
+    );
+    expect(text).not.toContain('// @');
+    expect(text).toContain('/* @IsStrongPassword');
+    // The field after the unmappable one + the object close are not swallowed.
+    expect(text).toContain('note:');
+    expect(text.trimEnd().endsWith('})')).toBe(true);
   });
 });
