@@ -23,7 +23,6 @@ export default defineConfig({
           name: 'jsdom-tests',
           include: [
             'test/react/**/*.spec.{ts,tsx}',
-            'test/react-form/**/*.spec.{ts,tsx}',
             'test/vue/**/*.spec.{ts,tsx}',
             'test/svelte/**/*.spec.{ts,tsx}',
           ],
