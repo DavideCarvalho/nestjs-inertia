@@ -149,15 +149,66 @@ describe('extractZodFromDto — nesting and arrays', () => {
     expect(text).toContain('tags: z.array(z.string())');
   });
 
-  it('self-referential nesting → z.lazy(() => Schema)', () => {
-    const { text, nested } = dtoSchema(
+  it('self-referential nesting → recursive schema degraded to z.unknown()', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { text, nested, warnings } = dtoSchema(
       'class Node { @ValidateNested() @Type(() => Node) child!: Node; }',
       'Node',
     );
-    // Top level references the hoisted nested schema, which closes the cycle
-    // with a z.lazy() self-reference.
+    // Top level references the hoisted nested schema name…
     expect(text).toContain('child: NodeSchema');
-    expect(nested.get('NodeSchema')).toContain('z.lazy(() => NodeSchema)');
+    // …but a recursive schema cannot be emitted as `const X = (… X …)` without a
+    // type annotation (implicit any / TS7022). It is degraded to a valid
+    // z.unknown() placeholder — and must NOT contain an unannotated self-ref.
+    expect(nested.get('NodeSchema')).toBe('z.unknown() /* recursive type — not expanded */');
+    expect(nested.get('NodeSchema')).not.toContain('z.lazy');
+    expect(warnings.some((w) => w.toLowerCase().includes('recursive'))).toBe(true);
+    warnSpy.mockRestore();
+  });
+});
+
+describe('extractZodFromDto — enum resolved through a re-export chain', () => {
+  it('follows `export { Enum } from`/bare `export { Enum }` to resolve members', () => {
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      skipAddingFilesFromTsConfig: true,
+    });
+    // Enum is DEFINED here…
+    project.createSourceFile(
+      '/enums.ts',
+      `export enum Status { Pending = 'pending', Done = 'done' }`,
+    );
+    // …imported and bare re-exported here (the shape flip uses for entity files)…
+    project.createSourceFile(
+      '/entity.ts',
+      `import { Status } from './enums';\nexport { Status };\nexport class Entity { status!: Status; }`,
+    );
+    // …and the DTO imports it from the entity (NOT the defining file).
+    const dtoFile = project.createSourceFile(
+      '/dto.ts',
+      `import { Status } from './entity';\nclass Dto { @IsEnum(Status) status!: Status; }`,
+    );
+    const result = extractZodFromDto(dtoFile.getClassOrThrow('Dto'), dtoFile, project);
+    expect(result.schemaText).toContain('status: z.enum(["pending", "done"])');
+    expect(result.schemaText).not.toContain('z.nativeEnum');
+  });
+});
+
+describe('extractZodFromDto — unresolvable enums', () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => warnSpy.mockRestore());
+
+  it('@IsEnum(Unresolvable) falls back to z.unknown() (never a bare nativeEnum identifier)', () => {
+    // The enum identifier is not declared/importable in scope, so emitting
+    // `z.nativeEnum(Foo)` would reference a name absent from the generated forms
+    // file → a `Cannot find name` compile error. Degrade to z.unknown() instead.
+    const { text, warnings } = dtoSchema('class Dto { @IsEnum(Foo) a!: unknown; }');
+    expect(text).toContain('z.unknown()');
+    expect(text).not.toContain('z.nativeEnum');
+    expect(warnings.some((w) => w.includes('IsEnum(Foo)'))).toBe(true);
   });
 });
 

@@ -192,7 +192,91 @@ export function resolveImportedType(
       }
       const result = findTypeInFile(name, importedFile);
       if (result) return result;
+      // The target module may itself re-export the symbol from elsewhere
+      // (`export { X } from './mod'` or `import { X } ...; export { X }`).
+      const viaReExport = resolveReExportedType(name, importedFile, project, new Set());
+      if (viaReExport) return viaReExport;
     }
+  }
+  // The current file may re-export the symbol from another module.
+  return resolveReExportedType(name, sourceFile, project, new Set());
+}
+
+/**
+ * Follow `export { X } from './mod'` / `export * from './mod'` re-exports, and
+ * bare `export { X }` statements that re-publish a previously-imported symbol,
+ * to find a type declaration in a sibling module. Guards against import cycles
+ * via `seen`.
+ */
+function resolveReExportedType(
+  name: string,
+  file: SourceFile,
+  project: Project,
+  seen: Set<string>,
+): TypeDeclResult | null {
+  const filePath = file.getFilePath();
+  if (seen.has(filePath)) return null;
+  seen.add(filePath);
+
+  for (const exportDecl of file.getExportDeclarations()) {
+    const moduleSpecifier = exportDecl.getModuleSpecifierValue();
+    const namedExports = exportDecl.getNamedExports();
+
+    // `export { X } from './mod'` — only follow when X (or its alias source) matches.
+    if (moduleSpecifier) {
+      const hasStar = namedExports.length === 0; // `export * from './mod'`
+      const reExportsName = namedExports.some(
+        (n) => (n.getAliasNode()?.getText() ?? n.getName()) === name,
+      );
+      if (!hasStar && !reExportsName) continue;
+      // The source-side name (before any alias rename).
+      const sourceName = hasStar
+        ? name
+        : (namedExports
+            .find((n) => (n.getAliasNode()?.getText() ?? n.getName()) === name)
+            ?.getName() ?? name);
+      const target = followModuleForType(sourceName, moduleSpecifier, file, project, seen);
+      if (target) return target;
+      continue;
+    }
+
+    // `export { X }` (no module specifier) — X was imported above into this file.
+    const reExportsName = namedExports.some(
+      (n) => (n.getAliasNode()?.getText() ?? n.getName()) === name,
+    );
+    if (!reExportsName) continue;
+    const sourceName =
+      namedExports.find((n) => (n.getAliasNode()?.getText() ?? n.getName()) === name)?.getName() ??
+      name;
+    const local = findTypeInFile(sourceName, file);
+    if (local) return local;
+    const imported = resolveImportedType(sourceName, file, project);
+    if (imported) return imported;
+  }
+  return null;
+}
+
+function followModuleForType(
+  name: string,
+  moduleSpecifier: string,
+  fromFile: SourceFile,
+  project: Project,
+  seen: Set<string>,
+): TypeDeclResult | null {
+  const candidates = resolveModuleSpecifier(moduleSpecifier, fromFile, project);
+  for (const candidate of candidates) {
+    let importedFile = project.getSourceFile(candidate);
+    if (!importedFile) {
+      try {
+        importedFile = project.addSourceFileAtPath(candidate);
+      } catch {
+        continue;
+      }
+    }
+    const result = findTypeInFile(name, importedFile);
+    if (result) return result;
+    const viaReExport = resolveReExportedType(name, importedFile, project, seen);
+    if (viaReExport) return viaReExport;
   }
   return null;
 }

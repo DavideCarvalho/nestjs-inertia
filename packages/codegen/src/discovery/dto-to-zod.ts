@@ -34,6 +34,8 @@ interface BuildContext {
   emittedClasses: Map<string, string>;
   /** Class names currently being built (recursion guard). */
   visiting: Set<string>;
+  /** Emitted schema names that turned out to be recursive (self-referential). */
+  recursiveSchemas: Set<string>;
   depth: number;
 }
 
@@ -80,9 +82,17 @@ export function extractZodFromDto(
     warnedDecorators: new Set(),
     emittedClasses: new Map(),
     visiting: new Set(),
+    recursiveSchemas: new Set(),
     depth: 0,
   };
   const schemaText = buildObjectSchema(classDecl, sourceFile, ctx);
+  // Recursive schemas cannot be hoisted as a plain `const X = z.object({... X ...})`
+  // without an explicit type annotation (TS7022/TS7024: implicit any). Per the
+  // generator's "never emit invalid TypeScript" policy, degrade any
+  // self-referential nested schema to a valid `z.unknown()` placeholder.
+  for (const schemaName of ctx.recursiveSchemas) {
+    ctx.namedNestedSchemas.set(schemaName, 'z.unknown() /* recursive type — not expanded */');
+  }
   return {
     schemaText,
     namedNestedSchemas: ctx.namedNestedSchemas,
@@ -305,6 +315,16 @@ function buildNestedReference(className: string, fromFile: SourceFile, ctx: Buil
   if (ctx.visiting.has(className) || ctx.depth >= 8) {
     const reserved = ctx.emittedClasses.get(className) ?? aliasFor(className, ctx);
     ctx.emittedClasses.set(className, reserved);
+    // This schema references itself (directly or transitively). Record it so the
+    // hoisted declaration is degraded to a valid annotation-free placeholder
+    // instead of an implicit-any `const X = z.lazy(() => ... X ...)`.
+    ctx.recursiveSchemas.add(reserved);
+    if (!ctx.warnedDecorators.has(`recursive:${reserved}`)) {
+      ctx.warnedDecorators.add(`recursive:${reserved}`);
+      const msg = `${className} is a recursive type and was not expanded; the generated form schema uses z.unknown() for it.`;
+      ctx.warnings.push(msg);
+      console.warn(`[nestjs-inertia-codegen/forms] ${msg}`);
+    }
     return `z.lazy(() => ${reserved})`;
   }
 
@@ -418,7 +438,18 @@ function enumSchemaFromDecorator(
       // resolved.members are already JSON-stringified literals.
       return `z.enum([${resolved.members.join(', ')}])`;
     }
-    return `z.nativeEnum(${name})`;
+    // The enum could not be resolved to literal members. Emitting
+    // `z.nativeEnum(${name})` would reference an identifier that is NOT imported
+    // into the generated forms file → a `Cannot find name` compile error. Fall
+    // back to a valid degraded schema instead (same policy as untranslatable
+    // decorators): a passing schema beats invalid output.
+    const msg = `@IsEnum(${name}): enum could not be resolved to literal members and is not importable into the generated form schema; falling back to z.unknown().`;
+    if (!ctx.warnedDecorators.has(`IsEnum:${name}`)) {
+      ctx.warnedDecorators.add(`IsEnum:${name}`);
+      ctx.warnings.push(msg);
+      console.warn(`[nestjs-inertia-codegen/forms] ${msg}`);
+    }
+    return `z.unknown() /* @IsEnum(${name}): enum not resolvable to literals */`;
   }
   if (Node.isObjectLiteralExpression(arg)) {
     const values: string[] = [];

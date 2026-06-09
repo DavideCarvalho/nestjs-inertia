@@ -239,6 +239,147 @@ describe('emitForms', () => {
     expect(out).toContain('// warning: @IsStrongPassword is not translatable');
   });
 
+  // Count occurrences of a `const <name> =` declaration (whole-word).
+  function countConstDecl(out: string, name: string): number {
+    const re = new RegExp(`(^|\\n)\\s*const ${name} =`, 'g');
+    return (out.match(re) ?? []).length;
+  }
+
+  it('hoists a nested DTO shared by two endpoints EXACTLY once (no redeclaration)', async () => {
+    const routes: RouteDescriptor[] = [
+      {
+        method: 'POST',
+        path: '/a',
+        name: 'a.create',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ filter: ColumnFilterSchema })',
+            formNestedSchemas: { ColumnFilterSchema: 'z.object({ field: z.string() })' },
+          },
+        },
+      },
+      {
+        method: 'POST',
+        path: '/b',
+        name: 'b.create',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ filter: ColumnFilterSchema })',
+            // Same name, IDENTICAL shape → must be deduped to one declaration.
+            formNestedSchemas: { ColumnFilterSchema: 'z.object({ field: z.string() })' },
+          },
+        },
+      },
+    ];
+    await emitForms(routes, outDir);
+    const out = await read();
+    // The shared schema is declared once and referenced from both endpoints.
+    expect(countConstDecl(out, 'ColumnFilterSchema')).toBe(1);
+    expect(out).toContain(
+      'export const ACreateBodySchema = z.object({ filter: ColumnFilterSchema });',
+    );
+    expect(out).toContain(
+      'export const BCreateBodySchema = z.object({ filter: ColumnFilterSchema });',
+    );
+  });
+
+  it('degrades a recursive nested schema to z.unknown() (no implicit-any / no unannotated self-ref)', async () => {
+    const routes: RouteDescriptor[] = [
+      {
+        method: 'POST',
+        path: '/q',
+        name: 'q.execute',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ where: z.array(ColumnFilterSchema) })',
+            formNestedSchemas: {
+              // Self-referential text — would be `const X = z.lazy(() => ... X ...)`
+              // (implicit any) if emitted verbatim.
+              ColumnFilterSchema:
+                'z.object({ field: z.string().optional(), OR: z.array(z.lazy(() => ColumnFilterSchema)).optional() })',
+            },
+          },
+        },
+      },
+    ];
+    await emitForms(routes, outDir);
+    const out = await read();
+    // Degraded to a valid placeholder.
+    expect(out).toContain(
+      'const ColumnFilterSchema = z.unknown() /* recursive type — not expanded */;',
+    );
+    // Crucially: no unannotated self-referential `z.lazy` declaration remains.
+    expect(out).not.toMatch(/const ColumnFilterSchema = z\.object\([^;]*ColumnFilterSchema/);
+    expect(out).not.toMatch(/const ColumnFilterSchema = z\.lazy/);
+  });
+
+  it('disambiguates same-name-DIFFERENT-shape nested schemas (no wrong collision)', async () => {
+    const routes: RouteDescriptor[] = [
+      {
+        method: 'POST',
+        path: '/a',
+        name: 'a.create',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ filter: ColumnFilterSchema })',
+            formNestedSchemas: { ColumnFilterSchema: 'z.object({ field: z.string() })' },
+          },
+        },
+      },
+      {
+        method: 'POST',
+        path: '/b',
+        name: 'b.create',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ filter: ColumnFilterSchema })',
+            // Same NAME, DIFFERENT shape → must NOT collapse into the first one.
+            formNestedSchemas: {
+              ColumnFilterSchema: 'z.object({ operator: z.string(), value: z.number() })',
+            },
+          },
+        },
+      },
+    ];
+    await emitForms(routes, outDir);
+    const out = await read();
+    // Both distinct shapes survive under distinct names.
+    expect(out).toContain('const ColumnFilterSchema = z.object({ field: z.string() });');
+    expect(out).toContain(
+      'const ColumnFilterSchema_2 = z.object({ operator: z.string(), value: z.number() });',
+    );
+    // The second endpoint references the disambiguated name, not the first shape.
+    expect(out).toContain(
+      'export const ACreateBodySchema = z.object({ filter: ColumnFilterSchema });',
+    );
+    expect(out).toContain(
+      'export const BCreateBodySchema = z.object({ filter: ColumnFilterSchema_2 });',
+    );
+    // No exact-name redeclaration.
+    expect(countConstDecl(out, 'ColumnFilterSchema')).toBe(1);
+    expect(countConstDecl(out, 'ColumnFilterSchema_2')).toBe(1);
+  });
+
   it('orders routes deterministically by name', async () => {
     const routes: RouteDescriptor[] = [
       {

@@ -168,6 +168,23 @@ function buildFormsFile(
 
   lines.push('');
 
+  // ── Hoist nested schemas exactly once (dedup), disambiguating collisions ──
+  // Each entry carries a `nestedSchemas` map (name → zod text) whose texts may
+  // reference each other (and themselves) by name. A nested schema shared by N
+  // endpoints must be declared ONCE; two unrelated schemas that happen to share
+  // a name must NOT collapse into one. `planNestedSchemas` produces a global
+  // registry of unique declarations plus a per-entry rename map applied to that
+  // entry's body/query text.
+  const { globalSchemas, renamesByEntry } = planNestedSchemas(entries);
+
+  if (globalSchemas.size > 0) {
+    lines.push('// Hoisted nested schemas (shared across endpoints).');
+    for (const [name, text] of globalSchemas) {
+      lines.push(`const ${name} = ${text};`);
+    }
+    lines.push('');
+  }
+
   const mapEntries: string[] = [];
 
   for (const entry of entries) {
@@ -179,17 +196,13 @@ function buildFormsFile(
       }
     }
 
-    // Hoist nested named schemas referenced by this entry (Path B).
-    if (entry.nestedSchemas) {
-      for (const [name, text] of Object.entries(entry.nestedSchemas)) {
-        lines.push(`const ${name} = ${text};`);
-      }
-    }
+    const rename = renamesByEntry.get(entry) ?? null;
 
     if (entry.body) {
       const schemaName = `${entry.baseName}BodySchema`;
       const typeName = `${entry.baseName}Body`;
-      lines.push(`export const ${schemaName} = ${renderSchema(entry.body, outDir, refAlias)};`);
+      const text = applyRenames(renderSchema(entry.body, outDir, refAlias), rename);
+      lines.push(`export const ${schemaName} = ${text};`);
       lines.push(`export type ${typeName} = z.infer<typeof ${schemaName}>;`);
       mapEntries.push(`  ${JSON.stringify(entry.routeName)}: ${schemaName},`);
     }
@@ -197,7 +210,8 @@ function buildFormsFile(
     if (entry.query) {
       const schemaName = `${entry.baseName}QuerySchema`;
       const typeName = `${entry.baseName}Query`;
-      lines.push(`export const ${schemaName} = ${renderSchema(entry.query, outDir, refAlias)};`);
+      const text = applyRenames(renderSchema(entry.query, outDir, refAlias), rename);
+      lines.push(`export const ${schemaName} = ${text};`);
       lines.push(`export type ${typeName} = z.infer<typeof ${schemaName}>;`);
     }
 
@@ -211,6 +225,125 @@ function buildFormsFile(
   lines.push('');
 
   return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Nested-schema hoisting: dedup + collision disambiguation + recursion guard.
+// ---------------------------------------------------------------------------
+
+interface NestedSchemaPlan {
+  /** Final unique name → declaration text, emitted once at the top. */
+  globalSchemas: Map<string, string>;
+  /** Per-entry name-rewrite map applied to that entry's body/query text. */
+  renamesByEntry: Map<FormEntry, Map<string, string>>;
+}
+
+/**
+ * Replace whole-identifier occurrences of each `from` name with its `to` name.
+ * Uses a word boundary so `ColumnFilterSchema` is not matched inside
+ * `ColumnFilterSchemaExtra`. A no-op when `renames` is null/empty.
+ */
+function applyRenames(text: string, renames: Map<string, string> | null): string {
+  if (!renames || renames.size === 0) return text;
+  let out = text;
+  for (const [from, to] of renames) {
+    if (from === to) continue;
+    out = out.replace(new RegExp(`\\b${escapeRegExp(from)}\\b`, 'g'), to);
+  }
+  return out;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Does `text` reference its own declaration name (self-referential)? */
+function isSelfReferential(name: string, text: string): boolean {
+  return new RegExp(`\\b${escapeRegExp(name)}\\b`).test(text);
+}
+
+/**
+ * Build the global hoist registry + per-entry renames.
+ *
+ * Invariants enforced:
+ *  - Each unique (name, shape) pair is declared exactly once.
+ *  - Same name + same shape across entries → shared (no duplicate `const`).
+ *  - Same name + DIFFERENT shape → the later entry's copy is suffixed
+ *    (`Name_2`, `Name_3`, …) and every reference inside that entry is rewritten,
+ *    so the two distinct shapes never collide into one wrong schema.
+ *  - A self-referential (recursive) declaration is degraded to a valid
+ *    `z.unknown()` placeholder — never emitted as `const X = (… X …)` without a
+ *    type annotation (which would be implicit-any / fail to compile).
+ */
+function planNestedSchemas(entries: FormEntry[]): NestedSchemaPlan {
+  const globalSchemas = new Map<string, string>();
+  // Canonical text already registered under a given final name (for shape match).
+  const renamesByEntry = new Map<FormEntry, Map<string, string>>();
+
+  for (const entry of entries) {
+    if (!entry.nestedSchemas) continue;
+    const local = Object.entries(entry.nestedSchemas);
+    if (local.length === 0) continue;
+
+    // Resolve a final, collision-free name for each local schema name. Iterate
+    // to a fixpoint so that a rename of schema B (referenced by schema A) is
+    // reflected when comparing A's text against the global registry.
+    const rename = new Map<string, string>();
+    for (const [name] of local) rename.set(name, name);
+
+    // Helper: the entry-local text for a name with the CURRENT rename map applied.
+    const textFor = (name: string): string => {
+      const raw = entry.nestedSchemas?.[name] ?? '';
+      return applyRenames(raw, rename);
+    };
+
+    let changed = true;
+    let guard = 0;
+    while (changed && guard < local.length + 2) {
+      changed = false;
+      guard += 1;
+      for (const [name] of local) {
+        const finalName = rename.get(name) ?? name;
+        const text = textFor(name);
+        const existing = globalSchemas.get(finalName);
+        if (existing === undefined) continue; // not yet registered → fine
+        if (existing === text) continue; // same shape already registered → reuse
+        // Collision: same name, different shape. Pick a fresh suffixed name.
+        let i = 2;
+        let candidate = `${name}_${i}`;
+        while (
+          (globalSchemas.has(candidate) && globalSchemas.get(candidate) !== textFor(name)) ||
+          [...rename.values()].includes(candidate)
+        ) {
+          i += 1;
+          candidate = `${name}_${i}`;
+        }
+        rename.set(name, candidate);
+        changed = true;
+      }
+    }
+
+    // Register each local schema under its final name, degrading recursion.
+    for (const [name] of local) {
+      const finalName = rename.get(name) ?? name;
+      let text = textFor(name);
+      if (isSelfReferential(finalName, text)) {
+        text = 'z.unknown() /* recursive type — not expanded */';
+      }
+      const existing = globalSchemas.get(finalName);
+      if (existing === undefined) {
+        globalSchemas.set(finalName, text);
+      }
+      // If existing === text → already registered (shared). If it somehow still
+      // differs after the fixpoint, keep the first registration and let the
+      // rename map (which only rewrites references) point references elsewhere;
+      // this branch is unreachable given the loop above but is a safe no-op.
+    }
+
+    renamesByEntry.set(entry, rename);
+  }
+
+  return { globalSchemas, renamesByEntry };
 }
 
 function renderSchema(
