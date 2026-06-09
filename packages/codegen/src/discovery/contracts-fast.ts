@@ -264,11 +264,17 @@ function decoratorStringArg(decoratorExpr: Node | undefined): string | undefined
  * Parse a defineContract({...}) call expression.
  * Returns { query, body, response } or null if unrecognised.
  */
-function parseDefineContractCall(callExpr: Node): {
+interface ParsedContractDef {
   query: string | null;
   body: string | null;
   response: string;
-} | null {
+  /** Raw zod source text of the body initializer (for inline forms emit). */
+  bodyZodText: string | null;
+  /** Raw zod source text of the query initializer (for inline forms emit). */
+  queryZodText: string | null;
+}
+
+function parseDefineContractCall(callExpr: Node): ParsedContractDef | null {
   if (!Node.isCallExpression(callExpr)) return null;
 
   const callee = callExpr.getExpression();
@@ -288,6 +294,8 @@ function parseDefineContractCall(callExpr: Node): {
   let query: string | null = null;
   let body: string | null = null;
   let response = 'unknown';
+  let bodyZodText: string | null = null;
+  let queryZodText: string | null = null;
 
   for (const prop of optsArg.getProperties()) {
     if (!Node.isPropertyAssignment(prop)) continue;
@@ -297,14 +305,16 @@ function parseDefineContractCall(callExpr: Node): {
 
     if (propName === 'query') {
       query = zodAstToTs(val);
+      queryZodText = val.getText();
     } else if (propName === 'body') {
       body = zodAstToTs(val);
+      bodyZodText = val.getText();
     } else if (propName === 'response') {
       response = zodAstToTs(val);
     }
   }
 
-  return { query, body, response };
+  return { query, body, response, bodyZodText, queryZodText };
 }
 
 /**
@@ -995,6 +1005,41 @@ function classifyFieldType(
   return markNullable({ kind: 'unknown' }, nullable);
 }
 
+/** Map a classified field kind (+ enum members) to a TS type literal. */
+function kindToTsLiteral(f: FilterFieldType): string {
+  let t: string;
+  if (f.enumValues && f.enumValues.length > 0) {
+    t = f.enumValues.map((v) => (f.numericEnum ? v : JSON.stringify(v))).join(' | ');
+  } else {
+    switch (f.kind) {
+      case 'string':
+        t = 'string';
+        break;
+      case 'number':
+        t = 'number';
+        break;
+      case 'boolean':
+        t = 'boolean';
+        break;
+      case 'date':
+        t = 'Date';
+        break;
+      case 'json':
+        t = 'Record<string, unknown>';
+        break;
+      default:
+        t = 'unknown';
+    }
+  }
+  return f.nullable ? `${t} | null` : t;
+}
+
+/** Build the per-field type map literal `{ "age": number; ... }` for TypedFilterQuery. */
+function buildFieldTypesMapLiteral(fts: FilterFieldType[]): string {
+  const entries = fts.map((f) => `${JSON.stringify(f.name)}: ${kindToTsLiteral(f)}`);
+  return `{ ${entries.join('; ')} }`;
+}
+
 /** Build a FilterFieldType from a classified property + its (possibly dotted) name. */
 function toFilterFieldType(name: string, r: ClassifyResult): FilterFieldType {
   const ft: FilterFieldType = { name, kind: r.kind };
@@ -1055,8 +1100,9 @@ function extractApplyFilterInfo(
       if (fieldTypes.length === 0) return null;
       const fieldNames = fieldTypes.map((f) => f.name);
       const fieldsUnion = fieldNames.map((f) => JSON.stringify(f)).join(' | ');
+      const typeArgs = `${fieldsUnion}, ${buildFieldTypesMapLiteral(fieldTypes)}`;
       return {
-        queryType: `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${fieldsUnion}>`,
+        queryType: `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${typeArgs}>`,
         fieldNames,
         fieldTypes,
         source,
@@ -1554,11 +1600,11 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
         if (!firstDecoratorArg) continue;
 
         // Resolve contract definition from inline call or identifier
-        let contractDef: {
-          query: string | null;
-          body: string | null;
-          response: string;
-        } | null = null;
+        let contractDef: ParsedContractDef | null = null;
+        // When the contract is a named const we can import, re-export its
+        // members (`<const>.body` / `<const>.query`) for perfect parity.
+        let bodyZodRef: TypeRef | null = null;
+        let queryZodRef: TypeRef | null = null;
 
         if (Node.isCallExpression(firstDecoratorArg)) {
           contractDef = parseDefineContractCall(firstDecoratorArg);
@@ -1576,6 +1622,17 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
           if (!initializer) continue;
 
           contractDef = parseDefineContractCall(initializer);
+          // Re-export the named contract's schema members (Path A). Only when the
+          // const is exported so forms.ts can import it.
+          if (contractDef && varDecl.isExported()) {
+            const filePath = sourceFile.getFilePath();
+            if (contractDef.body !== null) {
+              bodyZodRef = { name: `${identName}.body`, filePath };
+            }
+            if (contractDef.query !== null) {
+              queryZodRef = { name: `${identName}.query`, filePath };
+            }
+          }
         } else {
           console.warn(
             `[nestjs-inertia-codegen/fast] @ApplyContract arg is not an identifier or call expression in ${sourceFile.getFilePath()} — skipping`,
@@ -1647,6 +1704,11 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               query: contractDef.query,
               body: contractDef.body,
               response: contractDef.response,
+              // Path A: re-export named const member when available, else inline text.
+              bodyZodRef,
+              bodyZodText: bodyZodRef ? null : contractDef.bodyZodText,
+              queryZodRef,
+              queryZodText: queryZodRef ? null : contractDef.queryZodText,
             },
           },
         });

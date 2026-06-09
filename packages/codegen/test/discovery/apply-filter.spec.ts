@@ -18,8 +18,10 @@ describe('@ApplyFilter query type extraction', () => {
     expect(query).toContain('"name"');
     expect(query).toContain('"minAge"');
     expect(query).toContain('"status"');
+    // Phase 5: the field-type map is emitted as a second type arg.
+    // Optional (?) properties are nullable → `| null`.
     expect(query).toBe(
-      `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<"name" | "minAge" | "status">`,
+      `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<"name" | "minAge" | "status", { "name": string | null; "minAge": number | null; "status": string | null }>`,
     );
   });
 
