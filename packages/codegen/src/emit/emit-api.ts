@@ -1,6 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
-import type { ControllerRef, RouteDescriptor, TypeRef } from '../discovery/types.js';
+import type {
+  ControllerRef,
+  FieldTypeKind,
+  FilterFieldType,
+  RouteDescriptor,
+  TypeRef,
+} from '../discovery/types.js';
 
 /**
  * Emits `api.ts` into `outDir` for all routes that carry a `.contract`.
@@ -84,6 +90,7 @@ type LeafEntry = {
     bodyRef?: TypeRef | null;
     responseRef?: TypeRef | null;
     filterFields?: string[] | null;
+    filterFieldTypes?: FilterFieldType[] | null;
     filterSource?: 'body' | 'query' | null;
   };
 };
@@ -165,6 +172,46 @@ function hasPathParams(params: Array<{ name: string; source: string }>): boolean
 // ---------------------------------------------------------------------------
 // Code generation helpers
 // ---------------------------------------------------------------------------
+
+/** Map a classified field kind (+ enum members) to a TS type literal. */
+function kindToTs(kind: FieldTypeKind, enumValues?: string[], numericEnum?: boolean): string {
+  if (enumValues && enumValues.length > 0) {
+    return enumValues.map((v) => (numericEnum ? v : JSON.stringify(v))).join(' | ');
+  }
+  switch (kind) {
+    case 'string':
+      return 'string';
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'date':
+      return 'Date';
+    case 'json':
+      return 'Record<string, unknown>';
+    default:
+      return 'unknown';
+  }
+}
+
+/** Emit the per-field type map literal: `{ "age": number; "status": "A" | "B" }`. */
+function emitFieldTypesLiteral(fts: FilterFieldType[]): string {
+  const entries = fts.map((f) => {
+    let t = kindToTs(f.kind, f.enumValues, f.numericEnum);
+    if (f.nullable) t = `${t} | null`;
+    return `${JSON.stringify(f.name)}: ${t}`;
+  });
+  return `{ ${entries.join('; ')} }`;
+}
+
+/** Build the type args for `_filterQueryTyped` — single union, or union + field-type map. */
+function emitFilterQueryTypeArgs(c: LeafEntry): string {
+  const fieldsUnion = (c.contractSource.filterFields ?? [])
+    .map((f) => JSON.stringify(f))
+    .join(' | ');
+  const fts = c.contractSource.filterFieldTypes;
+  return fts?.length ? `${fieldsUnion}, ${emitFieldTypesLiteral(fts)}` : fieldsUnion;
+}
 
 /**
  * Emit the nested ApiRouter type block.
@@ -319,10 +366,8 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           lines.push(`${pad}  }),`);
         }
         if (c.contractSource.filterFields?.length) {
-          const fieldsUnion = c.contractSource.filterFields
-            .map((f) => JSON.stringify(f))
-            .join(' | ');
-          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${fieldsUnion}>(),`);
+          const typeArgs = emitFilterQueryTypeArgs(c);
+          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${typeArgs}>(),`);
         }
         lines.push(`${pad}},`);
       } else {
@@ -356,10 +401,8 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
         }
         lines.push(`${pad}    }),`);
         if (c.contractSource.filterFields?.length) {
-          const fieldsUnion = c.contractSource.filterFields
-            .map((f) => JSON.stringify(f))
-            .join(' | ');
-          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${fieldsUnion}>(),`);
+          const typeArgs = emitFilterQueryTypeArgs(c);
+          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${typeArgs}>(),`);
           lines.push(`${pad}  queryOptions: (body: ${typeAccess}['body']) =>`);
           lines.push(`${pad}    _queryOptions({`);
           lines.push(`${pad}      queryKey: [${flatName}, body] as const,`);

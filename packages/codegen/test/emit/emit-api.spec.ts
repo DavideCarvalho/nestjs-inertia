@@ -58,6 +58,25 @@ describe('emitApi', () => {
       },
     },
     {
+      method: 'GET',
+      path: '/api/people',
+      name: 'people.list',
+      params: [],
+      contract: {
+        contractSource: {
+          query: null,
+          body: null,
+          response: '{ data: unknown[] }',
+          filterFields: ['age', 'name', 'status'],
+          filterFieldTypes: [
+            { name: 'age', kind: 'number' },
+            { name: 'name', kind: 'string' },
+            { name: 'status', kind: 'string', enumValues: ['A', 'B'] },
+          ],
+        },
+      },
+    },
+    {
       // Route without contract — should be ignored in api.ts
       method: 'GET',
       path: '/health',
@@ -106,6 +125,20 @@ describe('emitApi', () => {
     // Non-contracted route must not appear
     expect(content).not.toContain('"HealthController.check"');
     expect(content).not.toContain('HealthController');
+  });
+
+  it('emits the field-type map as a second type arg when filterFieldTypes present', async () => {
+    await emitApi(routesWithContract, outDir);
+    const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+    expect(content).toContain(
+      'filterQuery: () => _filterQueryTyped<"age" | "name" | "status", { "age": number; "name": string; "status": "A" | "B" }>(),',
+    );
+  });
+
+  it('emits single type arg when filterFieldTypes is absent', async () => {
+    await emitApi(routesWithContract, outDir);
+    const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+    expect(content).toContain('_filterQueryTyped<"status" | "tasks.name">()');
   });
 
   it('ApiRouter GET entry has body: never', async () => {
