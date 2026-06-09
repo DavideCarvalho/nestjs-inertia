@@ -1,5 +1,15 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 2.0.0
+
+### Major Changes
+
+- [`1cd3d1b`](https://github.com/DavideCarvalho/nestjs-inertia/commit/1cd3d1bf25e3c98db9cfb0ed55e9057e20d3d97f) - Remove the `useInertiaForm` hook and the `./react-form` subpath export (plus the
+  `react-hook-form` / `@hookform/resolvers` optional peers and the `mergeServerErrors`
+  helper). The codegen zod-schema generation and the server-side validation filter
+  are unaffected. Forms should be wired with your own react-hook-form + submission
+  lane, using the generated zod schemas.
+
 ## 1.8.0
 
 ### Minor Changes

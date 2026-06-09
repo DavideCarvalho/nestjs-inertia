@@ -1,5 +1,13 @@
 # @example/express-svelte
 
+## 0.0.27
+
+### Patch Changes
+
+- Updated dependencies [[`1cd3d1b`](https://github.com/DavideCarvalho/nestjs-inertia/commit/1cd3d1bf25e3c98db9cfb0ed55e9057e20d3d97f)]:
+  - @dudousxd/nestjs-inertia-client@2.0.0
+  - @dudousxd/nestjs-inertia-codegen@1.11.0
+
 ## 0.0.26
 
 ### Patch Changes
