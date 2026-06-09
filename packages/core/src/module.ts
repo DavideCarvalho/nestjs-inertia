@@ -1,5 +1,6 @@
 import {
   type DynamicModule,
+  type ExceptionFilter,
   Inject,
   Logger,
   type MiddlewareConsumer,
@@ -7,7 +8,6 @@ import {
   type NestModule,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
-  type ExceptionFilter,
   type OnModuleInit,
   type Provider,
   RequestMethod,
@@ -24,7 +24,6 @@ import { InvalidInertiaConfigException } from './errors/exceptions.js';
 import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
 import { InertiaScopeSwitcherInterceptor } from './interceptor/scope-switcher.interceptor.js';
-import { InertiaValidationFilter } from './validation/inertia-validation.filter.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
 import { registerFastifyInertia } from './middleware/fastify.middleware.js';
 import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
@@ -48,6 +47,7 @@ import type {
   RootViewFn,
   ShellRenderCtx,
 } from './types.js';
+import { InertiaValidationFilter } from './validation/inertia-validation.filter.js';
 
 /** Minimal interface matching `Watcher` from `@dudousxd/nestjs-inertia-codegen`. */
 interface CodegenWatcher {

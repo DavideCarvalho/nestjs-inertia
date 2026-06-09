@@ -40,7 +40,6 @@ export class ParamFilter {
 
   // (e) unresolvable `any` param → skipped (no field emitted).
   @FilterFor('blob')
-  // biome-ignore lint/suspicious/noExplicitAny: deliberate any for the skip path
   applyBlob(_v: any) {}
 }
 

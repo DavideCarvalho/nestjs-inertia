@@ -101,8 +101,12 @@ describe('@FilterFor method-parameter type inference (emit)', () => {
     await emitApi(routes, outDir);
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
 
-    expect(content).toMatch(/import type \{[^}]*\bRole\b[^}]*\} from '[^']*dto\/role\.enum(\.js)?';/);
-    expect(content).toMatch(/import type \{[^}]*\bTier\b[^}]*\} from '[^']*dto\/role\.enum(\.js)?';/);
+    expect(content).toMatch(
+      /import type \{[^}]*\bRole\b[^}]*\} from '[^']*dto\/role\.enum(\.js)?';/,
+    );
+    expect(content).toMatch(
+      /import type \{[^}]*\bTier\b[^}]*\} from '[^']*dto\/role\.enum(\.js)?';/,
+    );
     expect(content).toContain('{ "role": Role; "tier": Tier }');
   });
 

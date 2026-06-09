@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { Role, Tier } from './dto/role.enum.js';
+import type { Role, Tier } from './dto/role.enum.js';
 
 function Filterable(_opts?: unknown): ClassDecorator {
   return () => {};
