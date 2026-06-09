@@ -61,6 +61,7 @@ export class InertiaScopeSwitcherInterceptor implements NestInterceptor {
           (opts as { historyEncryption?: { default?: boolean } }).historyEncryption?.default ??
           false,
         flashStore: (opts as { flashStore?: InertiaModuleOptions['flashStore'] }).flashStore,
+        diagnostics: (opts as { diagnostics?: boolean }).diagnostics,
       };
       const platform = this.httpAdapterHost.httpAdapter?.getType();
       const adapter = platform === 'fastify' ? fastifyAdapter : expressAdapter;

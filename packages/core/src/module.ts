@@ -420,6 +420,7 @@ export class InertiaModule
           featureShare: undefined,
           historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
           flashStore: this.options.flashStore,
+          diagnostics: this.options.diagnostics,
         }));
         // Phase 21: also register method spoof
         const { registerFastifyMethodSpoof } = await import(

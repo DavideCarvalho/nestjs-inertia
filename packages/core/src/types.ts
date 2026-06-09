@@ -81,6 +81,9 @@ export interface InertiaModuleOptions {
   methodSpoofing?: boolean;
   codegen?: CodegenOptions;
   flashStore?: FlashStore;
+  /** Hard-disable diagnostics_channel publishing even when a subscriber exists.
+   *  Default true. Set false to guarantee no publish in hardened prod. */
+  diagnostics?: boolean;
 }
 
 export interface InertiaFeatureOptions extends InertiaModuleOptions {

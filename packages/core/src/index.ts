@@ -53,6 +53,9 @@ export type {
   InertiaFeatureAsyncOptions,
 } from './types.js';
 
+export { INERTIA_DIAG_CHANNEL } from './diagnostics.js';
+export type { InertiaRenderDiagnostic } from './diagnostics.js';
+
 export { CsrfCookieInterceptor, rotateCsrfToken } from './csrf/csrf-cookie.interceptor.js';
 export type { CsrfCookieOptions } from './csrf/csrf-cookie.interceptor.js';
 export { CsrfGuard } from './csrf/csrf.guard.js';
