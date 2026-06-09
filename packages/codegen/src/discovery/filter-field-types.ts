@@ -50,11 +50,23 @@ export function markNullable(r: ClassifyResult, nullable: boolean): ClassifyResu
   return nullable ? { ...r, nullable: true } : r;
 }
 
+/**
+ * Options for {@link classifyTypeNode}. When `resolveRef` is supplied and the
+ * type node is a named reference (not a primitive / well-known name), it is
+ * called with the symbol name; a non-null result is attached as `typeRef` on the
+ * returned `ClassifyResult`. This lets `classifyFilterForParam` classify ONCE and
+ * pick up the importable ref in the same pass.
+ */
+export interface ClassifyTypeNodeOptions {
+  resolveRef?: (refName: string) => TypeRef | null;
+}
+
 /** Classify a TS type node into a field-type kind (+ enum members / nullable). */
 export function classifyTypeNode(
   typeNode: TypeNode,
   sourceFile: SourceFile,
   project: Project,
+  opts?: ClassifyTypeNodeOptions,
 ): ClassifyResult {
   // Union: strip null/undefined, collect literal members, recurse otherwise.
   if (Node.isUnionTypeNode(typeNode)) {
@@ -93,7 +105,7 @@ export function classifyTypeNode(
       return markNullable({ kind: 'number', enumValues: numberLits, numericEnum: true }, nullable);
     }
     if (others.length === 1) {
-      const inner = classifyTypeNode(others[0]!, sourceFile, project);
+      const inner = classifyTypeNode(others[0]!, sourceFile, project, opts);
       return markNullable(inner, nullable || inner.nullable === true);
     }
     return markNullable({ kind: 'unknown' }, nullable);
@@ -117,13 +129,18 @@ export function classifyTypeNode(
     const refName = typeNode.getTypeName().getText();
     if (refName === 'Date') return { kind: 'date' };
     if (refName === 'Record' || refName === 'Object') return { kind: 'json' };
+    // An importable named ref (enum / type alias / interface / class) wins for
+    // emit when the caller supplied a resolver and a safe import path exists.
+    const typeRef = opts?.resolveRef?.(refName) ?? null;
     // Possibly an enum type used as a property type.
     const en = resolveEnumValues(refName, sourceFile, project);
     if (en) {
-      return en.numeric
+      const base: ClassifyResult = en.numeric
         ? { kind: 'number', enumValues: en.values, numericEnum: true }
         : { kind: 'string', enumValues: en.values };
+      return typeRef ? { ...base, typeRef } : base;
     }
+    if (typeRef) return { kind: 'unknown', typeRef };
     return { kind: 'unknown' };
   }
 
@@ -253,7 +270,14 @@ export function classifyFieldType(
   return markNullable({ kind: 'unknown' }, nullable);
 }
 
-/** Build a FilterFieldType from a classified property + its (possibly dotted) name. */
+/**
+ * The single normalizing constructor for a {@link FilterFieldType} from a
+ * classification. Concentrates the `typeRef` precedence invariant (see the
+ * `FilterFieldType` doc): `kind`/`enumValues`/`numericEnum` are always recorded
+ * best-effort, and `typeRef` (when present) is what the emitter actually uses.
+ * Build `FilterFieldType` values through here — not inline — so the convention
+ * has exactly one enforcement point.
+ */
 export function toFilterFieldType(name: string, r: ClassifyResult): FilterFieldType {
   const ft: FilterFieldType = { name, kind: r.kind };
   if (r.enumValues && r.enumValues.length > 0) ft.enumValues = r.enumValues;

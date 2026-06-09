@@ -1,11 +1,11 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative } from 'node:path';
 import type {
+  ContractSource,
   ControllerRef,
   FieldTypeKind,
   FilterFieldType,
   RouteDescriptor,
-  TypeRef,
 } from '../discovery/types.js';
 
 /**
@@ -82,17 +82,11 @@ type LeafEntry = {
   path: string;
   params: Array<{ name: string; source: string }>;
   controllerRef?: ControllerRef | undefined;
-  contractSource: {
-    query: string | null | undefined;
-    body: string | null | undefined;
-    response: string;
-    queryRef?: TypeRef | null;
-    bodyRef?: TypeRef | null;
-    responseRef?: TypeRef | null;
-    filterFields?: string[] | null;
-    filterFieldTypes?: FilterFieldType[] | null;
-    filterSource?: 'body' | 'query' | null;
-  };
+  // Reference the canonical discovery type directly rather than re-declaring a
+  // parallel hand-maintained shape. The leaf is always built from a real
+  // `ContractSource` (`contractSource: r.contract.contractSource`), so the extra
+  // form/zod fields it carries are simply unused here.
+  contractSource: ContractSource;
 };
 
 type BranchEntry = {
@@ -194,7 +188,12 @@ function kindToTs(kind: FieldTypeKind, enumValues?: string[], numericEnum?: bool
   }
 }
 
-/** Emit the per-field type map literal: `{ "age": number; "status": "A" | "B" }`. */
+/**
+ * Emit the per-field type map literal: `{ "age": number; "status": "A" | "B" }`.
+ * This is the SOLE emit-side reader of `FilterFieldType` — it owns the `typeRef`
+ * precedence invariant (a named ref wins over `kind`/`enumValues`; see the
+ * `FilterFieldType` doc). No other emit code branches on `typeRef` vs `kind`.
+ */
 function emitFieldTypesLiteral(fts: FilterFieldType[]): string {
   const entries = fts.map((f) => {
     // A named typeRef (enum / type alias / interface inferred from a @FilterFor

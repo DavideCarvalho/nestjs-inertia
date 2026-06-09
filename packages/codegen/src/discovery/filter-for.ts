@@ -78,45 +78,28 @@ export function classifyFilterForParam(
   const typeNode = param.getTypeNode();
   if (!typeNode) return null;
 
-  // Named type reference: try to emit a real import (option B). For an enum /
-  // type alias / interface we prefer a named `import type`; only fall back to
-  // literal expansion when no safe import path exists.
-  if (Node.isTypeReference(typeNode)) {
-    const typeName = typeNode.getTypeName();
-    const refName = Node.isIdentifier(typeName) ? typeName.getText() : null;
-    if (refName) {
-      // Primitives / well-known names are handled by classifyTypeNode below.
-      const wellKnown = ['string', 'number', 'boolean', 'Date', 'any', 'unknown'];
-      if (!wellKnown.includes(refName)) {
-        const resolvedDecl = findType(refName, sourceFile, project);
-        // Only attempt a named import for symbols we can resolve to an
-        // enum / type alias / interface / class declaration.
-        if (resolvedDecl) {
-          const typeRef = resolveTypeRef(refName, sourceFile, project, {
-            kinds: ['class', 'interface', 'typeAlias', 'enum'],
-            allowBareSpecifier: true,
-          });
-          if (typeRef) {
-            // We still record a best-effort `kind` so non-emit consumers
-            // (e.g. tests) see a sensible classification, but the emitter
-            // prefers `typeRef`.
-            const base = classifyTypeNode(typeNode, sourceFile, project);
-            return { ...base, typeRef };
-          }
-          // No safe import path — fall back to literal expansion when the
-          // type is a statically-known enum/union; else skip.
-          const fallback = classifyTypeNode(typeNode, sourceFile, project);
-          if (fallback.kind !== 'unknown') return fallback;
-          return null;
-        }
-        // Unresolvable named type → skip (fall back to existing behavior).
-        return null;
-      }
-    }
-  }
+  // Classify ONCE. `resolveRef` attaches an importable named ref (option B) when
+  // the symbol resolves to an exported enum / type alias / interface / class with
+  // a safe import path; the emitter prefers that `typeRef` over the `kind`. The
+  // best-effort `kind` is still recorded so non-emit consumers (tests) see a
+  // sensible classification.
+  const wellKnown = ['string', 'number', 'boolean', 'Date', 'any', 'unknown'];
+  const result = classifyTypeNode(typeNode, sourceFile, project, {
+    resolveRef: (refName) => {
+      if (wellKnown.includes(refName)) return null;
+      // Only attempt a named import for symbols we can resolve to a declaration.
+      if (!findType(refName, sourceFile, project)) return null;
+      return resolveTypeRef(refName, sourceFile, project, {
+        kinds: ['class', 'interface', 'typeAlias', 'enum'],
+        allowBareSpecifier: true,
+      });
+    },
+  });
 
-  const r = classifyTypeNode(typeNode, sourceFile, project);
-  return r.kind === 'unknown' ? null : r;
+  // A resolved `typeRef` is always usable (even with kind 'unknown' — the emitter
+  // references the ref by name). Otherwise skip permissive `unknown` results.
+  if (result.typeRef) return result;
+  return result.kind === 'unknown' ? null : result;
 }
 
 /**
@@ -393,7 +376,9 @@ function extractFilterableEntityFields(
         if (!keysInit || !Node.isArrayLiteralExpression(keysInit)) continue;
         for (const el of keysInit.getElements()) {
           if (Node.isStringLiteral(el)) {
-            fields.push({ name: el.getLiteralValue(), kind: 'unknown' });
+            // Route through the single constructor (keeps the typeRef invariant
+            // enforced in one place); these relation keys carry no type → unknown.
+            fields.push(toFilterFieldType(el.getLiteralValue(), { kind: 'unknown' }));
           }
         }
       }

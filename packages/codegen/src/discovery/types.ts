@@ -6,6 +6,21 @@ export interface TypeRef {
 
 export type FieldTypeKind = 'string' | 'number' | 'boolean' | 'date' | 'json' | 'unknown';
 
+/**
+ * A classified filter field.
+ *
+ * INVARIANT — `typeRef` precedence: when `typeRef` is set it is the SOLE source
+ * of truth for the emitted type; `kind`/`enumValues`/`numericEnum` are then only
+ * a best-effort fallback recorded for non-emit consumers (tests/introspection),
+ * NOT something the emitter reads. A discriminated union would make "carries both
+ * a ref AND a literal kind" unrepresentable, but the producers and tests read
+ * `kind` and `typeRef` off the same object freely, so the union ripples too
+ * widely and fights the existing nullable handling. Instead this invariant is
+ * concentrated in the single normalizing constructor {@link toFilterFieldType}
+ * (the only place a `FilterFieldType` is built from a classification) and honored
+ * by the single emit-side reader (`emitFieldTypesLiteral`). Do not branch on
+ * `typeRef` vs `kind` anywhere else.
+ */
 export interface FilterFieldType {
   /** Field name, e.g. 'age' or 'tasks.id' (dot-notation for relations). */
   name: string;
@@ -21,7 +36,7 @@ export interface FilterFieldType {
    * a `@FilterFor` method parameter, the importable reference to that symbol.
    * The emitter references `typeRef.name` in the type map M and emits a real
    * `import type { <name> } from '<path>'` at the top of the generated file.
-   * Takes precedence over `kind`/`enumValues` when present.
+   * Takes precedence over `kind`/`enumValues` when present (see invariant above).
    */
   typeRef?: TypeRef;
 }
