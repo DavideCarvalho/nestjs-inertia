@@ -204,7 +204,7 @@ function buildFormsFile(
     lines.push('');
   }
 
-  lines.push('/** Route name → body schema map for useInertiaForm-by-name ergonomics. */');
+  lines.push('/** Route name → body schema map. */');
   lines.push('export const formSchemas = {');
   lines.push(...mapEntries);
   lines.push('} as const;');

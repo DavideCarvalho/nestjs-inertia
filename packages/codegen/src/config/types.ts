@@ -37,7 +37,8 @@ export interface UserConfig {
   };
   /**
    * Typed-form schema emit (`forms.ts`). Re-exports / translates contract and
-   * class-validator-decorated DTO schemas into zod schemas for `useInertiaForm`.
+   * class-validator-decorated DTO schemas into zod schemas for client-side
+   * validation.
    */
   forms?: {
     /** Emit `forms.ts`. Default: `true` (when ≥1 validatable body exists). */
