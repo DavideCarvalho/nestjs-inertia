@@ -173,6 +173,23 @@ describe('discoverContractsFast — form zod capture (Path A)', () => {
   });
 });
 
+describe('discoverContractsFast — class-validator DTO synthesis (Path B)', () => {
+  it('synthesizes bodyZodText + nested schemas from a decorated DTO class', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'forms-dto.controller.ts',
+    });
+
+    const register = routes.find((r) => r.name === 'accountForms.register');
+    expect(register).toBeDefined();
+    const cs = register!.contract!.contractSource;
+    expect(cs.bodyZodText).toContain('email: z.string().email()');
+    expect(cs.bodyZodText).toContain('password: z.string().min(8)');
+    expect(cs.bodyZodText).toContain('address: AddressDtoSchema');
+    expect(cs.formNestedSchemas?.AddressDtoSchema).toBe('z.object({ city: z.string() })');
+  });
+});
+
 describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', () => {
   it('discovers all 5 routes from the all-verbs fixture', async () => {
     const routes = await discoverContractsFast({

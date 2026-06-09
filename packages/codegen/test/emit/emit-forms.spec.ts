@@ -187,6 +187,58 @@ describe('emitForms', () => {
     expect(wrote).toBe(false);
   });
 
+  it('hoists nested schemas (Path B) above the parent export', async () => {
+    const routes: RouteDescriptor[] = [
+      {
+        method: 'POST',
+        path: '/account/register',
+        name: 'account.register',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ address: AddressDtoSchema })',
+            formNestedSchemas: { AddressDtoSchema: 'z.object({ city: z.string() })' },
+          },
+        },
+      },
+    ];
+    await emitForms(routes, outDir);
+    const out = await read();
+    expect(out).toContain('const AddressDtoSchema = z.object({ city: z.string() });');
+    expect(out).toContain(
+      'export const RegisterBodySchema = z.object({ address: AddressDtoSchema });',
+    );
+    expect(out.indexOf('const AddressDtoSchema =')).toBeLessThan(
+      out.indexOf('export const RegisterBodySchema ='),
+    );
+  });
+
+  it('surfaces form warnings as header comments', async () => {
+    const routes: RouteDescriptor[] = [
+      {
+        method: 'POST',
+        path: '/auth/login',
+        name: 'auth.login',
+        params: [],
+        contract: {
+          contractSource: {
+            query: null,
+            body: '{}',
+            response: 'unknown',
+            bodyZodText: 'z.object({ password: z.string() })',
+            formWarnings: ['@IsStrongPassword is not translatable to zod and was skipped.'],
+          },
+        },
+      },
+    ];
+    await emitForms(routes, outDir);
+    const out = await read();
+    expect(out).toContain('// warning: @IsStrongPassword is not translatable');
+  });
+
   it('orders routes deterministically by name', async () => {
     const routes: RouteDescriptor[] = [
       {

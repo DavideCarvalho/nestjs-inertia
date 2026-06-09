@@ -16,6 +16,7 @@ import {
   SyntaxKind,
   type TypeNode,
 } from 'ts-morph';
+import { extractZodFromDto } from './dto-to-zod.js';
 import type { FieldTypeKind, FilterFieldType, RouteDescriptor, TypeRef } from './types.js';
 
 export interface FastDiscoveryOptions {
@@ -389,7 +390,7 @@ function extractParams(
 // DTO-based contract extraction (standard NestJS patterns — no defineContract)
 // ---------------------------------------------------------------------------
 
-type TypeDeclResult =
+export type TypeDeclResult =
   | { kind: 'class'; decl: ClassDeclaration; file: SourceFile }
   | { kind: 'interface'; decl: InterfaceDeclaration; file: SourceFile }
   | { kind: 'typeAlias'; typeNode: TypeNode | undefined; file: SourceFile; text: string }
@@ -505,7 +506,11 @@ function resolveImportedType(
 /**
  * Find a type declaration by name: first in the current file, then by following imports.
  */
-function findType(name: string, sourceFile: SourceFile, project: Project): TypeDeclResult | null {
+export function findType(
+  name: string,
+  sourceFile: SourceFile,
+  project: Project,
+): TypeDeclResult | null {
   const local = findTypeInFile(name, sourceFile);
   if (local) return local;
   return resolveImportedType(name, sourceFile, project);
@@ -1446,6 +1451,10 @@ export function extractDtoContract(
   filterFields?: string[] | null;
   filterFieldTypes?: FilterFieldType[] | null;
   filterSource?: 'body' | 'query' | null;
+  bodyZodText?: string | null;
+  queryZodText?: string | null;
+  formNestedSchemas?: Record<string, string> | null;
+  formWarnings?: string[];
 } | null {
   let body = extractBodyType(method, sourceFile, project);
   const filterInfo = extractApplyFilterInfo(method, sourceFile, project);
@@ -1522,6 +1531,30 @@ export function extractDtoContract(
     }
   }
 
+  // ── Synthesize form zod schemas from class-validator DTOs (Path B) ────────
+  // Resolve the @Body()/@Query() param to a class declaration and translate its
+  // decorators. A defineContract schema always wins, so this only runs on the
+  // plain-verb path where no contract schema is present.
+  let bodyZodText: string | null = null;
+  let queryZodText: string | null = null;
+  const formNested: Record<string, string> = {};
+  const formWarnings: string[] = [];
+
+  const bodyClass = resolveParamClass(method, 'Body', sourceFile, project);
+  if (bodyClass) {
+    const result = extractZodFromDto(bodyClass.decl, bodyClass.file, project);
+    bodyZodText = result.schemaText;
+    for (const [k, v] of result.namedNestedSchemas) formNested[k] = v;
+    formWarnings.push(...result.warnings);
+  }
+  const queryClass = resolveParamClass(method, 'Query', sourceFile, project);
+  if (queryClass) {
+    const result = extractZodFromDto(queryClass.decl, queryClass.file, project);
+    queryZodText = result.schemaText;
+    for (const [k, v] of result.namedNestedSchemas) formNested[k] = v;
+    formWarnings.push(...result.warnings);
+  }
+
   return {
     query,
     body,
@@ -1533,7 +1566,36 @@ export function extractDtoContract(
     filterFields: filterInfo?.fieldNames ?? null,
     filterFieldTypes: filterInfo?.fieldTypes ?? null,
     filterSource: filterInfo?.source ?? null,
+    bodyZodText,
+    queryZodText,
+    formNestedSchemas: Object.keys(formNested).length > 0 ? formNested : null,
+    formWarnings,
   };
+}
+
+/**
+ * Resolve a `@Body()` / `@Query()` parameter's TS type to a class declaration
+ * (following imports). Returns null for interfaces / plain types / unresolved.
+ */
+function resolveParamClass(
+  method: MethodDeclaration,
+  decoratorName: 'Body' | 'Query',
+  sourceFile: SourceFile,
+  project: Project,
+): { decl: ClassDeclaration; file: SourceFile } | null {
+  for (const param of method.getParameters()) {
+    if (!param.getDecorators().some((d) => d.getName() === decoratorName)) continue;
+    const typeNode = param.getTypeNode();
+    if (!typeNode) continue;
+    // Strip array suffix — translate the element class.
+    const text = typeNode.getText().replace(/\[\]$/, '');
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(text)) continue;
+    const resolved = findType(text, sourceFile, project);
+    if (resolved && resolved.kind === 'class') {
+      return { decl: resolved.decl, file: resolved.file };
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1761,6 +1823,10 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               filterFields: dtoContract?.filterFields ?? null,
               filterFieldTypes: dtoContract?.filterFieldTypes ?? null,
               filterSource: dtoContract?.filterSource ?? null,
+              bodyZodText: dtoContract?.bodyZodText ?? null,
+              queryZodText: dtoContract?.queryZodText ?? null,
+              formNestedSchemas: dtoContract?.formNestedSchemas ?? null,
+              formWarnings: dtoContract?.formWarnings ?? [],
             },
           },
         });
