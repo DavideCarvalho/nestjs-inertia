@@ -1,5 +1,16 @@
 # @example/express-svelte
 
+## 0.0.26
+
+### Patch Changes
+
+- Updated dependencies [[`4395608`](https://github.com/DavideCarvalho/nestjs-inertia/commit/439560897a20f84068f94d4402fc196b92367624), [`4395608`](https://github.com/DavideCarvalho/nestjs-inertia/commit/439560897a20f84068f94d4402fc196b92367624), [`47deaa6`](https://github.com/DavideCarvalho/nestjs-inertia/commit/47deaa6fef3d6485b32ce001d4c5e2ef39b54704), [`56e0415`](https://github.com/DavideCarvalho/nestjs-inertia/commit/56e04152cb5e403f0149c0c7d6a91c3a1d065986), [`0741785`](https://github.com/DavideCarvalho/nestjs-inertia/commit/074178563ae98e7af2b7159bcaa09523143b2df7), [`38eac5a`](https://github.com/DavideCarvalho/nestjs-inertia/commit/38eac5ab639cd446593ccb29f5fb6a4e83774b45), [`bdf8e49`](https://github.com/DavideCarvalho/nestjs-inertia/commit/bdf8e49fe24b85a38a218058632963fb233361d9)]:
+  - @dudousxd/nestjs-inertia@1.5.0
+  - @dudousxd/nestjs-inertia-codegen@1.11.0
+  - @dudousxd/nestjs-inertia-client@1.8.0
+  - @dudousxd/nestjs-inertia-testing@1.4.2
+  - @dudousxd/nestjs-inertia-vite@1.4.3
+
 ## 0.0.25
 
 ### Patch Changes
