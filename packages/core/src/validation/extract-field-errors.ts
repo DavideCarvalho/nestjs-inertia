@@ -20,8 +20,13 @@ interface ZodIssueLike {
  *  2. `ContractValidationPipe` shape `{ message: 'Contract validation failed',
  *     issues: ZodIssue[] }` — issue paths joined with `.`.
  *  3. A raw `ZodError` (`{ name: 'ZodError', issues: [...] }`).
- *  4. A flat class-validator `message: string[]` — split on first space, leading
- *     token becomes the key (lossy fallback for flat DTOs).
+ *  4. A flat class-validator `message: string[]` — best-effort: the leading
+ *     token is used as the field key ONLY when it matches class-validator's
+ *     default `"<property> <constraint>"` shape (a camelCase property). Custom
+ *     or prose messages we can't confidently attribute go to the form-level `_`
+ *     bucket the client surfaces as a general error — never guessed onto a
+ *     phantom or wrong field. For lossless per-field keys (incl. nested paths),
+ *     wire {@link inertiaValidationExceptionFactory}, which hits branch 1.
  *
  * Returns `null` when the exception is not a recognized validation failure, so
  * the caller can rethrow it for normal handling.
@@ -96,11 +101,25 @@ function mapZodIssues(issues: ZodIssueLike[], mergeMessages: 'first' | 'join'): 
   return out;
 }
 
+/**
+ * The client's form-level error bucket (`merge-server-errors.ts`): messages
+ * under this key surface as a general `formError`, not on any field.
+ */
+const FORM_LEVEL_KEY = '_';
+
+/** class-validator default messages lead with the offending property in the
+ *  DTO's (conventionally camelCase) casing: `"email must be an email"`. */
+const CV_PROPERTY = /^[a-z_$][\w$]*$/;
+
 function mapFlatMessages(messages: string[], mergeMessages: 'first' | 'join'): FlashErrors {
   const out: FlashErrors = {};
   for (const message of messages) {
     const spaceIdx = message.indexOf(' ');
-    const key = spaceIdx === -1 ? message : message.slice(0, spaceIdx);
+    const head = spaceIdx === -1 ? '' : message.slice(0, spaceIdx);
+    // Trust the leading token as a field key only when the message follows the
+    // `"<camelCaseProperty> <constraint>"` shape; otherwise attribute to the
+    // form-level bucket rather than inventing a field.
+    const key = CV_PROPERTY.test(head) ? head : FORM_LEVEL_KEY;
     mergeInto(out, key, message, mergeMessages);
   }
   return out;

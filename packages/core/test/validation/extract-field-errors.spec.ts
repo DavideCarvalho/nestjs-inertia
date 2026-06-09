@@ -44,6 +44,33 @@ describe('extractFieldErrors', () => {
     });
   });
 
+  it('routes non-attributable flat messages to the form-level `_` bucket', () => {
+    const ex = new BadRequestException({
+      statusCode: 400,
+      message: [
+        'email must be an email', // camelCase property lead → keyed
+        'Please enter a valid email', // capitalized prose → form-level, not "Please"
+        'Required', // single word → form-level, not a "Required" field
+      ],
+      error: 'Bad Request',
+    });
+    expect(extractFieldErrors(ex)).toEqual({
+      email: 'email must be an email',
+      _: 'Please enter a valid email',
+    });
+  });
+
+  it('joins multiple form-level messages when mergeMessages: join', () => {
+    const ex = new BadRequestException({
+      statusCode: 400,
+      message: ['Totally custom message', 'Another one'],
+      error: 'Bad Request',
+    });
+    expect(extractFieldErrors(ex, { mergeMessages: 'join' })).toEqual({
+      _: 'Totally custom message Another one',
+    });
+  });
+
   it('merges duplicate keys first-wins by default', () => {
     const ex = new BadRequestException({
       message: 'Contract validation failed',
