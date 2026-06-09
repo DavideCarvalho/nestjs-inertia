@@ -1,11 +1,16 @@
-# Complete Forms Story — Typed Forms + Automatic Validation
+# Forms Story — Typed Schemas + Automatic Validation
 
 `nestjs-inertia` makes forms feel like Laravel/Inertia: validation failures
-auto-flash a field-keyed error bag and redirect back, and the client gets a
-typed `useInertiaForm` hook whose zod schema is generated from your server
-contracts/DTOs. The unifying invariant is the **shared error-key contract**: the
-key the server flashes (`email`, `address.city`, `items.0.qty`) is byte-identical
-to the React Hook Form field path.
+auto-flash a field-keyed error bag and redirect back, and the codegen generates a
+zod schema per validated endpoint from your server contracts/DTOs. The unifying
+invariant is the **shared error-key contract**: the key the server flashes
+(`email`, `address.city`, `items.0.qty`) is byte-identical to the field path you
+register on the client.
+
+The client form wiring itself is left to you — bring your own form library (e.g.
+react-hook-form) and submission lane, and validate against the generated zod
+schema. The two pieces this library provides are (1) the generated schemas and
+(2) the server-side validation filter.
 
 ## 1. Server: automatic validation error handling
 
@@ -13,7 +18,7 @@ Enable the `InertiaValidationFilter` in `forRoot`. It requires a `flashStore`.
 
 ```ts
 InertiaModule.forRoot({
-  flashStore: sessionFlashStore,        // see §5 for express-session / @fastify/session
+  flashStore: sessionFlashStore,        // see §4 for express-session / @fastify/session
   validation: {
     enabled: true,                      // default false (additive / non-breaking)
     fallbackRedirect: '/',              // when no Referer is present
@@ -73,63 +78,64 @@ forms: {
 }
 ```
 
-## 3. React: `useInertiaForm`
+The generated `forms.ts` imports only `zod`, so the schema is portable across
+React, Vue, and Svelte.
 
-Install the optional peers and import from the `./react-form` subpath:
+## 3. Wiring a form on the client
 
-```sh
-pnpm add react-hook-form @hookform/resolvers
-```
+The generated schema is framework-agnostic — feed it into whatever form library
+you use. The contract you must honour is the **shared error-key contract**: the
+field paths you register must match the keys the server flashes, so server errors
+from `usePage().props.errors` can be merged into your form's error state.
 
 ```tsx
-import { useInertiaForm } from '@dudousxd/nestjs-inertia-client/react-form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { router, usePage } from '@inertiajs/react';
 import { LoginBodySchema, type LoginBody } from '@/.nestjs-inertia/forms';
 
 export default function Login() {
-  const { register, submit, formState: { errors }, isSubmitting, formError } =
-    useInertiaForm<LoginBody>({
-      schema: LoginBodySchema,
-      action: { method: 'post', url: route('auth.login') },
-      defaultValues: { email: '', password: '' },
-      // errorBag: 'login',          // multi-form pages — sends X-Inertia-Error-Bag
-      // resetOnSuccess: true,
-    });
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } =
+    useForm<LoginBody>({ resolver: zodResolver(LoginBodySchema) });
+
+  const onSubmit = handleSubmit((values) => {
+    // Inertia visit; the server is authoritative and flashes errors on failure.
+    router.post('/auth/login', values);
+  });
+
+  // Merge server-flashed errors back into the form by their (matching) keys.
+  const page = usePage();
+  for (const [field, message] of Object.entries(page.props.errors ?? {})) {
+    setError(field as keyof LoginBody, { type: 'server', message: String(message) });
+  }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={onSubmit}>
       <input {...register('email')} />
-      {errors.email && <span>{errors.email.message}</span>}   {/* client OR server */}
+      {errors.email && <span>{errors.email.message}</span>}
       <input type="password" {...register('password')} />
       {errors.password && <span>{errors.password.message}</span>}
-      {formError && <p role="alert">{formError}</p>}
       <button disabled={isSubmitting}>Log in</button>
     </form>
   );
 }
 ```
 
-Client-side zod runs first (no network on failure). On a valid submit it
-Inertia-visits; server errors arrive via `usePage().props.errors` and are merged
-back into the same RHF error state (`errors.email.message` shows either the
-instant client message or the round-trip server message). `formError` aggregates
-non-field / `_` / unknown keys.
+Two lanes share the same generated schema:
 
-`react-hook-form` and `@hookform/resolvers` are optional peers reachable **only**
-through `./react-form` — the base `.` and `./react` bundles never pull them.
-
-## 4. Two lanes
-
-- **Page forms (redirect-back):** `useInertiaForm`. The server is authoritative;
-  errors flash + redirect.
+- **Page forms (redirect-back):** Inertia `router` visit. The server is
+  authoritative; errors flash + redirect.
 - **Data mutations (JSON):** TanStack `api.<route>.mutationOptions()` from
-  `api.ts`. Both lanes can import the same generated zod schema.
+  `api.ts`.
 
-CSRF: `useInertiaForm` delegates to Inertia's `router`, which carries the
-`XSRF-TOKEN`; the core CSRF guard validates it. Files/`FileList` in values are
-auto-converted to `FormData` by `router` (expose `forceFormData` via
-`visitOptions` if needed).
+CSRF: Inertia's `router` carries the `XSRF-TOKEN`; the core CSRF guard validates
+it. Files/`FileList` in values are auto-converted to `FormData` by `router`.
 
-## 5. FlashStore examples
+For multi-form pages, send `X-Inertia-Error-Bag` on the visit; the filter scopes
+the write (`{ create: {…} }`), `props.errors` becomes
+`{ create: {…}, edit: {…} }`, and each form reads only its own bag.
+
+## 4. FlashStore examples
 
 The filter is store-agnostic — it calls `write(req, errors)` and the read side
 calls `read(req)`. Use a session-backed store for redirect-back persistence.
@@ -157,22 +163,3 @@ export const sessionFlashStore: FlashStore = {
 **@fastify/session:** identical shape — read/write `req.session.__inertiaErrors`
 (register `@fastify/session` + `@fastify/cookie`). The filter passes `req.raw`
 under Fastify so the session is reachable.
-
-## 6. Vue / Svelte
-
-The generated `forms.ts` imports only `zod`, so the schema is portable. The hook
-is React-only in v1; Vue/Svelte consume the same schema and the framework-free
-`mergeServerErrors(pageErrors, bag, setError, knownFields)` helper (exported from
-`./react-form`, framework-agnostic).
-
-- **Vue:** `@vee-validate/zod`'s `toTypedSchema(LoginBodySchema)` + vee-validate
-  `useForm`, or a manual `safeParse` on submit feeding Inertia's `useForm`.
-  Server errors via `usePage().props.errors` using the same key contract.
-- **Svelte:** `sveltekit-superforms` / manual `safeParse`. Same server-error path.
-
-## 7. Multi-error-bag pages
-
-Two forms on one page → `useInertiaForm({ errorBag: 'create' })` /
-`{ errorBag: 'edit' }`. Each sends `X-Inertia-Error-Bag`; the filter scopes the
-write (`{ create: {…} }`), `props.errors` becomes `{ create: {…}, edit: {…} }`,
-and each hook reads only its own bag.

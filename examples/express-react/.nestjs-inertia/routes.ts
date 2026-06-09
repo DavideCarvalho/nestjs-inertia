@@ -2,8 +2,6 @@
 
 /** Map of route name → path pattern. */
 export const ROUTES = {
-  "auth.showLogin": "auth/login",
-  "auth.login": "auth/login",
   "dashboard.root": "/",
   "dashboard.index": "/dashboard",
   "users.list": "/api/users",
@@ -11,8 +9,6 @@ export const ROUTES = {
 
 /** Union of all known route names. */
 export type RouteName =
-  | "auth.showLogin"
-  | "auth.login"
   | "dashboard.root"
   | "dashboard.index"
   | "users.list";

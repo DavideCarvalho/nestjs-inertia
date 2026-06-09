@@ -6,11 +6,6 @@
       "mtime": "2026-05-25T17:05:33.265Z"
     },
     {
-      "name": "Login",
-      "relativePath": "inertia/pages/Login.tsx",
-      "mtime": "2026-06-09T04:10:08.064Z"
-    },
-    {
       "name": "Users",
       "relativePath": "inertia/pages/Users.tsx",
       "mtime": "2026-05-23T00:16:56.000Z"
