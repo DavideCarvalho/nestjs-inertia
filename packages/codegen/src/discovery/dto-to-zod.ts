@@ -14,7 +14,7 @@ import {
   type PropertyDeclaration,
   type SourceFile,
 } from 'ts-morph';
-import { findType } from './contracts-fast.js';
+import { findType } from './type-ref-resolution.js';
 
 export interface DtoZodResult {
   /** e.g. `"z.object({ email: z.string().email() })"`. */
