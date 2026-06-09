@@ -1,14 +1,15 @@
 import { Logger } from '@nestjs/common';
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
-import { type InertiaRenderDiagnostic, inertiaDiagChannel } from './diagnostics.js';
-import type { InertiaPages } from './types/registry.js';
 import type { Manifest } from './asset/version.provider.js';
+import { buildDiagnostic } from './diagnostics-builder.js';
+import { type InertiaRenderDiagnostic, inertiaDiagChannel } from './diagnostics.js';
 import type { FlashStore } from './flash/flash-store.js';
 import { nullifyUndefined } from './helpers/nullify-undefined.js';
-import { validateLocationUrl } from './helpers/validate-location-url.js';
 import { unpackDotKeys } from './helpers/set-nested.js';
+import { validateLocationUrl } from './helpers/validate-location-url.js';
 import { type Marker, getMarkerKind, getMarkerMeta, getMarkerValue, isMarker } from './markers.js';
 import type { PageObject, Props, SharedInput, ShellRenderCtx } from './types.js';
+import type { InertiaPages } from './types/registry.js';
 
 /** Sentinel to indicate a prop should be omitted from the output. */
 const OMIT = Symbol('inertia.omit');
@@ -271,35 +272,39 @@ export class InertiaService {
     ) {
       this.res.status(409).setHeader('X-Inertia-Location', this.req.originalUrl).end();
       if (diagOn) {
-        inertiaDiagChannel.publish({
-          v: 1,
+        const page: PageObject = {
           component,
+          props: {},
           url: this.req.originalUrl,
-          method: this.req.method,
-          isInertia: true,
-          isPartial: false,
-          partial: { only: [], except: [], reset: [], resetOnce: [] },
-          props: {
-            sharedKeys: [],
-            finalKeys: [],
-            deferred: {},
-            merge: [],
-            deepMerge: [],
-            matchPropsOn: {},
-            optionalKeys: [],
-            onceKeys: [],
-            excludedKeys: [],
-          },
-          resolvedProps: undefined,
-          assetVersion: this.deps.assetVersion,
-          versionMismatch: true,
-          clientVersion: clientVersion ?? null,
-          encryptHistory: false,
-          clearHistory: false,
-          statusCode: 409,
-          pageBytes: 0,
-          ssr: false,
-        } satisfies InertiaRenderDiagnostic);
+          version: this.deps.assetVersion,
+        };
+        inertiaDiagChannel.publish(
+          buildDiagnostic(
+            page,
+            {
+              sharedKeys: [],
+              optionalKeys: [],
+              onceKeys: [],
+              excludedKeys: [],
+              isPartial: false,
+              keep: null,
+              exceptKeys: [],
+              resetKeys: [],
+              resetOnceKeys: [],
+              clientVersion: clientVersion ?? null,
+            },
+            { ssr: false, statusCode: 409, versionMismatch: true },
+            {
+              req: this.req,
+              isInertia: true,
+              resolvedProps: undefined,
+              assetVersion: this.deps.assetVersion,
+              encryptHistory: false,
+              clearHistory: false,
+              pageBytes: 0,
+            },
+          ),
+        );
       }
       return;
     }
@@ -492,28 +497,21 @@ export class InertiaService {
     // telescope's redactBounded clips/masks it (never pre-stringified here).
     if (isInertia) {
       if (diagOn) {
-        this.publishDiagnostic({
-          component,
-          isInertia,
-          isPartial,
-          keep,
-          exceptKeys,
-          resetKeys,
-          resetOnceKeys,
-          sharedKeys,
-          wireProps,
-          deferredProps,
-          mergeProps,
-          deepMergeProps,
-          matchPropsOn,
-          optionalKeys,
-          onceKeys,
-          excludedKeys,
-          clientVersion: clientVersion ?? null,
-          encryptHistory,
-          page,
-          ssr: false,
-        });
+        inertiaDiagChannel.publish(
+          this.buildRenderDiagnostic(page, sharedKeys, {
+            isPartial,
+            keep,
+            exceptKeys,
+            resetKeys,
+            resetOnceKeys,
+            optionalKeys,
+            onceKeys,
+            excludedKeys,
+            clientVersion: clientVersion ?? null,
+            encryptHistory,
+            ssr: false,
+          }),
+        );
       }
       this.res.setHeader('X-Inertia', 'true').setHeader('Vary', 'X-Inertia').json(page);
       return;
@@ -532,92 +530,72 @@ export class InertiaService {
     // JSON is serialized only inside this guard, keeping cost off the hot path when
     // no watcher is subscribed.
     if (diagOn) {
-      this.publishDiagnostic({
-        component,
-        isInertia,
-        isPartial,
-        keep,
-        exceptKeys,
-        resetKeys,
-        resetOnceKeys,
-        sharedKeys,
-        wireProps,
-        deferredProps,
-        mergeProps,
-        deepMergeProps,
-        matchPropsOn,
-        optionalKeys,
-        onceKeys,
-        excludedKeys,
-        clientVersion: clientVersion ?? null,
-        encryptHistory,
-        page,
-        ssr: ssr !== null,
-      });
+      inertiaDiagChannel.publish(
+        this.buildRenderDiagnostic(page, sharedKeys, {
+          isPartial,
+          keep,
+          exceptKeys,
+          resetKeys,
+          resetOnceKeys,
+          optionalKeys,
+          onceKeys,
+          excludedKeys,
+          clientVersion: clientVersion ?? null,
+          encryptHistory,
+          ssr: ssr !== null,
+        }),
+      );
     }
     this.res.setHeader('Vary', 'X-Inertia').html(html);
   }
 
   /**
-   * Builds and publishes the full `InertiaRenderDiagnostic` for a 200 response.
-   * Only called when the diagnostics gate is open. `resolvedProps` is the live
-   * wire-props object passed by reference — telescope's recorder redacts/clips it.
+   * Builds the full `InertiaRenderDiagnostic` for a 200 response, delegating the
+   * payload shape to the pure {@link buildDiagnostic}. Only called when the
+   * diagnostics gate is open. `resolvedProps` is the live wire-props object
+   * (`page.props`) passed by reference — telescope's recorder redacts/clips it.
    */
-  private publishDiagnostic(args: {
-    component: string;
-    isInertia: boolean;
-    isPartial: boolean;
-    keep: string[] | null;
-    exceptKeys: string[];
-    resetKeys: string[];
-    resetOnceKeys: string[];
-    sharedKeys: string[];
-    wireProps: Props;
-    deferredProps: Record<string, string[]>;
-    mergeProps: string[];
-    deepMergeProps: string[];
-    matchPropsOn: Record<string, string>;
-    optionalKeys: string[];
-    onceKeys: string[];
-    excludedKeys: string[];
-    clientVersion: string | null;
-    encryptHistory: boolean;
-    page: PageObject;
-    ssr: boolean;
-  }): void {
-    inertiaDiagChannel.publish({
-      v: 1,
-      component: args.component,
-      url: this.req.originalUrl,
-      method: this.req.method,
-      isInertia: args.isInertia,
-      isPartial: args.isPartial,
-      partial: {
-        only: args.keep ?? [],
-        except: args.exceptKeys,
-        reset: args.resetKeys,
-        resetOnce: args.resetOnceKeys,
+  private buildRenderDiagnostic(
+    page: PageObject,
+    sharedKeys: string[],
+    meta: {
+      isPartial: boolean;
+      keep: string[] | null;
+      exceptKeys: string[];
+      resetKeys: string[];
+      resetOnceKeys: string[];
+      optionalKeys: string[];
+      onceKeys: string[];
+      excludedKeys: string[];
+      clientVersion: string | null;
+      encryptHistory: boolean;
+      ssr: boolean;
+    },
+  ): InertiaRenderDiagnostic {
+    return buildDiagnostic(
+      page,
+      {
+        sharedKeys,
+        optionalKeys: meta.optionalKeys,
+        onceKeys: meta.onceKeys,
+        excludedKeys: meta.excludedKeys,
+        isPartial: meta.isPartial,
+        keep: meta.keep,
+        exceptKeys: meta.exceptKeys,
+        resetKeys: meta.resetKeys,
+        resetOnceKeys: meta.resetOnceKeys,
+        clientVersion: meta.clientVersion,
       },
-      props: {
-        sharedKeys: args.sharedKeys,
-        finalKeys: Object.keys(args.wireProps),
-        deferred: args.deferredProps,
-        merge: args.mergeProps,
-        deepMerge: args.deepMergeProps,
-        matchPropsOn: args.matchPropsOn,
-        optionalKeys: args.optionalKeys,
-        onceKeys: args.onceKeys,
-        excludedKeys: args.excludedKeys,
+      { ssr: meta.ssr, statusCode: 200, versionMismatch: false },
+      {
+        req: this.req,
+        isInertia: !!this.req.header('X-Inertia'),
+        resolvedProps: page.props,
+        assetVersion: this.deps.assetVersion,
+        encryptHistory: meta.encryptHistory,
+        clearHistory: this.clearHistoryFlag,
+        pageBytes: Buffer.byteLength(JSON.stringify(page), 'utf8'),
       },
-      resolvedProps: args.wireProps,
-      assetVersion: this.deps.assetVersion,
-      versionMismatch: false,
-      clientVersion: args.clientVersion,
-      encryptHistory: args.encryptHistory,
-      clearHistory: this.clearHistoryFlag,
-      statusCode: 200,
-      pageBytes: Buffer.byteLength(JSON.stringify(args.page), 'utf8'),
-      ssr: args.ssr,
-    } satisfies InertiaRenderDiagnostic);
+    );
   }
 }

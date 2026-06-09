@@ -52,11 +52,11 @@ export class InertiaValidationFilter implements ExceptionFilter {
     }
 
     // Error-bag scoping (symmetric with ErrorBagInterceptor on the happy path).
-    // The bag wrapper nests one level deeper than the flat FlashErrors shape;
-    // the flash store treats it as opaque JSON and the read side passes it
-    // through untouched, so the cast is safe.
+    // The bag wrapper nests one level deeper; `FlashErrors` is recursive so this
+    // is representable directly (no cast). The read side passes it through
+    // untouched.
     const bag = getHeader(req, 'X-Inertia-Error-Bag');
-    const scoped: FlashErrors = bag ? ({ [bag]: errors } as unknown as FlashErrors) : errors;
+    const scoped: FlashErrors = bag ? { [bag]: errors } : errors;
 
     // flashStore presence is guaranteed by the bootstrap check in module.ts.
     const flashStore = this.options.flashStore;
