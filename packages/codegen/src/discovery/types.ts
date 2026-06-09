@@ -4,6 +4,20 @@ export interface TypeRef {
   isArray?: boolean;
 }
 
+export type FieldTypeKind = 'string' | 'number' | 'boolean' | 'date' | 'json' | 'unknown';
+
+export interface FilterFieldType {
+  /** Field name, e.g. 'age' or 'tasks.id' (dot-notation for relations). */
+  name: string;
+  kind: FieldTypeKind;
+  /** String/number-literal union members (enums), if any. */
+  enumValues?: string[];
+  /** Whether the field's TS type includes null/undefined. */
+  nullable?: boolean;
+  /** True when enumValues are numeric literals (emit unquoted). */
+  numericEnum?: boolean;
+}
+
 export interface ContractSource {
   query: string | null;
   body: string | null;
@@ -12,6 +26,7 @@ export interface ContractSource {
   bodyRef?: TypeRef | null;
   responseRef?: TypeRef | null;
   filterFields?: string[] | null;
+  filterFieldTypes?: FilterFieldType[] | null;
   filterSource?: 'body' | 'query' | null;
 }
 
