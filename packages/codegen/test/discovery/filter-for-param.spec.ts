@@ -123,14 +123,16 @@ describe('@FilterFor method-parameter type inference (emit)', () => {
     // No import is emitted for any of the non-exported internal types.
     expect(content).not.toMatch(/import[^\n]*\bInternalState\b/);
     expect(content).not.toMatch(/import[^\n]*\bInternalMode\b/);
+    expect(content).not.toMatch(/import[^\n]*\bInternalLevel\b/);
     expect(content).not.toMatch(/import[^\n]*\bInternalShape\b/);
 
     // Non-exported string enum → expanded to its value union (no import).
-    // Non-exported alias union (mode) and interface (shape) → skipped (absent).
-    // Primitive (name) intact.
+    // Non-exported numeric enum → expanded to its numeric VALUES 1 | 2 (not the
+    // member names). Non-exported alias union (mode) + interface (shape) →
+    // skipped (absent). Primitive (name) intact.
     expect(content).toContain(
-      'filterQuery: () => _filterQueryTyped<"state" | "name", ' +
-        '{ "state": "open" | "closed"; "name": string }>(),',
+      'filterQuery: () => _filterQueryTyped<"state" | "level" | "name", ' +
+        '{ "state": "open" | "closed"; "level": 1 | 2; "name": string }>(),',
     );
   });
 });

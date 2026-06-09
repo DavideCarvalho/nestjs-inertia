@@ -421,7 +421,11 @@ function findTypeInFile(name: string, file: SourceFile): TypeDeclResult | null {
   if (enumDecl) {
     const members = enumDecl.getMembers().map((m) => {
       const val = m.getValue();
-      return typeof val === 'string' ? JSON.stringify(val) : JSON.stringify(m.getName());
+      // String value → quoted literal ("active"); numeric value → numeric
+      // literal (1). Fall back to the member NAME only when the value can't be
+      // resolved statically (e.g. a computed member).
+      if (typeof val === 'string' || typeof val === 'number') return JSON.stringify(val);
+      return JSON.stringify(m.getName());
     });
     return { kind: 'enum', members };
   }

@@ -378,7 +378,7 @@ describe('extractDtoContract — type resolution branches', () => {
     expect(result?.response).toContain('"inactive"');
   });
 
-  it('resolves enum with numeric values using member names', () => {
+  it('resolves a numeric enum to its numeric values (not member names)', () => {
     const { sf, project } = makeSourceFileFromCode(`
       enum Priority {
         Low,
@@ -392,9 +392,29 @@ describe('extractDtoContract — type resolution branches', () => {
     const method = cls.getMethodOrThrow('getPriority');
     const result = extractDtoContract(method, sf, project);
     expect(result).not.toBeNull();
-    // Numeric enums use member names quoted
-    expect(result?.response).toContain('"Low"');
-    expect(result?.response).toContain('"High"');
+    // Numeric enums resolve to their VALUES (auto-incremented 0 | 1), not the
+    // quoted member names — the value on the wire is the number.
+    expect(result?.response).toContain('0 | 1');
+    expect(result?.response).not.toContain('"Low"');
+    expect(result?.response).not.toContain('"High"');
+  });
+
+  it('resolves an explicit numeric enum to its assigned values', () => {
+    const { sf, project } = makeSourceFileFromCode(`
+      enum Level {
+        Low = 1,
+        High = 2,
+      }
+      class TestController {
+        getLevel(): Level { return {} as any; }
+      }
+    `);
+    const cls = sf.getClassOrThrow('TestController');
+    const method = cls.getMethodOrThrow('getLevel');
+    const result = extractDtoContract(method, sf, project);
+    expect(result).not.toBeNull();
+    expect(result?.response).toContain('1 | 2');
+    expect(result?.response).not.toContain('"Low"');
   });
 
   it('handles interface with optional properties', () => {
