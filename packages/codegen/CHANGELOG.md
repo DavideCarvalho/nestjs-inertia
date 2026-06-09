@@ -1,5 +1,15 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.11.1
+
+### Patch Changes
+
+- [`5b44a38`](https://github.com/DavideCarvalho/nestjs-inertia/commit/5b44a388debfe44d9647420fdddab32c66094708) - Fix `forms.ts` generation producing invalid TypeScript when a DTO has an
+  unmappable class-validator decorator (`@Transform`, `@IsDateString`,
+  `@IsNotEmptyObject`, etc.). The "not translatable" note was emitted as a `//`
+  line comment inline in the single-line `z.object({ … })`, which swallowed the
+  closing `})` and any following fields. It is now a `/* … */` block comment.
+
 ## 1.11.0
 
 ### Minor Changes
