@@ -61,7 +61,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
-    "@dudousxd/nestjs-inertia": "workspace:*",
+    "@dudousxd/nestjs-inertia": "workspace:^",
     "@inertiajs/react": "^2.0.0 || ^3.0.0",
     "@inertiajs/vue3": "^2.0.0 || ^3.0.0",
     "@nestjs/common": "^10.0.0 || ^11.0.0",
