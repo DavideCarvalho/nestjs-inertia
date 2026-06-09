@@ -1070,28 +1070,110 @@ function classifyFilterForHint(typeInit: Node): ClassifyResult | null {
   return null;
 }
 
-/**
- * Resolve a named type identifier (enum / type alias / interface / class) to an
- * importable `TypeRef` — the symbol name plus the absolute path of its declaring
- * source file (for a relative import) OR the bare module specifier (for a
- * node_modules package). Reuses the same import-following logic used for
- * response/body/query refs. Returns null when the symbol is not exported, not
- * resolvable, or its import path cannot be safely computed (caller then falls
- * back to literal expansion or skips).
- */
-function resolveNamedTypeRef(
+/** The declaration kinds a `resolveTypeRef` call will accept as an importable ref. */
+type TypeRefKind = 'class' | 'interface' | 'typeAlias' | 'enum';
+
+interface ResolveTypeRefOptions {
+  /**
+   * Declaration kinds accepted as an importable named ref (applied identically
+   * to local and imported declarations). The two call sites differ only here:
+   *   - body/query/response refs accept class + interface;
+   *   - `@FilterFor` param refs also accept enum + type alias.
+   */
+  kinds: TypeRefKind[];
+  /**
+   * Honour a bare (node_modules) import specifier — emit `{ name, filePath: spec }`
+   * so the emitter imports straight from the package. tsconfig path aliases are
+   * excluded (they resolve to files instead). Off for the body/query/response
+   * path (which only ever points at project source files).
+   */
+  allowBareSpecifier?: boolean;
+  /**
+   * Unwrap `Promise<T>`, `Array<T>` and `T[]` to the inner named type (marking
+   * array forms with `isArray`). Used for the body/query/response path which
+   * receives a raw return/param `TypeNode`; the `@FilterFor` path passes a bare
+   * symbol name and needs no unwrapping.
+   */
+  unwrapContainers?: boolean;
+}
+
+/** Skip-list of primitive / well-known names that never resolve to a named ref. */
+const _NON_REF_NAMES = new Set([
+  'string',
+  'number',
+  'boolean',
+  'void',
+  'unknown',
+  'any',
+  'Date',
+]);
+
+/** Does an exported declaration found by `findTypeInFile` match the accepted kinds? */
+function _localDeclForKinds(
   name: string,
+  file: SourceFile,
+  kinds: TypeRefKind[],
+): boolean {
+  if (kinds.includes('class') && file.getClass(name)?.isExported()) return true;
+  if (kinds.includes('interface') && file.getInterface(name)?.isExported()) return true;
+  if (kinds.includes('typeAlias') && file.getTypeAlias(name)?.isExported()) return true;
+  if (kinds.includes('enum') && file.getEnum(name)?.isExported()) return true;
+  return false;
+}
+
+/**
+ * Resolve a type reference to an importable `TypeRef` — the symbol name plus the
+ * absolute path of its declaring source file (for a relative import) OR the bare
+ * module specifier (for a node_modules package). Accepts either a raw `TypeNode`
+ * (with `unwrapContainers` to peel `Promise`/`Array`) or a bare symbol name.
+ *
+ * Walks: local exported decl → `{ name, thisFile }`; else the file's import
+ * declarations to a matching exported decl → `{ name, importedFile }`. The
+ * accepted declaration kinds (and bare-specifier / container-unwrap support) are
+ * controlled by `opts`, letting both former resolvers share this one body.
+ * Returns null when the symbol is not exported, not resolvable, or its import
+ * path cannot be safely computed.
+ */
+function resolveTypeRef(
+  nodeOrName: TypeNode | string,
   sourceFile: SourceFile,
   project: Project,
+  opts: ResolveTypeRefOptions,
 ): TypeRef | null {
+  // ── Resolve the bare symbol name (peeling containers for the TypeNode form) ──
+  let name: string;
+  if (typeof nodeOrName === 'string') {
+    name = nodeOrName;
+  } else {
+    const typeNode = nodeOrName;
+
+    if (opts.unwrapContainers && Node.isArrayTypeNode(typeNode)) {
+      const inner = resolveTypeRef(typeNode.getElementTypeNode(), sourceFile, project, opts);
+      return inner ? { ...inner, isArray: true } : null;
+    }
+
+    if (!Node.isTypeReference(typeNode)) return null;
+    const typeName = typeNode.getTypeName();
+    const refName = Node.isIdentifier(typeName) ? typeName.getText() : null;
+    if (!refName) return null;
+
+    if (opts.unwrapContainers && refName === 'Promise') {
+      const first = typeNode.getTypeArguments()[0];
+      return first ? resolveTypeRef(first, sourceFile, project, opts) : null;
+    }
+    if (opts.unwrapContainers && refName === 'Array') {
+      const first = typeNode.getTypeArguments()[0];
+      if (!first) return null;
+      const inner = resolveTypeRef(first, sourceFile, project, opts);
+      return inner ? { ...inner, isArray: true } : null;
+    }
+
+    if (_NON_REF_NAMES.has(refName)) return null;
+    name = refName;
+  }
+
   // 1. Declared (and exported) in the current file → relative import to it.
-  const localDecl =
-    sourceFile.getEnum(name) ||
-    sourceFile.getTypeAlias(name) ||
-    sourceFile.getInterface(name) ||
-    sourceFile.getClass(name);
-  if (localDecl) {
-    if (!localDecl.isExported()) return null;
+  if (_localDeclForKinds(name, sourceFile, opts.kinds)) {
     return { name, filePath: sourceFile.getFilePath() };
   }
 
@@ -1102,7 +1184,11 @@ function resolveNamedTypeRef(
     const moduleSpecifier = importDecl.getModuleSpecifierValue();
 
     // Bare specifier (node_modules package) → import directly by specifier.
-    if (!moduleSpecifier.startsWith('.') && !moduleSpecifier.startsWith('/')) {
+    if (
+      opts.allowBareSpecifier &&
+      !moduleSpecifier.startsWith('.') &&
+      !moduleSpecifier.startsWith('/')
+    ) {
       // Only honour it if not a tsconfig path alias (those resolve to files).
       const tsconfigPaths = _tsconfigPaths();
       const isAlias =
@@ -1128,12 +1214,7 @@ function resolveNamedTypeRef(
           continue;
         }
       }
-      const decl =
-        importedFile.getEnum(name) ||
-        importedFile.getTypeAlias(name) ||
-        importedFile.getInterface(name) ||
-        importedFile.getClass(name);
-      if (decl?.isExported()) {
+      if (_localDeclForKinds(name, importedFile, opts.kinds)) {
         return { name, filePath: importedFile.getFilePath() };
       }
     }
@@ -1176,7 +1257,10 @@ function classifyFilterForParam(
         // Only attempt a named import for symbols we can resolve to an
         // enum / type alias / interface / class declaration.
         if (resolvedDecl) {
-          const typeRef = resolveNamedTypeRef(refName, sourceFile, project);
+          const typeRef = resolveTypeRef(refName, sourceFile, project, {
+            kinds: ['class', 'interface', 'typeAlias', 'enum'],
+            allowBareSpecifier: true,
+          });
           if (typeRef) {
             // We still record a best-effort `kind` so non-emit consumers
             // (e.g. tests) see a sensible classification, but the emitter
@@ -1572,68 +1656,19 @@ function resolveIdentifierToClassType(
 }
 
 /**
- * Try to resolve a TypeNode to a named exported type reference.
- * Returns { name, filePath } if the type is a named export, null otherwise.
- * Unwraps Promise<T> and Array<T> to find the inner named type.
+ * Resolve a `@Body()` / `@Query()` param or return-type `TypeNode` to a named
+ * exported class/interface ref (unwrapping `Promise<T>` / `Array<T>` / `T[]`).
+ * Thin wrapper over the shared {@link resolveTypeRef}.
  */
-function tryResolveTypeRef(
+function resolveBodyQueryResponseRef(
   typeNode: TypeNode,
   sourceFile: SourceFile,
   project: Project,
 ): TypeRef | null {
-  if (Node.isTypeReference(typeNode)) {
-    const typeName = typeNode.getTypeName();
-    const name = Node.isIdentifier(typeName) ? typeName.getText() : null;
-    if (!name) return null;
-
-    // Unwrap Promise<T>
-    if (name === 'Promise') {
-      const typeArgs = typeNode.getTypeArguments();
-      const first = typeArgs[0];
-      if (first) return tryResolveTypeRef(first, sourceFile, project);
-      return null;
-    }
-
-    // Array<T> generic form
-    if (name === 'Array') {
-      const typeArgs = typeNode.getTypeArguments();
-      const first = typeArgs[0];
-      if (first) {
-        const inner = tryResolveTypeRef(first, sourceFile, project);
-        if (inner) return { ...inner, isArray: true };
-      }
-      return null;
-    }
-
-    // Skip primitives and well-known types
-    if (['string', 'number', 'boolean', 'void', 'unknown', 'any', 'Date'].includes(name)) {
-      return null;
-    }
-
-    // Check if it's exported from the current file
-    const localDecl =
-      sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
-    if (localDecl?.isExported()) {
-      return { name, filePath: sourceFile.getFilePath() };
-    }
-
-    // Check if it's imported and exported from another file
-    const resolved = resolveImportedType(name, sourceFile, project);
-    if (resolved && (resolved.kind === 'class' || resolved.kind === 'interface')) {
-      const decl = resolved.decl;
-      if (decl.isExported()) {
-        return { name, filePath: resolved.file.getFilePath() };
-      }
-    }
-  }
-
-  // T[] syntax — check inner type
-  if (Node.isArrayTypeNode(typeNode)) {
-    const inner = tryResolveTypeRef(typeNode.getElementTypeNode(), sourceFile, project);
-    if (inner) return { ...inner, isArray: true };
-  }
-
-  return null;
+  return resolveTypeRef(typeNode, sourceFile, project, {
+    kinds: ['class', 'interface'],
+    unwrapContainers: true,
+  });
 }
 
 /**
@@ -1699,16 +1734,16 @@ export function extractDtoContract(
 
   for (const param of method.getParameters()) {
     if (param.getDecorators().some((d) => d.getName() === 'Body') && param.getTypeNode()) {
-      bodyRef = tryResolveTypeRef(param.getTypeNode()!, sourceFile, project);
+      bodyRef = resolveBodyQueryResponseRef(param.getTypeNode()!, sourceFile, project);
     }
     if (param.getDecorators().some((d) => d.getName() === 'Query') && param.getTypeNode()) {
-      queryRef = tryResolveTypeRef(param.getTypeNode()!, sourceFile, project);
+      queryRef = resolveBodyQueryResponseRef(param.getTypeNode()!, sourceFile, project);
     }
   }
 
   const returnTypeNode = method.getReturnTypeNode();
   if (returnTypeNode) {
-    responseRef = tryResolveTypeRef(returnTypeNode, sourceFile, project);
+    responseRef = resolveBodyQueryResponseRef(returnTypeNode, sourceFile, project);
   }
   // Also check @ApiResponse
   if (!responseRef) {
