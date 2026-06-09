@@ -5,6 +5,7 @@ import type { ResolvedConfig } from '../config/types.js';
 import { discoverContractsFast } from '../discovery/contracts-fast.js';
 import type { RouteDescriptor } from '../discovery/types.js';
 import { emitApi } from '../emit/emit-api.js';
+import { emitForms } from '../emit/emit-forms.js';
 import { emitIndex } from '../emit/emit-index.js';
 import { emitRoutes } from '../emit/emit-routes.js';
 import { generate } from '../generate.js';
@@ -127,11 +128,14 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
         await emitRoutes(routes, config.codegen.outDir);
 
         const hasContracts = routes.some((r) => r.contract);
-        await emitIndex(config.codegen.outDir, hasContracts);
 
         if (hasContracts) {
           await emitApi(routes, config.codegen.outDir);
         }
+
+        const hasForms = await emitForms(routes, config.codegen.outDir, config.forms);
+
+        await emitIndex(config.codegen.outDir, hasContracts, hasForms);
       } catch (err) {
         console.error(
           '[nestjs-inertia-codegen] Contracts generation failed:',

@@ -28,6 +28,18 @@ export interface ContractSource {
   filterFields?: string[] | null;
   filterFieldTypes?: FilterFieldType[] | null;
   filterSource?: 'body' | 'query' | null;
+  /** Raw zod source for the body schema (Path A inline, or Path B synthesized). */
+  bodyZodText?: string | null;
+  /** Importable named schema to re-export for the body (Path A). */
+  bodyZodRef?: TypeRef | null;
+  /** Raw zod source for the query schema (Path A inline, or Path B synthesized). */
+  queryZodText?: string | null;
+  /** Importable named schema to re-export for the query (Path A). */
+  queryZodRef?: TypeRef | null;
+  /** Hoisted nested schemas (name → zod text) referenced by body/query (Path B). */
+  formNestedSchemas?: Record<string, string> | null;
+  /** Unmappable-decorator warnings surfaced to console + a header comment. */
+  formWarnings?: string[];
 }
 
 export interface ContractDescriptor {

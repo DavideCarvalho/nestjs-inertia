@@ -7,6 +7,7 @@ import { discoverSharedProps } from './discovery/shared-props.js';
 import type { RouteDescriptor } from './discovery/types.js';
 import { emitApi } from './emit/emit-api.js';
 import { emitCache } from './emit/emit-cache.js';
+import { emitForms } from './emit/emit-forms.js';
 import { emitIndex } from './emit/emit-index.js';
 import { emitPages } from './emit/emit-pages.js';
 import { emitRoutes } from './emit/emit-routes.js';
@@ -71,9 +72,11 @@ export async function generate(
     await emitRoutes(routes, config.codegen.outDir);
   }
 
-  await emitIndex(config.codegen.outDir, hasContracts);
-
   if (hasContracts) {
     await emitApi(routes, config.codegen.outDir, config.fetcher?.importPath);
   }
+
+  const hasForms = await emitForms(routes, config.codegen.outDir, config.forms);
+
+  await emitIndex(config.codegen.outDir, hasContracts, hasForms);
 }

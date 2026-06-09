@@ -81,7 +81,7 @@ type LeafEntry = {
   name: string;
   path: string;
   params: Array<{ name: string; source: string }>;
-  controllerRef?: ControllerRef;
+  controllerRef?: ControllerRef | undefined;
   contractSource: {
     query: string | null | undefined;
     body: string | null | undefined;

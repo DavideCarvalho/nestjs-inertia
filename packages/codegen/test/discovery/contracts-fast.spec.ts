@@ -141,6 +141,38 @@ describe('discoverContractsFast — @Inertia/@Get controllers (B-2 parity)', () 
   });
 });
 
+describe('discoverContractsFast — form zod capture (Path A)', () => {
+  it('captures bodyZodRef for an exported named contract const', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'forms-contract.controller.ts',
+    });
+
+    const login = routes.find((r) => r.name === 'authForms.login');
+    expect(login).toBeDefined();
+    const cs = login!.contract!.contractSource;
+    expect(cs.bodyZodRef).toEqual({
+      name: 'loginContract.body',
+      filePath: expect.stringContaining('forms-contract.controller.ts'),
+    });
+    // Ref present → text is not inlined to avoid duplication.
+    expect(cs.bodyZodText).toBeNull();
+  });
+
+  it('captures bodyZodText for an inline defineContract body', async () => {
+    const routes = await discoverContractsFast({
+      cwd: fixturesDir,
+      glob: 'forms-contract.controller.ts',
+    });
+
+    const signup = routes.find((r) => r.name === 'authForms.signup');
+    expect(signup).toBeDefined();
+    const cs = signup!.contract!.contractSource;
+    expect(cs.bodyZodRef ?? null).toBeNull();
+    expect(cs.bodyZodText).toBe('z.object({ name: z.string().min(1) })');
+  });
+});
+
 describe('discoverContractsFast — all 5 HTTP verbs from NestJS decorators', () => {
   it('discovers all 5 routes from the all-verbs fixture', async () => {
     const routes = await discoverContractsFast({
