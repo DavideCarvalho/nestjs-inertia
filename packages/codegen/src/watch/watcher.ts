@@ -150,6 +150,20 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
   contractsWatcher.on('change', scheduleContractsRegenerate);
   contractsWatcher.on('unlink', scheduleContractsRegenerate);
 
+  // ── DTO watcher (forms.ts synthesis from class-validator DTOs) ───────────────
+  // DTO classes live in *.dto.ts files (not matched by the controller glob), but
+  // changes to them affect the synthesized form schemas. Re-run discovery (which
+  // re-emits forms.ts) on any DTO change, reusing the contracts debounce.
+  const formsWatcher = chokidar.watch(join(config.codegen.cwd, config.forms.watch), {
+    ignoreInitial: true,
+    persistent: true,
+    awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 },
+  });
+
+  formsWatcher.on('add', scheduleContractsRegenerate);
+  formsWatcher.on('change', scheduleContractsRegenerate);
+  formsWatcher.on('unlink', scheduleContractsRegenerate);
+
   return {
     close: async () => {
       if (pagesDebounceTimer !== undefined) {
@@ -162,6 +176,7 @@ export async function watch(config: ResolvedConfig, onChange?: () => void): Prom
       }
       await pagesWatcher.close();
       await contractsWatcher.close();
+      await formsWatcher.close();
       await lock.release();
     },
   };

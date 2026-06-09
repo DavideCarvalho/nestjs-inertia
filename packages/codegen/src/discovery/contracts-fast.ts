@@ -439,7 +439,14 @@ function resolveModuleSpecifier(
 ): string[] {
   if (moduleSpecifier.startsWith('.')) {
     const dir = dirname(sourceFile.getFilePath());
-    return [resolve(dir, `${moduleSpecifier}.ts`), resolve(dir, moduleSpecifier, 'index.ts')];
+    // Strip an explicit ESM `.js`/`.ts` extension so `./x.dto.js` resolves to
+    // `./x.dto.ts` (NodeNext import style).
+    const noExt = moduleSpecifier.replace(/\.(js|ts)$/, '');
+    return [
+      resolve(dir, `${noExt}.ts`),
+      resolve(dir, `${moduleSpecifier}.ts`),
+      resolve(dir, moduleSpecifier, 'index.ts'),
+    ];
   }
 
   // Try to resolve path aliases via tsconfig paths (read directly from JSON)
@@ -1766,11 +1773,13 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               query: contractDef.query,
               body: contractDef.body,
               response: contractDef.response,
-              // Path A: re-export named const member when available, else inline text.
+              // Path A: capture both the importable ref and the raw text. The
+              // emitter prefers inlining the text (client-safe — re-exporting from
+              // a controller would drag server-only deps into the client bundle).
               bodyZodRef,
-              bodyZodText: bodyZodRef ? null : contractDef.bodyZodText,
+              bodyZodText: contractDef.bodyZodText,
               queryZodRef,
-              queryZodText: queryZodRef ? null : contractDef.queryZodText,
+              queryZodText: contractDef.queryZodText,
             },
           },
         });

@@ -135,7 +135,8 @@ function buildFormsFile(
   const refAlias = new Map<string, string>(); // `${filePath}\0${root}` → alias
   for (const entry of entries) {
     for (const src of [entry.body, entry.query]) {
-      if (src?.ref) {
+      // Only a ref WITHOUT inline text produces an import (text is preferred).
+      if (src?.ref && !src.text) {
         const root = refRootIdentifier(src.ref.name);
         const set = importsByFile.get(src.ref.filePath) ?? new Set<string>();
         set.add(root);
@@ -217,6 +218,10 @@ function renderSchema(
   outDir: string,
   refAlias: Map<string, string>,
 ): string {
+  // Prefer inlining the raw zod text: re-exporting a named const from its source
+  // (typically a controller) would pull server-only deps into the client bundle.
+  // The text is byte-identical to the contract schema, so parity is preserved.
+  if (src.text) return src.text;
   if (src.ref) {
     const root = refRootIdentifier(src.ref.name);
     const alias = refAlias.get(`${src.ref.filePath}\0${root}`) ?? root;
@@ -224,5 +229,5 @@ function renderSchema(
     const member = src.ref.name.slice(root.length); // e.g. `.body`
     return `${alias}${member}`;
   }
-  return src.text ?? 'z.unknown()';
+  return 'z.unknown()';
 }

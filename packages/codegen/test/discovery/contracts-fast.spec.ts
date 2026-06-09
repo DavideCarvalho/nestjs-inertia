@@ -155,8 +155,9 @@ describe('discoverContractsFast — form zod capture (Path A)', () => {
       name: 'loginContract.body',
       filePath: expect.stringContaining('forms-contract.controller.ts'),
     });
-    // Ref present → text is not inlined to avoid duplication.
-    expect(cs.bodyZodText).toBeNull();
+    // Both ref and inline text are captured; the emitter prefers the (client-safe)
+    // inline text and only falls back to the ref when no text is present.
+    expect(cs.bodyZodText).toContain('z.string().email()');
   });
 
   it('captures bodyZodText for an inline defineContract body', async () => {
