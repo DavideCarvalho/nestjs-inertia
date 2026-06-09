@@ -105,4 +105,32 @@ describe('@FilterFor method-parameter type inference (emit)', () => {
     expect(content).toMatch(/import type \{[^}]*\bTier\b[^}]*\} from '[^']*dto\/role\.enum(\.js)?';/);
     expect(content).toContain('{ "role": Role; "tier": Tier }');
   });
+
+  // Regression: a NON-exported named type can't be `import type`-ed. The codegen
+  // must never emit a guessed import or a dangling name. A non-exported ENUM is
+  // safely expanded to its literal values; a non-exported type alias / interface
+  // (which the static expander can't resolve) is SKIPPED and falls back to
+  // property → column → unknown.
+  it('expands non-exported enums and skips non-expandable non-exported types', async () => {
+    const routes = await discoverContractsFast({
+      cwd: FIXTURES,
+      glob: 'filter-for-param-unexported.controller.ts',
+    });
+    outDir = await mkdtemp(join(tmpdir(), 'filter-for-param-unexp-emit-'));
+    await emitApi(routes, outDir);
+    const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+
+    // No import is emitted for any of the non-exported internal types.
+    expect(content).not.toMatch(/import[^\n]*\bInternalState\b/);
+    expect(content).not.toMatch(/import[^\n]*\bInternalMode\b/);
+    expect(content).not.toMatch(/import[^\n]*\bInternalShape\b/);
+
+    // Non-exported string enum → expanded to its value union (no import).
+    // Non-exported alias union (mode) and interface (shape) → skipped (absent).
+    // Primitive (name) intact.
+    expect(content).toContain(
+      'filterQuery: () => _filterQueryTyped<"state" | "name", ' +
+        '{ "state": "open" | "closed"; "name": string }>(),',
+    );
+  });
 });
