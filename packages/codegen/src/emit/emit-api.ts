@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import type {
   ControllerRef,
   FieldTypeKind,
@@ -197,7 +197,10 @@ function kindToTs(kind: FieldTypeKind, enumValues?: string[], numericEnum?: bool
 /** Emit the per-field type map literal: `{ "age": number; "status": "A" | "B" }`. */
 function emitFieldTypesLiteral(fts: FilterFieldType[]): string {
   const entries = fts.map((f) => {
-    let t = kindToTs(f.kind, f.enumValues, f.numericEnum);
+    // A named typeRef (enum / type alias / interface inferred from a @FilterFor
+    // method parameter) wins — reference it by name; the import is emitted at
+    // the top of the file by buildApiFile.
+    let t = f.typeRef ? f.typeRef.name : kindToTs(f.kind, f.enumValues, f.numericEnum);
     if (f.nullable) t = `${t} | null`;
     return `${JSON.stringify(f.name)}: ${t}`;
   });
@@ -461,6 +464,17 @@ function buildApiFile(
       }
       names.add(ref.name);
     }
+    // Named enum / type-alias / interface refs inferred from @FilterFor method
+    // params (the type map M references them by name → emit `import type` too).
+    for (const ft of cs.filterFieldTypes ?? []) {
+      if (!ft.typeRef) continue;
+      let names = importsByFile.get(ft.typeRef.filePath);
+      if (!names) {
+        names = new Set();
+        importsByFile.set(ft.typeRef.filePath, names);
+      }
+      names.add(ft.typeRef.name);
+    }
   }
 
   const hasGetRoutes = contracted.some((r) => r.method === 'GET');
@@ -496,8 +510,15 @@ function buildApiFile(
     lines.push('');
     const emittedNames = new Set<string>();
     for (const [filePath, names] of importsByFile) {
-      let relPath = relative(outDir, filePath).replace(/\.ts$/, '');
-      if (!relPath.startsWith('.')) relPath = `./${relPath}`;
+      // Bare module specifier (node_modules package) → import as-is. Local
+      // source files are always absolute paths → compute a relative import.
+      let relPath: string;
+      if (isAbsolute(filePath)) {
+        relPath = relative(outDir, filePath).replace(/\.ts$/, '');
+        if (!relPath.startsWith('.')) relPath = `./${relPath}`;
+      } else {
+        relPath = filePath;
+      }
       const specifiers: string[] = [];
       for (const name of [...names].sort()) {
         if (emittedNames.has(name)) {

@@ -785,6 +785,8 @@ interface ClassifyResult {
   enumValues?: string[];
   nullable?: boolean;
   numericEnum?: boolean;
+  /** Importable reference to a named enum / type alias / interface (option B). */
+  typeRef?: TypeRef;
 }
 
 /**
@@ -1058,6 +1060,7 @@ function toFilterFieldType(name: string, r: ClassifyResult): FilterFieldType {
   if (r.enumValues && r.enumValues.length > 0) ft.enumValues = r.enumValues;
   if (r.nullable) ft.nullable = true;
   if (r.numericEnum) ft.numericEnum = true;
+  if (r.typeRef) ft.typeRef = r.typeRef;
   return ft;
 }
 
@@ -1099,16 +1102,152 @@ function classifyFilterForHint(typeInit: Node): ClassifyResult | null {
 }
 
 /**
- * Discover virtual filter fields declared via `@FilterFor('key', { type })`
- * method decorators on the filter class. Reads the `type` hint statically from
- * the decorator options object. Returns a map of inputKey → classified type for
- * every `@FilterFor` that carries a usable hint.
- *
- * Keys without a usable hint are intentionally omitted here (they remain
- * permissive / fall back to existing behavior).
+ * Resolve a named type identifier (enum / type alias / interface / class) to an
+ * importable `TypeRef` — the symbol name plus the absolute path of its declaring
+ * source file (for a relative import) OR the bare module specifier (for a
+ * node_modules package). Reuses the same import-following logic used for
+ * response/body/query refs. Returns null when the symbol is not exported, not
+ * resolvable, or its import path cannot be safely computed (caller then falls
+ * back to literal expansion or skips).
  */
-function extractFilterForHints(classDecl: ClassDeclaration): Map<string, ClassifyResult> {
+function resolveNamedTypeRef(
+  name: string,
+  sourceFile: SourceFile,
+  project: Project,
+): TypeRef | null {
+  // 1. Declared (and exported) in the current file → relative import to it.
+  const localDecl =
+    sourceFile.getEnum(name) ||
+    sourceFile.getTypeAlias(name) ||
+    sourceFile.getInterface(name) ||
+    sourceFile.getClass(name);
+  if (localDecl) {
+    if (!localDecl.isExported()) return null;
+    return { name, filePath: sourceFile.getFilePath() };
+  }
+
+  // 2. Imported from another module — follow the import declaration.
+  for (const importDecl of sourceFile.getImportDeclarations()) {
+    const namedImport = importDecl.getNamedImports().find((n) => n.getName() === name);
+    if (!namedImport) continue;
+    const moduleSpecifier = importDecl.getModuleSpecifierValue();
+
+    // Bare specifier (node_modules package) → import directly by specifier.
+    if (!moduleSpecifier.startsWith('.') && !moduleSpecifier.startsWith('/')) {
+      // Only honour it if not a tsconfig path alias (those resolve to files).
+      const tsconfigPaths = _tsconfigPaths();
+      const isAlias =
+        tsconfigPaths != null &&
+        Object.keys(tsconfigPaths).some((p) => {
+          const prefix = p.replace('*', '');
+          return moduleSpecifier.startsWith(prefix);
+        });
+      if (!isAlias) {
+        return { name, filePath: moduleSpecifier };
+      }
+    }
+
+    // Local / aliased source file → resolve to its absolute path so the emitter
+    // can compute a relative import from the generated output dir.
+    const candidates = resolveModuleSpecifier(moduleSpecifier, sourceFile, project);
+    for (const candidate of candidates) {
+      let importedFile = project.getSourceFile(candidate);
+      if (!importedFile) {
+        try {
+          importedFile = project.addSourceFileAtPath(candidate);
+        } catch {
+          continue;
+        }
+      }
+      const decl =
+        importedFile.getEnum(name) ||
+        importedFile.getTypeAlias(name) ||
+        importedFile.getInterface(name) ||
+        importedFile.getClass(name);
+      if (decl?.isExported()) {
+        return { name, filePath: importedFile.getFilePath() };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Classify the type of the FIRST parameter of a `@FilterFor` method (the new
+ * primary inference mechanism). Precedence inside this function:
+ *   - primitive `number`/`string`/`boolean`/`Date` → emit directly.
+ *   - literal unions (`'a' | 'b'`, `1 | 2`) → emit the union text.
+ *   - named enum / type alias / interface → emit a `typeRef` (named import,
+ *     option B) when an import path is resolvable; otherwise fall back to
+ *     literal-union expansion for enums/unions, else skip.
+ *   - any/unknown/no-param/unresolvable → null (caller falls back).
+ */
+function classifyFilterForParam(
+  method: MethodDeclaration,
+  sourceFile: SourceFile,
+  project: Project,
+): ClassifyResult | null {
+  const param = method.getParameters()[0];
+  if (!param) return null;
+  const typeNode = param.getTypeNode();
+  if (!typeNode) return null;
+
+  // Named type reference: try to emit a real import (option B). For an enum /
+  // type alias / interface we prefer a named `import type`; only fall back to
+  // literal expansion when no safe import path exists.
+  if (Node.isTypeReference(typeNode)) {
+    const typeName = typeNode.getTypeName();
+    const refName = Node.isIdentifier(typeName) ? typeName.getText() : null;
+    if (refName) {
+      // Primitives / well-known names are handled by classifyTypeNode below.
+      const wellKnown = ['string', 'number', 'boolean', 'Date', 'any', 'unknown'];
+      if (!wellKnown.includes(refName)) {
+        const resolvedDecl = findType(refName, sourceFile, project);
+        // Only attempt a named import for symbols we can resolve to an
+        // enum / type alias / interface / class declaration.
+        if (resolvedDecl) {
+          const typeRef = resolveNamedTypeRef(refName, sourceFile, project);
+          if (typeRef) {
+            // We still record a best-effort `kind` so non-emit consumers
+            // (e.g. tests) see a sensible classification, but the emitter
+            // prefers `typeRef`.
+            const base = classifyTypeNode(typeNode, sourceFile, project);
+            return { ...base, typeRef };
+          }
+          // No safe import path — fall back to literal expansion when the
+          // type is a statically-known enum/union; else skip.
+          const fallback = classifyTypeNode(typeNode, sourceFile, project);
+          if (fallback.kind !== 'unknown') return fallback;
+          return null;
+        }
+        // Unresolvable named type → skip (fall back to existing behavior).
+        return null;
+      }
+    }
+  }
+
+  const r = classifyTypeNode(typeNode, sourceFile, project);
+  return r.kind === 'unknown' ? null : r;
+}
+
+/**
+ * Discover virtual filter fields declared via `@FilterFor('key', { type })`
+ * method decorators on the filter class. Field-type resolution precedence (high
+ * wins): (1) explicit `{ type }` hint, (2) the method's first-parameter type
+ * (named enums/aliases → real `import type` refs), (3+) fall back to existing
+ * class-property / entity-column / `unknown` behavior (handled by the caller).
+ *
+ * Returns a map of inputKey → classified type for every `@FilterFor` that
+ * carries a usable hint OR a usable first-parameter type. Keys with neither are
+ * intentionally omitted here (they remain permissive / fall back).
+ */
+function extractFilterForHints(
+  classDecl: ClassDeclaration,
+  project: Project,
+): Map<string, ClassifyResult> {
   const hints = new Map<string, ClassifyResult>();
+  const sourceFile = classDecl.getSourceFile();
   for (const method of classDecl.getMethods()) {
     const filterForDec = method.getDecorators().find((d) => d.getName() === 'FilterFor');
     if (!filterForDec) continue;
@@ -1119,16 +1258,25 @@ function extractFilterForHints(classDecl: ClassDeclaration): Map<string, Classif
     const inputKey =
       keyArg && Node.isStringLiteral(keyArg) ? keyArg.getLiteralValue() : method.getName();
 
-    // opts: second arg is the options object literal carrying `type`.
+    // (1) Explicit `{ type }` hint — highest precedence, unchanged behavior.
     const optsArg = args[1];
-    if (!optsArg || !Node.isObjectLiteralExpression(optsArg)) continue;
-    const typeProp = optsArg.getProperty('type');
-    if (!typeProp || !Node.isPropertyAssignment(typeProp)) continue;
-    const typeInit = typeProp.getInitializer();
-    if (!typeInit) continue;
+    if (optsArg && Node.isObjectLiteralExpression(optsArg)) {
+      const typeProp = optsArg.getProperty('type');
+      if (typeProp && Node.isPropertyAssignment(typeProp)) {
+        const typeInit = typeProp.getInitializer();
+        if (typeInit) {
+          const classified = classifyFilterForHint(typeInit);
+          if (classified) {
+            hints.set(inputKey, classified);
+            continue;
+          }
+        }
+      }
+    }
 
-    const classified = classifyFilterForHint(typeInit);
-    if (classified) hints.set(inputKey, classified);
+    // (2) Method first-parameter type — the new primary inference mechanism.
+    const fromParam = classifyFilterForParam(method, sourceFile, project);
+    if (fromParam) hints.set(inputKey, fromParam);
   }
   return hints;
 }
@@ -1185,7 +1333,7 @@ function extractApplyFilterInfo(
       // WINS over entity-column / class-property inference for the same key;
       // genuinely-virtual keys (no property, no column) are appended so they
       // appear in the Fields union and the type map M.
-      const filterForHints = extractFilterForHints(classDecl);
+      const filterForHints = extractFilterForHints(classDecl, project);
       if (filterForHints.size > 0) {
         const byName = new Map(fieldTypes.map((f) => [f.name, f] as const));
         for (const [key, classified] of filterForHints) {

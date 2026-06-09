@@ -16,6 +16,14 @@ export interface FilterFieldType {
   nullable?: boolean;
   /** True when enumValues are numeric literals (emit unquoted). */
   numericEnum?: boolean;
+  /**
+   * When the field's type is a named enum / type alias / interface inferred from
+   * a `@FilterFor` method parameter, the importable reference to that symbol.
+   * The emitter references `typeRef.name` in the type map M and emits a real
+   * `import type { <name> } from '<path>'` at the top of the generated file.
+   * Takes precedence over `kind`/`enumValues` when present.
+   */
+  typeRef?: TypeRef;
 }
 
 export interface ContractSource {
