@@ -217,6 +217,15 @@ function emitFilterQueryTypeArgs(c: LeafEntry): string {
 }
 
 /**
+ * Build the `TypedFilterQuery<...>` TYPE for a query-source `@ApplyFilter` route's
+ * `query` position. Built from the SAME `emitFilterQueryTypeArgs` used by the
+ * `_filterQueryTyped<...>` factory so the two are byte-identical.
+ */
+function emitFilterQueryType(c: LeafEntry): string {
+  return `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${emitFilterQueryTypeArgs(c)}>`;
+}
+
+/**
  * Emit the nested ApiRouter type block.
  */
 function buildResponseType(c: LeafEntry, outDir: string): string {
@@ -246,11 +255,18 @@ function emitRouterTypeBlock(
       const c = node;
       const method = c.method.toUpperCase();
       const queryRef = c.contractSource.queryRef;
+      // A query-source `@ApplyFilter` route renders its `TypedFilterQuery<...>`
+      // type here — from the same `filterFields`/`filterFieldTypes` data the
+      // `_filterQueryTyped<...>` factory uses — so both are byte-identical.
+      const isFilterQuery =
+        c.contractSource.filterSource === 'query' && !!c.contractSource.filterFields?.length;
       const query = queryRef
         ? queryRef.isArray
           ? `Array<${queryRef.name}>`
           : queryRef.name
-        : (c.contractSource.query ?? 'never');
+        : isFilterQuery
+          ? emitFilterQueryType(c)
+          : (c.contractSource.query ?? 'never');
       const bodyRef = c.contractSource.bodyRef;
       const body =
         method === 'GET'

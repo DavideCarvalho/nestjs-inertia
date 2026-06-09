@@ -1023,41 +1023,6 @@ function classifyFieldType(
   return markNullable({ kind: 'unknown' }, nullable);
 }
 
-/** Map a classified field kind (+ enum members) to a TS type literal. */
-function kindToTsLiteral(f: FilterFieldType): string {
-  let t: string;
-  if (f.enumValues && f.enumValues.length > 0) {
-    t = f.enumValues.map((v) => (f.numericEnum ? v : JSON.stringify(v))).join(' | ');
-  } else {
-    switch (f.kind) {
-      case 'string':
-        t = 'string';
-        break;
-      case 'number':
-        t = 'number';
-        break;
-      case 'boolean':
-        t = 'boolean';
-        break;
-      case 'date':
-        t = 'Date';
-        break;
-      case 'json':
-        t = 'Record<string, unknown>';
-        break;
-      default:
-        t = 'unknown';
-    }
-  }
-  return f.nullable ? `${t} | null` : t;
-}
-
-/** Build the per-field type map literal `{ "age": number; ... }` for TypedFilterQuery. */
-function buildFieldTypesMapLiteral(fts: FilterFieldType[]): string {
-  const entries = fts.map((f) => `${JSON.stringify(f.name)}: ${kindToTsLiteral(f)}`);
-  return `{ ${entries.join('; ')} }`;
-}
-
 /** Build a FilterFieldType from a classified property + its (possibly dotted) name. */
 function toFilterFieldType(name: string, r: ClassifyResult): FilterFieldType {
   const ft: FilterFieldType = { name, kind: r.kind };
@@ -1295,7 +1260,6 @@ function extractApplyFilterInfo(
   sourceFile: SourceFile,
   project: Project,
 ): {
-  queryType: string;
   fieldNames: string[];
   fieldTypes: FilterFieldType[];
   source: 'body' | 'query';
@@ -1348,10 +1312,7 @@ function extractApplyFilterInfo(
 
       if (fieldTypes.length === 0) return null;
       const fieldNames = fieldTypes.map((f) => f.name);
-      const fieldsUnion = fieldNames.map((f) => JSON.stringify(f)).join(' | ');
-      const typeArgs = `${fieldsUnion}, ${buildFieldTypesMapLiteral(fieldTypes)}`;
       return {
-        queryType: `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${typeArgs}>`,
         fieldNames,
         fieldTypes,
         source,
@@ -1704,21 +1665,30 @@ export function extractDtoContract(
   const filterInfo = extractApplyFilterInfo(method, sourceFile, project);
   let query = extractQueryType(method, sourceFile, project);
 
-  // Place filter type on the correct field based on @ApplyFilter source
-  if (filterInfo) {
+  // Place filter type on the correct field based on @ApplyFilter source. The
+  // body-source case still pre-renders a fixed `FilterQueryResult` here; the
+  // query-source TypedFilterQuery TYPE is rendered in emit-api.ts (from
+  // filterFields + filterFieldTypes) so it is byte-identical to the
+  // `_filterQueryTyped<...>` factory args.
+  if (filterInfo && filterInfo.source === 'body') {
     const bodyType = "import('@dudousxd/nestjs-filter-client').FilterQueryResult";
-    if (filterInfo.source === 'body') {
-      body = body ?? bodyType;
-    } else {
-      query = query ?? filterInfo.queryType;
-    }
+    body = body ?? bodyType;
   }
 
   const paramsType = extractParamsType(method, sourceFile, project);
   const response = extractResponseType(method, sourceFile, project);
 
-  // Only emit a contract if there is at least something useful
-  if (body === null && query === null && paramsType === null && response === 'unknown') {
+  // Only emit a contract if there is at least something useful. A query-source
+  // `@ApplyFilter` route carries no pre-rendered `query` string anymore (the
+  // TypedFilterQuery type is rendered in emit-api), so it must be kept alive via
+  // `filterInfo` even when every other field is empty.
+  if (
+    body === null &&
+    query === null &&
+    paramsType === null &&
+    response === 'unknown' &&
+    filterInfo === null
+  ) {
     return null;
   }
 
