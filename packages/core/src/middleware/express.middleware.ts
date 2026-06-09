@@ -35,6 +35,7 @@ export class InertiaMiddleware implements NestMiddleware {
         featureShare: undefined,
         historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
         flashStore: this.options.flashStore,
+        diagnostics: this.options.diagnostics,
       },
     );
 

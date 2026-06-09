@@ -1,6 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, relative } from 'node:path';
-import type { ControllerRef, RouteDescriptor, TypeRef } from '../discovery/types.js';
+import { dirname, isAbsolute, join, relative } from 'node:path';
+import type {
+  ControllerRef,
+  FieldTypeKind,
+  FilterFieldType,
+  RouteDescriptor,
+  TypeRef,
+} from '../discovery/types.js';
 
 /**
  * Emits `api.ts` into `outDir` for all routes that carry a `.contract`.
@@ -75,7 +81,7 @@ type LeafEntry = {
   name: string;
   path: string;
   params: Array<{ name: string; source: string }>;
-  controllerRef?: ControllerRef;
+  controllerRef?: ControllerRef | undefined;
   contractSource: {
     query: string | null | undefined;
     body: string | null | undefined;
@@ -84,6 +90,7 @@ type LeafEntry = {
     bodyRef?: TypeRef | null;
     responseRef?: TypeRef | null;
     filterFields?: string[] | null;
+    filterFieldTypes?: FilterFieldType[] | null;
     filterSource?: 'body' | 'query' | null;
   };
 };
@@ -166,6 +173,58 @@ function hasPathParams(params: Array<{ name: string; source: string }>): boolean
 // Code generation helpers
 // ---------------------------------------------------------------------------
 
+/** Map a classified field kind (+ enum members) to a TS type literal. */
+function kindToTs(kind: FieldTypeKind, enumValues?: string[], numericEnum?: boolean): string {
+  if (enumValues && enumValues.length > 0) {
+    return enumValues.map((v) => (numericEnum ? v : JSON.stringify(v))).join(' | ');
+  }
+  switch (kind) {
+    case 'string':
+      return 'string';
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'date':
+      return 'Date';
+    case 'json':
+      return 'Record<string, unknown>';
+    default:
+      return 'unknown';
+  }
+}
+
+/** Emit the per-field type map literal: `{ "age": number; "status": "A" | "B" }`. */
+function emitFieldTypesLiteral(fts: FilterFieldType[]): string {
+  const entries = fts.map((f) => {
+    // A named typeRef (enum / type alias / interface inferred from a @FilterFor
+    // method parameter) wins — reference it by name; the import is emitted at
+    // the top of the file by buildApiFile.
+    let t = f.typeRef ? f.typeRef.name : kindToTs(f.kind, f.enumValues, f.numericEnum);
+    if (f.nullable) t = `${t} | null`;
+    return `${JSON.stringify(f.name)}: ${t}`;
+  });
+  return `{ ${entries.join('; ')} }`;
+}
+
+/** Build the type args for `_filterQueryTyped` — single union, or union + field-type map. */
+function emitFilterQueryTypeArgs(c: LeafEntry): string {
+  const fieldsUnion = (c.contractSource.filterFields ?? [])
+    .map((f) => JSON.stringify(f))
+    .join(' | ');
+  const fts = c.contractSource.filterFieldTypes;
+  return fts?.length ? `${fieldsUnion}, ${emitFieldTypesLiteral(fts)}` : fieldsUnion;
+}
+
+/**
+ * Build the `TypedFilterQuery<...>` TYPE for a query-source `@ApplyFilter` route's
+ * `query` position. Built from the SAME `emitFilterQueryTypeArgs` used by the
+ * `_filterQueryTyped<...>` factory so the two are byte-identical.
+ */
+function emitFilterQueryType(c: LeafEntry): string {
+  return `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${emitFilterQueryTypeArgs(c)}>`;
+}
+
 /**
  * Emit the nested ApiRouter type block.
  */
@@ -196,11 +255,18 @@ function emitRouterTypeBlock(
       const c = node;
       const method = c.method.toUpperCase();
       const queryRef = c.contractSource.queryRef;
+      // A query-source `@ApplyFilter` route renders its `TypedFilterQuery<...>`
+      // type here — from the same `filterFields`/`filterFieldTypes` data the
+      // `_filterQueryTyped<...>` factory uses — so both are byte-identical.
+      const isFilterQuery =
+        c.contractSource.filterSource === 'query' && !!c.contractSource.filterFields?.length;
       const query = queryRef
         ? queryRef.isArray
           ? `Array<${queryRef.name}>`
           : queryRef.name
-        : (c.contractSource.query ?? 'never');
+        : isFilterQuery
+          ? emitFilterQueryType(c)
+          : (c.contractSource.query ?? 'never');
       const bodyRef = c.contractSource.bodyRef;
       const body =
         method === 'GET'
@@ -319,10 +385,8 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
           lines.push(`${pad}  }),`);
         }
         if (c.contractSource.filterFields?.length) {
-          const fieldsUnion = c.contractSource.filterFields
-            .map((f) => JSON.stringify(f))
-            .join(' | ');
-          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${fieldsUnion}>(),`);
+          const typeArgs = emitFilterQueryTypeArgs(c);
+          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${typeArgs}>(),`);
         }
         lines.push(`${pad}},`);
       } else {
@@ -356,10 +420,8 @@ function emitApiObjectBlock(tree: Map<string, TreeNode>, indent: number): string
         }
         lines.push(`${pad}    }),`);
         if (c.contractSource.filterFields?.length) {
-          const fieldsUnion = c.contractSource.filterFields
-            .map((f) => JSON.stringify(f))
-            .join(' | ');
-          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${fieldsUnion}>(),`);
+          const typeArgs = emitFilterQueryTypeArgs(c);
+          lines.push(`${pad}  filterQuery: () => _filterQueryTyped<${typeArgs}>(),`);
           lines.push(`${pad}  queryOptions: (body: ${typeAccess}['body']) =>`);
           lines.push(`${pad}    _queryOptions({`);
           lines.push(`${pad}      queryKey: [${flatName}, body] as const,`);
@@ -418,6 +480,17 @@ function buildApiFile(
       }
       names.add(ref.name);
     }
+    // Named enum / type-alias / interface refs inferred from @FilterFor method
+    // params (the type map M references them by name → emit `import type` too).
+    for (const ft of cs.filterFieldTypes ?? []) {
+      if (!ft.typeRef) continue;
+      let names = importsByFile.get(ft.typeRef.filePath);
+      if (!names) {
+        names = new Set();
+        importsByFile.set(ft.typeRef.filePath, names);
+      }
+      names.add(ft.typeRef.name);
+    }
   }
 
   const hasGetRoutes = contracted.some((r) => r.method === 'GET');
@@ -453,8 +526,15 @@ function buildApiFile(
     lines.push('');
     const emittedNames = new Set<string>();
     for (const [filePath, names] of importsByFile) {
-      let relPath = relative(outDir, filePath).replace(/\.ts$/, '');
-      if (!relPath.startsWith('.')) relPath = `./${relPath}`;
+      // Bare module specifier (node_modules package) → import as-is. Local
+      // source files are always absolute paths → compute a relative import.
+      let relPath: string;
+      if (isAbsolute(filePath)) {
+        relPath = relative(outDir, filePath).replace(/\.ts$/, '');
+        if (!relPath.startsWith('.')) relPath = `./${relPath}`;
+      } else {
+        relPath = filePath;
+      }
       const specifiers: string[] = [];
       for (const name of [...names].sort()) {
         if (emittedNames.has(name)) {

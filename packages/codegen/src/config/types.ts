@@ -35,6 +35,18 @@ export interface UserConfig {
   fetcher?: {
     importPath: string;
   };
+  /**
+   * Typed-form schema emit (`forms.ts`). Re-exports / translates contract and
+   * class-validator-decorated DTO schemas into zod schemas for `useInertiaForm`.
+   */
+  forms?: {
+    /** Emit `forms.ts`. Default: `true` (when ≥1 validatable body exists). */
+    enabled?: boolean;
+    /** DTO glob to watch for form-schema regen. Default: `'src/**\/\*.dto.ts'`. */
+    watch?: string;
+    /** Module specifier for the `z` import. Default: `'zod'`. */
+    zodImport?: string;
+  };
 }
 
 export interface ScopeConfig {
@@ -65,6 +77,12 @@ export interface ResolvedAppConfig {
   tsconfig: string | null;
 }
 
+export interface ResolvedFormsConfig {
+  enabled: boolean;
+  watch: string;
+  zodImport: string;
+}
+
 export interface ResolvedConfig {
   pages: ResolvedPagesConfig;
   contracts: ResolvedContractsConfig;
@@ -72,4 +90,5 @@ export interface ResolvedConfig {
   codegen: ResolvedCodegenConfig;
   app: ResolvedAppConfig | null;
   fetcher: { importPath: string } | null;
+  forms: ResolvedFormsConfig;
 }

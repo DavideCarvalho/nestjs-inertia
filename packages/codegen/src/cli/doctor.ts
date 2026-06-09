@@ -13,8 +13,8 @@ import {
 interface Check {
   name: string;
   pass: boolean;
-  fix?: string;
-  autoFix?: () => void;
+  fix?: string | undefined;
+  autoFix?: (() => void | Promise<void>) | undefined;
 }
 
 function checkFileExists(cwd: string, file: string): boolean {

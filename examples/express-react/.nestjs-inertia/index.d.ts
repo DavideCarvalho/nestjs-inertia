@@ -2,3 +2,4 @@
 export * from './pages.js';
 export * from './routes.js';
 export * from './api.js';
+export * from './forms.js';

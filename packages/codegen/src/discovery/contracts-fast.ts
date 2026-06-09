@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import fg from 'fast-glob';
 /**
  * Static AST-based contract discovery using ts-morph.
@@ -11,12 +10,23 @@ import {
   type MethodDeclaration,
   Node,
   Project,
-  type PropertyDeclaration,
   type SourceFile,
   SyntaxKind,
   type TypeNode,
 } from 'ts-morph';
-import type { RouteDescriptor, TypeRef } from './types.js';
+import { extractZodFromDto } from './dto-to-zod.js';
+import { extractApplyFilterInfo } from './filter-for.js';
+import {
+  type TypeDeclResult,
+  dbg,
+  findType,
+  loadTsconfigPaths,
+  resolveImportedType,
+  resolveTypeRef,
+  restoreDiscoveryContext,
+  setDiscoveryContext,
+} from './type-ref-resolution.js';
+import type { FilterFieldType, RouteDescriptor, TypeRef } from './types.js';
 
 export interface FastDiscoveryOptions {
   /** Absolute path to the project root. */
@@ -25,44 +35,6 @@ export interface FastDiscoveryOptions {
   glob: string;
   /** Optional tsconfig.json path; default 'tsconfig.json' in cwd */
   tsconfig?: string;
-}
-
-/**
- * Discovery context — scoped per `discoverContractsFast` invocation.
- * Saved/restored around each call to prevent cross-call corruption
- * when concurrent invocations occur (e.g. in tests or overlapping watcher triggers).
- */
-export interface DiscoveryContext {
-  projectRoot: string;
-  tsconfigPaths: Record<string, string[]> | null;
-}
-
-let _ctx: DiscoveryContext = { projectRoot: '', tsconfigPaths: null };
-
-// Backwards-compatible accessors for internal functions
-function _projectRoot(): string {
-  return _ctx.projectRoot;
-}
-function _tsconfigPaths(): Record<string, string[]> | null {
-  return _ctx.tsconfigPaths;
-}
-const _debug = process.env.NESTJS_INERTIA_DEBUG === '1';
-function dbg(...args: unknown[]) {
-  if (_debug) console.log('[codegen:debug]', ...args);
-}
-
-function loadTsconfigPaths(tsconfigPath: string): Record<string, string[]> | null {
-  try {
-    const raw = readFileSync(tsconfigPath, 'utf8');
-    // Strip single-line comments (tsconfig allows them)
-    const stripped = raw.replace(/\/\/.*$/gm, '');
-    const parsed = JSON.parse(stripped) as {
-      compilerOptions?: { paths?: Record<string, string[]> };
-    };
-    return parsed.compilerOptions?.paths ?? null;
-  } catch {
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -109,8 +81,10 @@ export async function discoverContractsFast(
   const routes: RouteDescriptor[] = [];
 
   // Save previous context and set current (prevents cross-call corruption)
-  const prevCtx = _ctx;
-  _ctx = { projectRoot: cwd, tsconfigPaths: loadTsconfigPaths(tsconfigPath) };
+  const prevCtx = setDiscoveryContext({
+    projectRoot: cwd,
+    tsconfigPaths: loadTsconfigPaths(tsconfigPath),
+  });
 
   try {
     for (const sourceFile of project.getSourceFiles()) {
@@ -118,7 +92,7 @@ export async function discoverContractsFast(
     }
   } finally {
     // Restore previous context so concurrent callers are not affected
-    _ctx = prevCtx;
+    restoreDiscoveryContext(prevCtx);
   }
 
   return routes;
@@ -264,11 +238,17 @@ function decoratorStringArg(decoratorExpr: Node | undefined): string | undefined
  * Parse a defineContract({...}) call expression.
  * Returns { query, body, response } or null if unrecognised.
  */
-function parseDefineContractCall(callExpr: Node): {
+interface ParsedContractDef {
   query: string | null;
   body: string | null;
   response: string;
-} | null {
+  /** Raw zod source text of the body initializer (for inline forms emit). */
+  bodyZodText: string | null;
+  /** Raw zod source text of the query initializer (for inline forms emit). */
+  queryZodText: string | null;
+}
+
+function parseDefineContractCall(callExpr: Node): ParsedContractDef | null {
   if (!Node.isCallExpression(callExpr)) return null;
 
   const callee = callExpr.getExpression();
@@ -288,6 +268,8 @@ function parseDefineContractCall(callExpr: Node): {
   let query: string | null = null;
   let body: string | null = null;
   let response = 'unknown';
+  let bodyZodText: string | null = null;
+  let queryZodText: string | null = null;
 
   for (const prop of optsArg.getProperties()) {
     if (!Node.isPropertyAssignment(prop)) continue;
@@ -297,14 +279,16 @@ function parseDefineContractCall(callExpr: Node): {
 
     if (propName === 'query') {
       query = zodAstToTs(val);
+      queryZodText = val.getText();
     } else if (propName === 'body') {
       body = zodAstToTs(val);
+      bodyZodText = val.getText();
     } else if (propName === 'response') {
       response = zodAstToTs(val);
     }
   }
 
-  return { query, body, response };
+  return { query, body, response, bodyZodText, queryZodText };
 }
 
 /**
@@ -378,128 +362,6 @@ function extractParams(
 // ---------------------------------------------------------------------------
 // DTO-based contract extraction (standard NestJS patterns — no defineContract)
 // ---------------------------------------------------------------------------
-
-type TypeDeclResult =
-  | { kind: 'class'; decl: ClassDeclaration; file: SourceFile }
-  | { kind: 'interface'; decl: InterfaceDeclaration; file: SourceFile }
-  | { kind: 'typeAlias'; typeNode: TypeNode | undefined; file: SourceFile; text: string }
-  | { kind: 'enum'; members: string[] };
-
-/**
- * Try to find a type declaration (class, interface, type alias, enum) in a source file.
- */
-function findTypeInFile(name: string, file: SourceFile): TypeDeclResult | null {
-  const cls = file.getClass(name);
-  if (cls) return { kind: 'class', decl: cls, file };
-
-  const iface = file.getInterface(name);
-  if (iface) return { kind: 'interface', decl: iface, file };
-
-  const alias = file.getTypeAlias(name);
-  if (alias) {
-    const typeNode = alias.getTypeNode();
-    return {
-      kind: 'typeAlias',
-      typeNode,
-      file,
-      text: typeNode ? typeNode.getText() : 'unknown',
-    };
-  }
-
-  const enumDecl = file.getEnum(name);
-  if (enumDecl) {
-    const members = enumDecl.getMembers().map((m) => {
-      const val = m.getValue();
-      return typeof val === 'string' ? JSON.stringify(val) : JSON.stringify(m.getName());
-    });
-    return { kind: 'enum', members };
-  }
-
-  return null;
-}
-
-/**
- * Follow import declarations to find a type in another file.
- */
-function resolveModuleSpecifier(
-  moduleSpecifier: string,
-  sourceFile: SourceFile,
-  project: Project,
-): string[] {
-  if (moduleSpecifier.startsWith('.')) {
-    const dir = dirname(sourceFile.getFilePath());
-    return [resolve(dir, `${moduleSpecifier}.ts`), resolve(dir, moduleSpecifier, 'index.ts')];
-  }
-
-  // Try to resolve path aliases via tsconfig paths (read directly from JSON)
-  const baseUrl = _projectRoot();
-  const tsconfigPaths = _tsconfigPaths();
-
-  dbg(
-    'resolveModuleSpecifier',
-    moduleSpecifier,
-    'paths:',
-    JSON.stringify(tsconfigPaths),
-    'baseUrl:',
-    baseUrl,
-  );
-
-  if (tsconfigPaths) {
-    for (const [pattern, mappings] of Object.entries(tsconfigPaths)) {
-      const prefix = pattern.replace('*', '');
-      if (moduleSpecifier.startsWith(prefix)) {
-        const rest = moduleSpecifier.slice(prefix.length);
-        const candidates: string[] = [];
-        for (const mapping of mappings) {
-          const resolved = resolve(baseUrl, mapping.replace('*', rest));
-          candidates.push(`${resolved}.ts`, resolve(resolved, 'index.ts'));
-        }
-        dbg('  resolved candidates:', candidates);
-        return candidates;
-      }
-    }
-  }
-
-  return [];
-}
-
-function resolveImportedType(
-  name: string,
-  sourceFile: SourceFile,
-  project: Project,
-): TypeDeclResult | null {
-  for (const importDecl of sourceFile.getImportDeclarations()) {
-    const namedImport = importDecl.getNamedImports().find((n) => n.getName() === name);
-    if (!namedImport) continue;
-
-    const moduleSpecifier = importDecl.getModuleSpecifierValue();
-    const candidates = resolveModuleSpecifier(moduleSpecifier, sourceFile, project);
-    if (candidates.length === 0) continue;
-
-    for (const candidate of candidates) {
-      let importedFile = project.getSourceFile(candidate);
-      if (!importedFile) {
-        try {
-          importedFile = project.addSourceFileAtPath(candidate);
-        } catch {
-          continue;
-        }
-      }
-      const result = findTypeInFile(name, importedFile);
-      if (result) return result;
-    }
-  }
-  return null;
-}
-
-/**
- * Find a type declaration by name: first in the current file, then by following imports.
- */
-function findType(name: string, sourceFile: SourceFile, project: Project): TypeDeclResult | null {
-  const local = findTypeInFile(name, sourceFile);
-  if (local) return local;
-  return resolveImportedType(name, sourceFile, project);
-}
 
 /**
  * Resolve a TypeNode to a TypeScript type-source string.
@@ -735,209 +597,6 @@ function extractQueryType(
 }
 
 /**
- * Extract the query type from an `@ApplyFilter(FilterClass)` decorated parameter.
- * Resolves the filter class and reads its properties (excluding inherited base class members).
- * Returns a TS type string or null.
- */
-function extractApplyFilterInfo(
-  method: MethodDeclaration,
-  sourceFile: SourceFile,
-  project: Project,
-): { queryType: string; fieldNames: string[]; source: 'body' | 'query' } | null {
-  for (const param of method.getParameters()) {
-    const filterDecorator = param.getDecorators().find((d) => d.getName() === 'ApplyFilter');
-    if (!filterDecorator) continue;
-    const args = filterDecorator.getArguments();
-    if (args.length === 0) continue;
-    const filterClassArg = args[0];
-    if (!filterClassArg || !Node.isIdentifier(filterClassArg)) continue;
-
-    // Read { source: "body" | "query" } from second argument
-    let source: 'body' | 'query' = 'query';
-    const optionsArg = args[1];
-    if (optionsArg && Node.isObjectLiteralExpression(optionsArg)) {
-      const sourceProp = optionsArg.getProperty('source');
-      if (sourceProp && Node.isPropertyAssignment(sourceProp)) {
-        const init = sourceProp.getInitializer();
-        if (init && Node.isStringLiteral(init) && init.getLiteralValue() === 'body') {
-          source = 'body';
-        }
-      }
-    }
-
-    const filterClassName = filterClassArg.getText();
-    const resolved = findType(filterClassName, sourceFile, project);
-    if (resolved && resolved.kind === 'class') {
-      const classDecl = resolved.decl as ClassDeclaration;
-      let fieldNames = extractClassPropertyNames(classDecl);
-
-      // autoFields: if the filter class has no properties, resolve fields
-      // from the entity referenced in @Filterable({ entity: X })
-      if (fieldNames.length === 0) {
-        fieldNames = extractFilterableEntityFields(classDecl, project);
-      }
-
-      if (fieldNames.length === 0) return null;
-      const fieldsUnion = fieldNames.map((f) => JSON.stringify(f)).join(' | ');
-      return {
-        queryType: `import('@dudousxd/nestjs-filter-client').TypedFilterQuery<${fieldsUnion}>`,
-        fieldNames,
-        source,
-      };
-    }
-  }
-  return null;
-}
-
-const RELATION_DECORATORS = new Set(['OneToMany', 'ManyToOne', 'ManyToMany', 'OneToOne']);
-
-/**
- * Recursively collect entity fields including dot-notation relation fields.
- * e.g. for PipelineRun with tasks: OneToMany<Task>, produces:
- *   ["id", "name", "status", ..., "tasks.id", "tasks.name", ...]
- */
-function collectEntityFields(
-  entityDecl: ClassDeclaration,
-  sourceFile: SourceFile,
-  project: Project,
-  prefix: string,
-  visited: Set<string>,
-): string[] {
-  const entityName = entityDecl.getName() ?? '';
-  if (visited.has(entityName)) return [];
-  visited.add(entityName);
-
-  const fields: string[] = [];
-  for (const prop of entityDecl.getProperties()) {
-    const name = prop.getName();
-    if (name.startsWith('$') || name.startsWith('_') || name.startsWith('[')) continue;
-    if (prop.isStatic()) continue;
-
-    const fullName = prefix ? `${prefix}.${name}` : name;
-    const isRelation = prop.getDecorators().some((d) => RELATION_DECORATORS.has(d.getName()));
-
-    if (isRelation) {
-      const relEntity = resolveRelationEntity(prop, sourceFile, project);
-      if (relEntity) {
-        fields.push(...collectEntityFields(relEntity, sourceFile, project, fullName, visited));
-      }
-    } else {
-      fields.push(fullName);
-    }
-  }
-  return fields;
-}
-
-/**
- * Given a relation property (e.g. `tasks = new Collection<Task>(this)`),
- * resolve the target entity class declaration.
- */
-function resolveRelationEntity(
-  prop: PropertyDeclaration,
-  sourceFile: SourceFile,
-  project: Project,
-): ClassDeclaration | null {
-  // Try from decorator argument: @OneToMany({ entity: () => Task, ... })
-  for (const dec of prop.getDecorators()) {
-    if (!RELATION_DECORATORS.has(dec.getName())) continue;
-    const args = dec.getArguments();
-    if (args.length === 0) continue;
-    const arg = args[0];
-    if (Node.isObjectLiteralExpression(arg)) {
-      const entityProp = arg.getProperty('entity');
-      if (entityProp && Node.isPropertyAssignment(entityProp)) {
-        const init = entityProp.getInitializer();
-        // () => Task
-        if (init && Node.isArrowFunction(init)) {
-          const body = init.getBody();
-          if (Node.isIdentifier(body)) {
-            const resolved = findType(body.getText(), prop.getSourceFile(), project);
-            if (resolved?.kind === 'class') return resolved.decl as ClassDeclaration;
-          }
-        }
-      }
-    }
-    // @ManyToOne(() => Task)
-    if (Node.isArrowFunction(arg)) {
-      const body = arg.getBody();
-      if (Node.isIdentifier(body)) {
-        const resolved = findType(body.getText(), prop.getSourceFile(), project);
-        if (resolved?.kind === 'class') return resolved.decl as ClassDeclaration;
-      }
-    }
-  }
-  return null;
-}
-
-function extractClassPropertyNames(classDecl: ClassDeclaration): string[] {
-  const names: string[] = [];
-  for (const prop of classDecl.getProperties()) {
-    const name = prop.getName();
-    if (name.startsWith('$') || name.startsWith('_')) continue;
-    names.push(name);
-  }
-  return names;
-}
-
-/**
- * When a filter class uses `@Filterable({ entity: X, autoFields: true })`,
- * resolve entity X and extract its property names (fields decorated with
- * `@Property`, `@PrimaryKey`, `@Enum`, etc. — skipping relations).
- */
-function extractFilterableEntityFields(filterClass: ClassDeclaration, project: Project): string[] {
-  const filterableDecorator = filterClass.getDecorators().find((d) => d.getName() === 'Filterable');
-  if (!filterableDecorator) return [];
-  const args = filterableDecorator.getArguments();
-  if (args.length === 0) return [];
-
-  const optionsArg = args[0];
-  if (!Node.isObjectLiteralExpression(optionsArg)) return [];
-
-  const entityProp = optionsArg.getProperty('entity');
-  if (!entityProp || !Node.isPropertyAssignment(entityProp)) return [];
-
-  const entityInit = entityProp.getInitializer();
-  if (!entityInit || !Node.isIdentifier(entityInit)) return [];
-
-  const entityName = entityInit.getText();
-  const filterSourceFile = filterClass.getSourceFile();
-  const resolvedEntity = findType(entityName, filterSourceFile, project);
-  if (!resolvedEntity || resolvedEntity.kind !== 'class') return [];
-
-  const fields = collectEntityFields(
-    resolvedEntity.decl as ClassDeclaration,
-    filterSourceFile,
-    project,
-    '',
-    new Set(),
-  );
-
-  // Also include keys declared via @Relations({ rel: { keys: [...] } })
-  const relationsDecorator = filterClass.getDecorators().find((d) => d.getName() === 'Relations');
-  if (relationsDecorator) {
-    const relArgs = relationsDecorator.getArguments();
-    if (relArgs.length > 0 && Node.isObjectLiteralExpression(relArgs[0])) {
-      for (const relProp of relArgs[0].getProperties()) {
-        if (!Node.isPropertyAssignment(relProp)) continue;
-        const relInit = relProp.getInitializer();
-        if (!relInit || !Node.isObjectLiteralExpression(relInit)) continue;
-        const keysProp = relInit.getProperty('keys');
-        if (!keysProp || !Node.isPropertyAssignment(keysProp)) continue;
-        const keysInit = keysProp.getInitializer();
-        if (!keysInit || !Node.isArrayLiteralExpression(keysInit)) continue;
-        for (const el of keysInit.getElements()) {
-          if (Node.isStringLiteral(el)) {
-            fields.push(el.getLiteralValue());
-          }
-        }
-      }
-    }
-  }
-
-  return fields;
-}
-
-/**
  * Collect `@Param('name')` decorated parameters into a `{ name: type; ... }` string.
  * Returns a TS type string or null when no @Param decorators are present.
  */
@@ -1032,68 +691,19 @@ function resolveIdentifierToClassType(
 }
 
 /**
- * Try to resolve a TypeNode to a named exported type reference.
- * Returns { name, filePath } if the type is a named export, null otherwise.
- * Unwraps Promise<T> and Array<T> to find the inner named type.
+ * Resolve a `@Body()` / `@Query()` param or return-type `TypeNode` to a named
+ * exported class/interface ref (unwrapping `Promise<T>` / `Array<T>` / `T[]`).
+ * Thin wrapper over the shared {@link resolveTypeRef}.
  */
-function tryResolveTypeRef(
+function resolveBodyQueryResponseRef(
   typeNode: TypeNode,
   sourceFile: SourceFile,
   project: Project,
 ): TypeRef | null {
-  if (Node.isTypeReference(typeNode)) {
-    const typeName = typeNode.getTypeName();
-    const name = Node.isIdentifier(typeName) ? typeName.getText() : null;
-    if (!name) return null;
-
-    // Unwrap Promise<T>
-    if (name === 'Promise') {
-      const typeArgs = typeNode.getTypeArguments();
-      const first = typeArgs[0];
-      if (first) return tryResolveTypeRef(first, sourceFile, project);
-      return null;
-    }
-
-    // Array<T> generic form
-    if (name === 'Array') {
-      const typeArgs = typeNode.getTypeArguments();
-      const first = typeArgs[0];
-      if (first) {
-        const inner = tryResolveTypeRef(first, sourceFile, project);
-        if (inner) return { ...inner, isArray: true };
-      }
-      return null;
-    }
-
-    // Skip primitives and well-known types
-    if (['string', 'number', 'boolean', 'void', 'unknown', 'any', 'Date'].includes(name)) {
-      return null;
-    }
-
-    // Check if it's exported from the current file
-    const localDecl =
-      sourceFile.getInterface(name) || sourceFile.getClass(name) || sourceFile.getTypeAlias(name);
-    if (localDecl?.isExported()) {
-      return { name, filePath: sourceFile.getFilePath() };
-    }
-
-    // Check if it's imported and exported from another file
-    const resolved = resolveImportedType(name, sourceFile, project);
-    if (resolved && (resolved.kind === 'class' || resolved.kind === 'interface')) {
-      const decl = resolved.decl;
-      if (decl.isExported()) {
-        return { name, filePath: resolved.file.getFilePath() };
-      }
-    }
-  }
-
-  // T[] syntax — check inner type
-  if (Node.isArrayTypeNode(typeNode)) {
-    const inner = tryResolveTypeRef(typeNode.getElementTypeNode(), sourceFile, project);
-    if (inner) return { ...inner, isArray: true };
-  }
-
-  return null;
+  return resolveTypeRef(typeNode, sourceFile, project, {
+    kinds: ['class', 'interface'],
+    unwrapContainers: true,
+  });
 }
 
 /**
@@ -1114,26 +724,41 @@ export function extractDtoContract(
   bodyRef?: TypeRef | null;
   responseRef?: TypeRef | null;
   filterFields?: string[] | null;
+  filterFieldTypes?: FilterFieldType[] | null;
+  filterSource?: 'body' | 'query' | null;
+  bodyZodText?: string | null;
+  queryZodText?: string | null;
+  formNestedSchemas?: Record<string, string> | null;
+  formWarnings?: string[];
 } | null {
   let body = extractBodyType(method, sourceFile, project);
   const filterInfo = extractApplyFilterInfo(method, sourceFile, project);
-  let query = extractQueryType(method, sourceFile, project);
+  const query = extractQueryType(method, sourceFile, project);
 
-  // Place filter type on the correct field based on @ApplyFilter source
-  if (filterInfo) {
+  // Place filter type on the correct field based on @ApplyFilter source. The
+  // body-source case still pre-renders a fixed `FilterQueryResult` here; the
+  // query-source TypedFilterQuery TYPE is rendered in emit-api.ts (from
+  // filterFields + filterFieldTypes) so it is byte-identical to the
+  // `_filterQueryTyped<...>` factory args.
+  if (filterInfo && filterInfo.source === 'body') {
     const bodyType = "import('@dudousxd/nestjs-filter-client').FilterQueryResult";
-    if (filterInfo.source === 'body') {
-      body = body ?? bodyType;
-    } else {
-      query = query ?? filterInfo.queryType;
-    }
+    body = body ?? bodyType;
   }
 
   const paramsType = extractParamsType(method, sourceFile, project);
   const response = extractResponseType(method, sourceFile, project);
 
-  // Only emit a contract if there is at least something useful
-  if (body === null && query === null && paramsType === null && response === 'unknown') {
+  // Only emit a contract if there is at least something useful. A query-source
+  // `@ApplyFilter` route carries no pre-rendered `query` string anymore (the
+  // TypedFilterQuery type is rendered in emit-api), so it must be kept alive via
+  // `filterInfo` even when every other field is empty.
+  if (
+    body === null &&
+    query === null &&
+    paramsType === null &&
+    response === 'unknown' &&
+    filterInfo === null
+  ) {
     return null;
   }
 
@@ -1144,16 +769,16 @@ export function extractDtoContract(
 
   for (const param of method.getParameters()) {
     if (param.getDecorators().some((d) => d.getName() === 'Body') && param.getTypeNode()) {
-      bodyRef = tryResolveTypeRef(param.getTypeNode()!, sourceFile, project);
+      bodyRef = resolveBodyQueryResponseRef(param.getTypeNode()!, sourceFile, project);
     }
     if (param.getDecorators().some((d) => d.getName() === 'Query') && param.getTypeNode()) {
-      queryRef = tryResolveTypeRef(param.getTypeNode()!, sourceFile, project);
+      queryRef = resolveBodyQueryResponseRef(param.getTypeNode()!, sourceFile, project);
     }
   }
 
   const returnTypeNode = method.getReturnTypeNode();
   if (returnTypeNode) {
-    responseRef = tryResolveTypeRef(returnTypeNode, sourceFile, project);
+    responseRef = resolveBodyQueryResponseRef(returnTypeNode, sourceFile, project);
   }
   // Also check @ApiResponse
   if (!responseRef) {
@@ -1190,6 +815,30 @@ export function extractDtoContract(
     }
   }
 
+  // ── Synthesize form zod schemas from class-validator DTOs (Path B) ────────
+  // Resolve the @Body()/@Query() param to a class declaration and translate its
+  // decorators. A defineContract schema always wins, so this only runs on the
+  // plain-verb path where no contract schema is present.
+  let bodyZodText: string | null = null;
+  let queryZodText: string | null = null;
+  const formNested: Record<string, string> = {};
+  const formWarnings: string[] = [];
+
+  const bodyClass = resolveParamClass(method, 'Body', sourceFile, project);
+  if (bodyClass) {
+    const result = extractZodFromDto(bodyClass.decl, bodyClass.file, project);
+    bodyZodText = result.schemaText;
+    for (const [k, v] of result.namedNestedSchemas) formNested[k] = v;
+    formWarnings.push(...result.warnings);
+  }
+  const queryClass = resolveParamClass(method, 'Query', sourceFile, project);
+  if (queryClass) {
+    const result = extractZodFromDto(queryClass.decl, queryClass.file, project);
+    queryZodText = result.schemaText;
+    for (const [k, v] of result.namedNestedSchemas) formNested[k] = v;
+    formWarnings.push(...result.warnings);
+  }
+
   return {
     query,
     body,
@@ -1199,8 +848,38 @@ export function extractDtoContract(
     bodyRef,
     responseRef,
     filterFields: filterInfo?.fieldNames ?? null,
+    filterFieldTypes: filterInfo?.fieldTypes ?? null,
     filterSource: filterInfo?.source ?? null,
+    bodyZodText,
+    queryZodText,
+    formNestedSchemas: Object.keys(formNested).length > 0 ? formNested : null,
+    formWarnings,
   };
+}
+
+/**
+ * Resolve a `@Body()` / `@Query()` parameter's TS type to a class declaration
+ * (following imports). Returns null for interfaces / plain types / unresolved.
+ */
+function resolveParamClass(
+  method: MethodDeclaration,
+  decoratorName: 'Body' | 'Query',
+  sourceFile: SourceFile,
+  project: Project,
+): { decl: ClassDeclaration; file: SourceFile } | null {
+  for (const param of method.getParameters()) {
+    if (!param.getDecorators().some((d) => d.getName() === decoratorName)) continue;
+    const typeNode = param.getTypeNode();
+    if (!typeNode) continue;
+    // Strip array suffix — translate the element class.
+    const text = typeNode.getText().replace(/\[\]$/, '');
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(text)) continue;
+    const resolved = findType(text, sourceFile, project);
+    if (resolved && resolved.kind === 'class') {
+      return { decl: resolved.decl, file: resolved.file };
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1267,11 +946,11 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
         if (!firstDecoratorArg) continue;
 
         // Resolve contract definition from inline call or identifier
-        let contractDef: {
-          query: string | null;
-          body: string | null;
-          response: string;
-        } | null = null;
+        let contractDef: ParsedContractDef | null = null;
+        // When the contract is a named const we can import, re-export its
+        // members (`<const>.body` / `<const>.query`) for perfect parity.
+        let bodyZodRef: TypeRef | null = null;
+        let queryZodRef: TypeRef | null = null;
 
         if (Node.isCallExpression(firstDecoratorArg)) {
           contractDef = parseDefineContractCall(firstDecoratorArg);
@@ -1289,6 +968,17 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
           if (!initializer) continue;
 
           contractDef = parseDefineContractCall(initializer);
+          // Re-export the named contract's schema members (Path A). Only when the
+          // const is exported so forms.ts can import it.
+          if (contractDef && varDecl.isExported()) {
+            const filePath = sourceFile.getFilePath();
+            if (contractDef.body !== null) {
+              bodyZodRef = { name: `${identName}.body`, filePath };
+            }
+            if (contractDef.query !== null) {
+              queryZodRef = { name: `${identName}.query`, filePath };
+            }
+          }
         } else {
           console.warn(
             `[nestjs-inertia-codegen/fast] @ApplyContract arg is not an identifier or call expression in ${sourceFile.getFilePath()} — skipping`,
@@ -1360,6 +1050,13 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               query: contractDef.query,
               body: contractDef.body,
               response: contractDef.response,
+              // Path A: capture both the importable ref and the raw text. The
+              // emitter prefers inlining the text (client-safe — re-exporting from
+              // a controller would drag server-only deps into the client bundle).
+              bodyZodRef,
+              bodyZodText: contractDef.bodyZodText,
+              queryZodRef,
+              queryZodText: contractDef.queryZodText,
             },
           },
         });
@@ -1406,11 +1103,16 @@ function extractFromSourceFile(sourceFile: SourceFile, project: Project): RouteD
               query: dtoContract?.query ?? null,
               body: dtoContract?.body ?? null,
               response: dtoContract?.response ?? 'unknown',
-              queryRef: dtoContract?.queryRef,
-              bodyRef: dtoContract?.bodyRef,
-              responseRef: dtoContract?.responseRef,
+              queryRef: dtoContract?.queryRef ?? null,
+              bodyRef: dtoContract?.bodyRef ?? null,
+              responseRef: dtoContract?.responseRef ?? null,
               filterFields: dtoContract?.filterFields ?? null,
+              filterFieldTypes: dtoContract?.filterFieldTypes ?? null,
               filterSource: dtoContract?.filterSource ?? null,
+              bodyZodText: dtoContract?.bodyZodText ?? null,
+              queryZodText: dtoContract?.queryZodText ?? null,
+              formNestedSchemas: dtoContract?.formNestedSchemas ?? null,
+              formWarnings: dtoContract?.formWarnings ?? [],
             },
           },
         });

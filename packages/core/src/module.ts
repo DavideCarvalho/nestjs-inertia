@@ -7,11 +7,12 @@ import {
   type NestModule,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
+  type ExceptionFilter,
   type OnModuleInit,
   type Provider,
   RequestMethod,
 } from '@nestjs/common';
-import { APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
 import {
   assetVersionProvider,
   computeAssetVersion,
@@ -23,6 +24,7 @@ import { InvalidInertiaConfigException } from './errors/exceptions.js';
 import { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 import { InertiaRenderInterceptor } from './interceptor/render.interceptor.js';
 import { InertiaScopeSwitcherInterceptor } from './interceptor/scope-switcher.interceptor.js';
+import { InertiaValidationFilter } from './validation/inertia-validation.filter.js';
 import { InertiaMiddleware } from './middleware/express.middleware.js';
 import { registerFastifyInertia } from './middleware/fastify.middleware.js';
 import { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
@@ -106,6 +108,22 @@ export class InertiaModule
       {
         provide: APP_INTERCEPTOR,
         useClass: RedirectInterceptor,
+      },
+      {
+        provide: APP_FILTER,
+        inject: [INERTIA_MODULE_OPTIONS],
+        useFactory: (opts: InertiaModuleOptions): ExceptionFilter => {
+          // Fail fast at bootstrap: validation needs a flashStore to write to.
+          if (opts.validation?.enabled && !opts.flashStore) {
+            throw new InvalidInertiaConfigException(
+              'validation.enabled requires a flashStore (the filter has nowhere to write the error bag).',
+            );
+          }
+          // The filter is @Catch(BadRequestException)-scoped and rethrows whenever
+          // it does not apply (disabled, non-Inertia, non-validation), so it is
+          // inert by default and never swallows unrelated exceptions.
+          return new InertiaValidationFilter(opts);
+        },
       },
     ];
   }
@@ -420,6 +438,7 @@ export class InertiaModule
           featureShare: undefined,
           historyEncryptionDefault: this.options.historyEncryption?.default ?? false,
           flashStore: this.options.flashStore,
+          diagnostics: this.options.diagnostics,
         }));
         // Phase 21: also register method spoof
         const { registerFastifyMethodSpoof } = await import(

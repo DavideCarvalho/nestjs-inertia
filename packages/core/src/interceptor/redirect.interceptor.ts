@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { getHeader } from '../helpers/get-header.js';
 import { INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import type { InertiaModuleOptions } from '../types.js';
 
@@ -14,17 +15,6 @@ const SAFE_METHODS = new Set(['PUT', 'PATCH', 'DELETE']);
 
 type RedirectFn = (url: string) => void;
 type RedirectFnWithStatus = (status: number, url: string) => void;
-
-/** Works for both Express (req.header(n)) and raw Fastify (req.headers[n]) */
-function getHeader(req: unknown, name: string): string | undefined {
-  const r = req as {
-    header?: (n: string) => string | undefined;
-    headers?: Record<string, string | string[] | undefined>;
-  };
-  if (typeof r.header === 'function') return r.header(name);
-  const v = r.headers?.[name.toLowerCase()];
-  return Array.isArray(v) ? v[0] : v;
-}
 
 @Injectable()
 export class RedirectInterceptor implements NestInterceptor {

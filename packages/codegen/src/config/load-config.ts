@@ -97,6 +97,11 @@ function applyDefaults(userConfig: UserConfig, cwd: string): ResolvedConfig {
     },
     app,
     fetcher: userConfig.fetcher ?? null,
+    forms: {
+      enabled: userConfig.forms?.enabled ?? true,
+      watch: userConfig.forms?.watch ?? 'src/**/*.dto.ts',
+      zodImport: userConfig.forms?.zodImport ?? 'zod',
+    },
   };
 }
 
