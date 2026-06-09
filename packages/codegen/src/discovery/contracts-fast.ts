@@ -1062,6 +1062,78 @@ function toFilterFieldType(name: string, r: ClassifyResult): FilterFieldType {
 }
 
 /**
+ * Map a single `@FilterFor` `type` hint token (read statically from the AST) to a
+ * `ClassifyResult`. Supports the four primitive tokens plus a string-literal
+ * array (enum) → literal string union. Returns null for anything unrecognised so
+ * the caller falls back to the current permissive (`unknown`) behavior.
+ */
+function classifyFilterForHint(typeInit: Node): ClassifyResult | null {
+  // Primitive token: 'string' | 'number' | 'boolean' | 'Date'
+  if (Node.isStringLiteral(typeInit)) {
+    switch (typeInit.getLiteralValue()) {
+      case 'string':
+        return { kind: 'string' };
+      case 'number':
+        return { kind: 'number' };
+      case 'boolean':
+        return { kind: 'boolean' };
+      case 'Date':
+        return { kind: 'date' };
+      default:
+        return null;
+    }
+  }
+
+  // Enum: a readonly array of string literals → literal string union.
+  if (Node.isArrayLiteralExpression(typeInit)) {
+    const values: string[] = [];
+    for (const el of typeInit.getElements()) {
+      if (!Node.isStringLiteral(el)) return null; // non-literal → bail to permissive
+      values.push(el.getLiteralValue());
+    }
+    if (values.length === 0) return null;
+    return { kind: 'string', enumValues: values };
+  }
+
+  return null;
+}
+
+/**
+ * Discover virtual filter fields declared via `@FilterFor('key', { type })`
+ * method decorators on the filter class. Reads the `type` hint statically from
+ * the decorator options object. Returns a map of inputKey → classified type for
+ * every `@FilterFor` that carries a usable hint.
+ *
+ * Keys without a usable hint are intentionally omitted here (they remain
+ * permissive / fall back to existing behavior).
+ */
+function extractFilterForHints(classDecl: ClassDeclaration): Map<string, ClassifyResult> {
+  const hints = new Map<string, ClassifyResult>();
+  for (const method of classDecl.getMethods()) {
+    const filterForDec = method.getDecorators().find((d) => d.getName() === 'FilterFor');
+    if (!filterForDec) continue;
+
+    const args = filterForDec.getArguments();
+    // inputKey: first string-literal arg, else the method name.
+    const keyArg = args[0];
+    const inputKey =
+      keyArg && Node.isStringLiteral(keyArg) ? keyArg.getLiteralValue() : method.getName();
+
+    // opts: second arg is the options object literal carrying `type`.
+    const optsArg = args[1];
+    if (!optsArg || !Node.isObjectLiteralExpression(optsArg)) continue;
+    const typeProp = optsArg.getProperty('type');
+    if (!typeProp || !Node.isPropertyAssignment(typeProp)) continue;
+    const typeInit = typeProp.getInitializer();
+    if (!typeInit) continue;
+
+    const classified = classifyFilterForHint(typeInit);
+    if (classified) hints.set(inputKey, classified);
+  }
+  return hints;
+}
+
+/**
  * Extract the query type from an `@ApplyFilter(FilterClass)` decorated parameter.
  * Resolves the filter class and reads its properties (excluding inherited base class members).
  * Returns a TS type string or null.
@@ -1107,6 +1179,19 @@ function extractApplyFilterInfo(
       // from the entity referenced in @Filterable({ entity: X })
       if (fieldTypes.length === 0) {
         fieldTypes = extractFilterableEntityFields(classDecl, project);
+      }
+
+      // Merge in explicit @FilterFor('key', { type }) hints. An explicit hint
+      // WINS over entity-column / class-property inference for the same key;
+      // genuinely-virtual keys (no property, no column) are appended so they
+      // appear in the Fields union and the type map M.
+      const filterForHints = extractFilterForHints(classDecl);
+      if (filterForHints.size > 0) {
+        const byName = new Map(fieldTypes.map((f) => [f.name, f] as const));
+        for (const [key, classified] of filterForHints) {
+          byName.set(key, toFilterFieldType(key, classified));
+        }
+        fieldTypes = [...byName.values()];
       }
 
       if (fieldTypes.length === 0) return null;
