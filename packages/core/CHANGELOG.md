@@ -1,5 +1,27 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.5.0
+
+### Minor Changes
+
+- [`4395608`](https://github.com/DavideCarvalho/nestjs-inertia/commit/439560897a20f84068f94d4402fc196b92367624) - Emit per-render diagnostics on a `node:diagnostics_channel` (`nestjs-inertia:render`)
+  for tooling such as nestjs-telescope's Inertia panel: rendered component, resolved
+  props (passed by reference for downstream redaction), the partial-reload decision,
+  deferred/optional/once/merge/excluded keys, asset version + version-mismatch, history
+  flags, status code and payload size. Zero-cost when nothing is subscribed; gated by a
+  `diagnostics` module option. No new runtime dependency (`node:diagnostics_channel` is
+  core). Also routes non-attributable flat class-validator messages to the form-level
+  error bucket instead of inventing a phantom field key.
+
+- [`38eac5a`](https://github.com/DavideCarvalho/nestjs-inertia/commit/38eac5ab639cd446593ccb29f5fb6a4e83774b45) - Add `InertiaValidationFilter`: opt-in (`validation: { enabled: true }`) automatic
+  validation-error handling that flashes a field-keyed error bag and 303-redirects
+  back on Inertia non-GET requests. Ships `inertiaValidationExceptionFactory`
+  (blessed `ValidationPipe` factory), `flattenValidationErrors`, and
+  `extractFieldErrors` (recognizes the factory payload, `ContractValidationPipe`
+  issues, raw `ZodError`, and flat class-validator `message: string[]`). Cross-runtime
+  (Express + Fastify) via shared `getHeader`. Also fixes `ErrorBagInterceptor` to use
+  the cross-runtime header read so Fastify error-bag scoping works.
+
 ## 1.4.5
 
 ### Patch Changes

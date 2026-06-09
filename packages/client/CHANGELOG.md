@@ -1,5 +1,17 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 1.8.0
+
+### Minor Changes
+
+- [`0741785`](https://github.com/DavideCarvalho/nestjs-inertia/commit/074178563ae98e7af2b7159bcaa09523143b2df7) - Add the `useInertiaForm` React hook on a new `./react-form` subpath. One call
+  wraps react-hook-form + `zodResolver(schema)` + an Inertia `router` submit, with
+  automatic server-error merge into RHF state (scoped by `errorBag`), `formError`
+  aggregation for non-field/`_` keys, `isSubmitting`, and `resetOnSuccess`.
+  `react-hook-form` and `@hookform/resolvers` are optional peers reachable only
+  through `./react-form` — base `./` and `./react` bundles never pull them. Ships a
+  framework-free `mergeServerErrors` helper (shared seam for Vue/Svelte recipes).
+
 ## 1.7.5
 
 ### Patch Changes

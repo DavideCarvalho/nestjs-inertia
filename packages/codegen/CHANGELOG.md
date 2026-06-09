@@ -1,5 +1,40 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.11.0
+
+### Minor Changes
+
+- [`4395608`](https://github.com/DavideCarvalho/nestjs-inertia/commit/439560897a20f84068f94d4402fc196b92367624) - Type-aware filter query codegen. When an endpoint uses `@ApplyFilter`, the generated
+  `filterQuery()` factory and the route `query` type now carry a per-field type map, so
+  the client builder type-checks operators and values per field. Field types are
+  resolved from entity columns and from `@FilterFor` method parameter types (named
+  enums/aliases emitted as real `import type` references; non-exported enums expanded to
+  literals), with explicit `@FilterFor('key', { type })` hints taking precedence. Both
+  emit positions are rendered from a single source so they can't diverge. Numeric enums
+  now resolve to their values (`1 | 2`) instead of member names.
+
+- [`47deaa6`](https://github.com/DavideCarvalho/nestjs-inertia/commit/47deaa6fef3d6485b32ce001d4c5e2ef39b54704) - Emit `forms.ts` with zod schemas per validated endpoint (Path A — contract
+  reuse). `defineContract` bodies/queries are re-exported when bound to an
+  exported named const, else inlined verbatim. Adds `<Pascal>BodySchema` /
+  `<Pascal>QuerySchema` consts, `z.infer` type aliases, a `formSchemas` name→schema
+  map, collision-aliasing, and a `forms` config block (`enabled`, `watch`,
+  `zodImport`). Wired into `generate()`, the watcher, and the index export.
+
+- [`56e0415`](https://github.com/DavideCarvalho/nestjs-inertia/commit/56e04152cb5e403f0149c0c7d6a91c3a1d065986) - Translate class-validator-decorated DTO classes into zod schemas via pure AST
+  reading (Path B). Implements the full decorator→zod mapping table
+  (`@IsEmail`→`.email()`, `@MinLength`→`.min()`, `@IsEnum`→`z.enum`/`z.nativeEnum`,
+  `@ValidateNested`+`@Type`→hoisted nested schemas, arrays, custom `{ message }`,
+  etc.), with `z.lazy()` recursion guards and skip-+-warn for unmappable decorators
+  (`@IsStrongPassword`, custom validators). A `defineContract` schema always takes
+  precedence; synthesis only runs on the plain-verb path. No class-validator
+  runtime dependency.
+
+- [`bdf8e49`](https://github.com/DavideCarvalho/nestjs-inertia/commit/bdf8e49fe24b85a38a218058632963fb233361d9) - Watch DTO globs (`forms.watch`, default `src/**/*.dto.ts`) so `*.dto.ts` changes
+  re-emit `forms.ts`. Forms emit now inlines contract zod text by default (instead
+  of re-exporting from the controller) so server-only deps never leak into the
+  client bundle. Also resolves relative `./x.dto.js` imports to `x.dto.ts`
+  (NodeNext style) when following DTO references across files.
+
 ## 1.10.0
 
 ### Minor Changes
