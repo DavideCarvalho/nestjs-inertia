@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@dudousxd/nestjs-codegen/extension": ["../../../nestjs-codegen/packages/core/dist/extension/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

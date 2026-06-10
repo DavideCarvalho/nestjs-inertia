@@ -1,0 +1,17 @@
+{
+  "name": "@dudousxd/nestjs-inertia-codegen-extension",
+  "version": "0.1.0",
+  "description": "nestjs-codegen extension for @dudousxd/nestjs-inertia — adds the Inertia navigate() helper to the generated api.ts.",
+  "license": "MIT",
+  "author": "Davi Carvalho <davi@goflip.ai>",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
+  "files": ["dist/"],
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "vitest run", "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "peerDependencies": { "@dudousxd/nestjs-codegen": ">=0.1.0", "@inertiajs/react": ">=1.0.0" },
+  "devDependencies": { "typescript": "^5.4.0", "vitest": "^3.0.0" },
+  "engines": { "node": ">=20" },
+  "keywords": ["nestjs", "inertia", "codegen", "extension"]
+}
