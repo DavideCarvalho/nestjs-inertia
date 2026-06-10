@@ -98,10 +98,14 @@ import { fetcher } from '~/lib/api';  // YOUR fetcher
 
 To customize the import path, set `fetcher.importPath` in the codegen config:
 ```ts
-// nestjs-inertia.config.ts
+// nestjs-codegen.config.ts
+import { defineConfig } from '@dudousxd/nestjs-codegen';
+import { nestjsInertiaCodegen } from '@dudousxd/nestjs-inertia-codegen-extension';
+
 export default defineConfig({
   pages: { glob: 'inertia/pages/**/*.tsx' },
   fetcher: { importPath: '@/my-custom-api' },
+  extensions: [nestjsInertiaCodegen()],
 });
 ```
 
@@ -220,6 +224,10 @@ navigate('showDashboard.show');
 // With Inertia visit options
 navigate('users.list', { preserveState: true, replace: true });
 ```
+
+<Callout type="info">
+  `navigate()` is added to `api.ts` by the [`nestjsInertiaCodegen()`](/docs/packages/codegen) extension. It imports Inertia's `router` from `@inertiajs/react`. Register the extension in `extensions: [...]`; without it, `api.ts` is a plain typed-fetch client with no `navigate()`.
+</Callout>
 
 ---
 

@@ -1,69 +1,104 @@
 ---
-title: "@dudousxd/nestjs-inertia-codegen"
-description: CLI that emits typed pages.d.ts, routes.ts, and api.ts from your NestJS app.
+title: "@dudousxd/nestjs-inertia-codegen-extension"
+description: The Inertia extension for @dudousxd/nestjs-codegen — adds a typed navigate() helper to the generated api.ts.
 ---
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info" title="Codegen now lives in @dudousxd/nestjs-codegen">
+  The typed-client codegen was extracted into the standalone [`@dudousxd/nestjs-codegen`](https://github.com/DavideCarvalho/nestjs-codegen) package. This repo ships only the **Inertia extension** for it. Install both: the core codegen does discovery → IR → emit, and `nestjsInertiaCodegen()` adds the Inertia surface.
+</Callout>
 
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
     ```bash
-    pnpm add -D @dudousxd/nestjs-inertia-codegen
+    pnpm add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension
     ```
   </Tab>
   <Tab value="npm">
     ```bash
-    npm install --save-dev @dudousxd/nestjs-inertia-codegen
+    npm install --save-dev @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension
     ```
   </Tab>
   <Tab value="yarn">
     ```bash
-    yarn add -D @dudousxd/nestjs-inertia-codegen
+    yarn add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension
     ```
   </Tab>
 </Tabs>
 
-Static-analysis CLI that reads your NestJS controllers and Inertia page components, then emits fully typed TypeScript files.
+`@dudousxd/nestjs-codegen` is a static-analysis tool that reads your NestJS controllers and emits a fully typed TypeScript client. `@dudousxd/nestjs-inertia-codegen-extension` is the extension you register so the generated `api.ts` gains an Inertia `router` import and a type-safe `navigate()` helper. Inertia page discovery (`pages.d.ts` / `components.json`) and shared props are driven by the core `pages` / `app` config.
 
 ## Exports
 
-| CLI / Export | Description |
-|--------------|-------------|
-| `nestjs-inertia codegen` | One-shot generation |
-| `nestjs-inertia codegen --watch` | Watch mode; re-generates on file changes |
-| `nestjs-inertia init` | Scaffold config, HTML shell, Vite config, entry point, patch `nest-cli.json` for Docker |
-| `nestjs-inertia doctor` | Diagnose shell template, `nest-cli.json` assets, tsconfig paths, package versions, codegen output, Vite config |
-| `nestjs-inertia doctor --fix` | Auto-fix diagnosable issues |
-| `defineConfig(config)` | Type-safe config helper |
-| `generate(config)` | Programmatic API |
-| `watch(config, onChange?)` | Programmatic watch API |
-| `loadConfig(cwd?)` | Load and resolve `nestjs-inertia.config.ts` |
+| Export | From | Description |
+|--------|------|-------------|
+| `nestjsInertiaCodegen()` | `@dudousxd/nestjs-inertia-codegen-extension` | The extension factory. Register it in `extensions: [...]`. |
+| `NestjsCodegenModule.forRoot(...)` | `@dudousxd/nestjs-codegen/nest` | Registers the codegen (and its extensions) on the Nest module. |
+| `defineConfig(config)` | `@dudousxd/nestjs-codegen` | Type-safe config helper for `nestjs-codegen.config.ts` (CLI/CI). |
+
+The codegen CLI (`nestjs-codegen`), watch mode, and `doctor` are all provided by `@dudousxd/nestjs-codegen` — see its [docs](https://github.com/DavideCarvalho/nestjs-codegen) for the full command and config reference.
+
+## Setup
+
+Register the extension in the codegen's `extensions: [...]` array. Either via the Nest module:
+
+```ts title="src/app.module.ts"
+import { NestjsCodegenModule } from '@dudousxd/nestjs-codegen/nest';
+import { nestjsInertiaCodegen } from '@dudousxd/nestjs-inertia-codegen-extension';
+
+NestjsCodegenModule.forRoot({
+  contracts: { glob: 'src/**/*.controller.ts' },
+  pages: { glob: 'inertia/pages/**/*.tsx' },
+  app: { moduleEntry: 'src/app.module.ts' },
+  codegen: { outDir: '.nestjs-inertia' },
+  extensions: [nestjsInertiaCodegen()],
+});
+```
+
+…or in `nestjs-codegen.config.ts` for CLI/CI runs — the same array works in both:
+
+```ts title="nestjs-codegen.config.ts"
+import { defineConfig } from '@dudousxd/nestjs-codegen';
+import { nestjsInertiaCodegen } from '@dudousxd/nestjs-inertia-codegen-extension';
+
+export default defineConfig({
+  contracts: { glob: 'src/**/*.controller.ts' },
+  pages: { glob: 'inertia/pages/**/*.tsx' },
+  app: { moduleEntry: 'src/app.module.ts' },
+  codegen: { outDir: '.nestjs-inertia' },
+  extensions: [nestjsInertiaCodegen()],
+});
+```
+
+## What the extension adds
+
+`nestjsInertiaCodegen()` is a `CodegenExtension` (`name: 'nestjs-inertia'`) whose `apiHeader` hook contributes to the generated `api.ts`:
+
+- an import of Inertia's `router` — `import { router } from '@inertiajs/react';`
+- a `NavigateOptions` type (`method`, `data`, `preserveState`, `preserveScroll`, `replace`)
+- a type-safe **`navigate()`** helper that resolves a named route to its URL and calls `router.visit()`
+
+```tsx
+import { navigate } from '~codegen/api';
+
+navigate('users.show', { params: { id: '42' } });   // typed route + params
+navigate('users.list', { preserveState: true });     // with Inertia visit options
+```
+
+Without the extension, `api.ts` is a plain typed-fetch client and `@inertiajs/react`'s `router` is never imported.
 
 ## Generated files
 
+The core codegen emits into `codegen.outDir`:
+
 | File | Contains |
 |------|----------|
-| `pages.d.ts` | Module augmentation for typed `@Inertia()` and page props |
+| `pages.d.ts` | Module augmentation for typed `@Inertia()` and page props (from `pages.glob`) |
 | `routes.ts` | Typed route map + `route()` helper for URL resolution |
-| `api.ts` | `queryOptions()`, `mutationOptions()`, `queryKey()`, `infiniteQueryOptions()` per route |
+| `api.ts` | The typed client; with this extension, also the Inertia `router` import + `navigate()` |
 
-Response types use `ReturnType<import(...)>`. Page props use `Parameters<typeof import(...).default>[0]`.
+Response types use `Awaited<ReturnType<import(...)>>`. Page props use `Parameters<typeof import(...).default>[0]`.
 
-## Doctor checks
-
-`nestjs-inertia doctor` validates your project setup. All checks with a fix icon can be auto-fixed with `--fix`:
-
-| Check | Auto-fixable |
-|-------|:---:|
-| `nestjs-inertia.config.ts` exists | Yes |
-| Shell template (rootView) file exists | Yes |
-| `nest-cli.json` copies shell template to `dist/` (Docker) | Yes |
-| `.nestjs-inertia/` codegen output exists | Yes |
-| `tsconfig.json` has `@/*` path alias | Yes |
-| Core packages installed and on same version | Yes |
-| `@inertiajs/*` is v3+ | Yes |
-| `.gitignore` includes `.nestjs-inertia/` | Yes |
-| `package.json` has `build:client` script | Yes |
-| `vite.config.ts` has `resolve.alias` and nestInertia plugin | No |
-
-See [Codegen guide](/docs/guides/codegen) for full configuration and output reference.
+See the [Codegen guide](/docs/guides/codegen) for full configuration and the [Typed Client guide](/docs/guides/typed-client) for the generated client API.

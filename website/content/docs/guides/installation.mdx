@@ -13,19 +13,19 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
   <Tab value="pnpm">
     ```bash
     pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
-    pnpm add -D @dudousxd/nestjs-inertia-codegen
+    pnpm add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension
     ```
   </Tab>
   <Tab value="npm">
     ```bash
     npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
-    npm install --save-dev @dudousxd/nestjs-inertia-codegen
+    npm install --save-dev @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension
     ```
   </Tab>
   <Tab value="yarn">
     ```bash
     yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite
-    yarn add -D @dudousxd/nestjs-inertia-codegen
+    yarn add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension
     ```
   </Tab>
 </Tabs>
@@ -87,7 +87,9 @@ NestJS defaults to Express. If you use Fastify, install the Fastify adapter inst
 | `fastify >=4` | core | Fastify adapter |
 | `vite >=5` | vite | build pipeline |
 | `@nestjs/testing >=10` | testing | test suites |
-| `typescript >=5` | codegen | CLI static analysis |
+| `typescript >=5` | `@dudousxd/nestjs-codegen` | CLI static analysis |
+| `@dudousxd/nestjs-codegen >=0.1` | codegen extension | typed-client codegen host |
+| `@inertiajs/react >=1` | codegen extension | provides the `router` for `navigate()` |
 
 ## Optional packages
 

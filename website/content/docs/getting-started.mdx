@@ -27,22 +27,26 @@ Install the five packages that make up the suite:
   <Tab value="pnpm">
     ```bash
     pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-    pnpm add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
+    pnpm add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
     ```
   </Tab>
   <Tab value="npm">
     ```bash
     npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-    npm install --save-dev @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
+    npm install --save-dev @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
     ```
   </Tab>
   <Tab value="yarn">
     ```bash
     yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-    yarn add -D @dudousxd/nestjs-inertia-codegen @dudousxd/nestjs-inertia-testing
+    yarn add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
     ```
   </Tab>
 </Tabs>
+
+<Callout type="info" title="Codegen is now @dudousxd/nestjs-codegen">
+  The typed-client codegen lives in the standalone [`@dudousxd/nestjs-codegen`](https://github.com/DavideCarvalho/nestjs-codegen) package; this suite ships the Inertia extension [`@dudousxd/nestjs-inertia-codegen-extension`](/docs/packages/codegen). Register `nestjsInertiaCodegen()` in `extensions: [...]` to add the Inertia `navigate()` helper to the generated `api.ts`.
+</Callout>
 
 Then install your framework's Inertia adapter and Vite plugin:
 
@@ -95,7 +99,7 @@ This command detects your frontend framework from `package.json` (or asks intera
 
 | File | What it is |
 |---|---|
-| `nestjs-inertia.config.ts` | Codegen config with a framework-specific page glob |
+| `nestjs-codegen.config.ts` | Codegen config (with `nestjsInertiaCodegen()` registered) and a framework-specific page glob |
 | `nestjs-inertia.d.ts` | TypeScript module augmentation for generated types |
 | `inertia/index.html` (or `.hbs`/`.ejs`/`.pug`) | HTML shell with the Inertia page script tag |
 | `vite.config.ts` | Vite config with the correct framework plugin |
@@ -281,7 +285,7 @@ No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
 
 ## Codegen
 
-Codegen runs automatically. When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` is present, the watcher starts on `nest start --watch` and regenerates types on every controller/page change. Disabled automatically in production.
+Codegen runs automatically. When `@dudousxd/nestjs-codegen` is installed and a `nestjs-codegen.config.ts` is present, the watcher starts on `nest start --watch` and regenerates types on every controller/page change. Disabled automatically in production.
 
 On startup the watcher emits files into `.nestjs-inertia/` at the project root:
 
@@ -509,7 +513,7 @@ my-nestjs-app/
 │   ├── pages.d.ts
 │   ├── routes.ts
 │   └── api.ts
-├── nestjs-inertia.config.ts      ← codegen config (created by init)
+├── nestjs-codegen.config.ts      ← codegen config + nestjsInertiaCodegen() (created by init)
 ├── nestjs-inertia.d.ts           ← ambient declaration (created by init)
 ├── vite.config.ts                ← (created by init)
 └── package.json
