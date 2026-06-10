@@ -22,7 +22,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": { "@dudousxd/nestjs-codegen": ">=0.1.0", "@inertiajs/react": ">=1.0.0" },
-  "devDependencies": { "typescript": "^5.4.0", "vitest": "^3.0.0" },
+  "devDependencies": {
+    "@dudousxd/nestjs-codegen": "0.2.1",
+    "typescript": "^5.4.0",
+    "vitest": "^3.0.0"
+  },
   "engines": { "node": ">=20" },
   "keywords": ["nestjs", "inertia", "codegen", "extension"]
 }
