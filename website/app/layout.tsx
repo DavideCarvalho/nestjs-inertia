@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s — nestjs-inertia',
   },
   description:
-    'Inertia.js adapter for NestJS — full type safety from controller to component, zero-config codegen, typed Link and TanStack Query options, on Express and Fastify.',
+    'Inertia.js adapter for NestJS — build server-driven React, Vue, or Svelte SPAs straight from your controllers. No API layer, typed pages, links, and props, on Express and Fastify.',
 };
 
 export default function Layout({ children }: LayoutProps<'/'>) {

@@ -5,11 +5,13 @@ import {
   FlaskConical,
   Layers,
   Link2,
+  Server,
   ShieldCheck,
   Sparkles,
   Terminal,
-  Wand2,
 } from 'lucide-react';
+
+const CODEGEN_URL = 'https://davidecarvalho.github.io/nestjs-codegen';
 
 const GITHUB_URL = 'https://github.com/DavideCarvalho/nestjs-inertia';
 
@@ -18,6 +20,7 @@ export default function HomePage() {
     <main className="relative flex flex-1 flex-col overflow-hidden">
       <BackgroundTexture />
       <Hero />
+      <InertiaShowcase />
       <CodegenShowcase />
       <FeatureGrid />
       <WireItIn />
@@ -72,18 +75,18 @@ function Hero() {
         </span>
 
         <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-          Full type safety from{' '}
+          Server-driven SPAs,{' '}
           <span className="bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
-            controller to component.
+            native to NestJS.
           </span>
         </h1>
 
         <p className="mt-6 max-w-2xl text-pretty text-lg text-fd-muted-foreground">
-          Build server-driven SPAs with NestJS and Inertia.js. Zero-config
-          codegen reads your decorators and DTOs to produce a fully typed
-          client — TanStack Query options, a typed <code className="rounded bg-fd-muted px-1 py-0.5 font-mono text-base">{'<Link>'}</code>,
-          page-name autocomplete, and end-to-end props. React, Vue, or Svelte,
-          on Express <em>and</em> Fastify.
+          Build React, Vue, or Svelte frontends on your NestJS monolith — no
+          API to design, no client cache to sync. Pages render straight from
+          your controllers, with a typed <code className="rounded bg-fd-muted px-1 py-0.5 font-mono text-base">{'<Link>'}</code>,
+          page-name autocomplete, and end-to-end props along for the ride.
+          Express <em>and</em> Fastify.
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -117,14 +120,169 @@ function Hero() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Codegen showcase — the centerpiece. Manual hooks vs. the generated client, */
-/*  rendered in the product's own dark editor palette in both site themes.     */
+/*  Inertia showcase — the centerpiece. The controller return flows into the    */
+/*  page's props, server-driven and fully typed. No fetch, no API route.        */
 /* -------------------------------------------------------------------------- */
 
 interface CodeToken {
   text: string;
   cls?: string;
 }
+
+const CONTROLLER_LINES: readonly { tokens: CodeToken[] }[] = [
+  {
+    tokens: [
+      { text: '@Controller', cls: 'text-violet-400' },
+      { text: '(' },
+      { text: "'dashboard'", cls: 'text-teal-300' },
+      { text: ')' },
+    ],
+  },
+  {
+    tokens: [
+      { text: 'export class ', cls: 'text-violet-400' },
+      { text: 'DashboardController', cls: 'text-amber-300' },
+      { text: ' {' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '  @Get', cls: 'text-violet-400' },
+      { text: '()' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '  @Inertia', cls: 'text-violet-400' },
+      { text: '(' },
+      { text: "'Dashboard'", cls: 'text-teal-300' },
+      { text: ')' },
+      { text: '  // typed page name', cls: 'text-zinc-600' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '  getDashboard', cls: 'text-sky-400' },
+      { text: '() {' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '    return', cls: 'text-violet-400' },
+      { text: ' { user, stats };' },
+      { text: '  // → the page props', cls: 'text-zinc-600' },
+    ],
+  },
+  { tokens: [{ text: '  }' }] },
+  { tokens: [{ text: '}' }] },
+];
+
+const PAGE_LINES: readonly { tokens: CodeToken[] }[] = [
+  { tokens: [{ text: '// props inferred from getDashboard() — no manual types', cls: 'text-zinc-600' }] },
+  {
+    tokens: [
+      { text: 'export default function ', cls: 'text-violet-400' },
+      { text: 'Dashboard', cls: 'text-sky-400' },
+      { text: '({ user, stats }: ' },
+      { text: 'PageProps', cls: 'text-amber-300' },
+      { text: ') {' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '  return', cls: 'text-violet-400' },
+      { text: ' (' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '    <' , cls: 'text-zinc-500' },
+      { text: 'section', cls: 'text-teal-300' },
+      { text: '>', cls: 'text-zinc-500' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '      <' , cls: 'text-zinc-500' },
+      { text: 'h1', cls: 'text-teal-300' },
+      { text: '>', cls: 'text-zinc-500' },
+      { text: 'Hi, {user.name}' },
+      { text: '</' , cls: 'text-zinc-500' },
+      { text: 'h1', cls: 'text-teal-300' },
+      { text: '>', cls: 'text-zinc-500' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '      <' , cls: 'text-zinc-500' },
+      { text: 'Link', cls: 'text-teal-300' },
+      { text: ' href', cls: 'text-sky-400' },
+      { text: '=' },
+      { text: '"/settings"', cls: 'text-teal-300' },
+      { text: '>Settings</' , cls: 'text-zinc-500' },
+      { text: 'Link', cls: 'text-teal-300' },
+      { text: '>', cls: 'text-zinc-500' },
+      { text: '  // typed route', cls: 'text-zinc-600' },
+    ],
+  },
+  {
+    tokens: [
+      { text: '    </' , cls: 'text-zinc-500' },
+      { text: 'section', cls: 'text-teal-300' },
+      { text: '>', cls: 'text-zinc-500' },
+    ],
+  },
+  { tokens: [{ text: '  );' }] },
+  { tokens: [{ text: '}' }] },
+  { tokens: [{ text: '// no fetch · no useQuery · no API route', cls: 'text-zinc-600' }] },
+];
+
+function InertiaShowcase() {
+  return (
+    <section className="mx-auto w-full max-w-6xl px-4 pb-24">
+      <div className="mb-10 text-center">
+        <span className="font-mono text-xs uppercase tracking-wider text-violet-500">
+          Server-driven by default
+        </span>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Your controller is the page.
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-fd-muted-foreground">
+          Return an object from a controller, tag it with{' '}
+          <code className="rounded bg-fd-muted px-1 py-0.5 font-mono text-sm">@Inertia</code>,
+          and that data lands in your page component — fully typed, no fetch, no
+          API route, no client cache to babysit. The response <em>is</em> the
+          page.
+        </p>
+      </div>
+      <div className="relative">
+        <div
+          aria-hidden
+          className="absolute -inset-x-10 -bottom-8 top-10 -z-10 rounded-[2rem] bg-violet-500/10 blur-3xl"
+        />
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <CodePane
+            title="dashboard.controller.ts"
+            badge="server"
+            badgeCls="text-sky-400"
+            lines={CONTROLLER_LINES}
+          />
+          <CodePane
+            title="inertia/pages/Dashboard.tsx"
+            badge="✓ typed props"
+            badgeCls="text-violet-400"
+            lines={PAGE_LINES}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Codegen sibling — for clients that aren't Inertia. The same controllers     */
+/*  feed @dudousxd/nestjs-codegen's fully typed API client. Cross-links out.    */
+/* -------------------------------------------------------------------------- */
 
 const BEFORE_LINES: readonly { tokens: CodeToken[] }[] = [
   { tokens: [{ text: '// manual axios hooks everywhere', cls: 'text-zinc-600' }] },
@@ -267,6 +425,21 @@ function CodePane({
 function CodegenShowcase() {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pb-24">
+      <div className="mb-10 text-center">
+        <span className="font-mono text-xs uppercase tracking-wider text-fd-muted-foreground">
+          The codegen sibling
+        </span>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Got consumers that aren&apos;t Inertia?
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-fd-muted-foreground">
+          Inertia covers your own frontend. For mobile apps, third parties, or
+          anything that calls your NestJS API directly, its sibling{' '}
+          <code className="rounded bg-fd-muted px-1 py-0.5 font-mono text-sm">@dudousxd/nestjs-codegen</code>{' '}
+          generates a fully typed client from the same controllers — TanStack
+          Query options, typed params and bodies, the works.
+        </p>
+      </div>
       <div className="relative">
         {/* glow halo under the panes */}
         <div
@@ -283,11 +456,20 @@ function CodegenShowcase() {
           />
           <CodePane
             title="PostList.tsx"
-            badge="✓ with codegen"
+            badge="✓ nestjs-codegen"
             badgeCls="text-violet-400"
             lines={AFTER_LINES}
           />
         </div>
+      </div>
+      <div className="mt-8 flex justify-center">
+        <a
+          href={CODEGEN_URL}
+          className="group inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card/40 px-5 py-2.5 font-medium backdrop-blur transition-colors hover:bg-fd-accent"
+        >
+          Explore nestjs-codegen
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+        </a>
       </div>
     </section>
   );
@@ -306,9 +488,9 @@ interface Feature {
 
 const FEATURES: readonly Feature[] = [
   {
-    icon: Wand2,
-    title: 'Zero-config codegen',
-    body: 'The CLI reads your @Controller, @Get, @Body, @Query and @Param decorators. No schemas, no contracts — your existing DTOs are the source of truth.',
+    icon: Server,
+    title: 'Server-driven, no API',
+    body: 'Controllers return page props; Inertia ships them with the page render. No REST or GraphQL layer to design, version, or keep in sync — and no client data cache to invalidate.',
     accent: 'text-violet-400',
   },
   {
@@ -533,11 +715,12 @@ function FinalCta() {
           <ShieldCheck className="size-4" />
         </span>
         <h2 className="mx-auto mt-4 max-w-2xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-          Stop hand-writing your API client.
+          Ship pages, not endpoints.
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-fd-muted-foreground">
-          Install, run init, and ship server-driven pages where the compiler
-          has your back — from decorator to component prop.
+          Install, run init, and build server-driven SPAs on NestJS — React,
+          Vue, or Svelte, with the compiler watching your pages, links, and
+          props.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
