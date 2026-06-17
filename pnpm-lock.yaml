@@ -399,6 +399,10 @@ importers:
         version: 3.2.6(@types/debug@4.1.13)(@types/node@25.9.1)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(lightningcss@1.32.0)(tsx@4.22.3)
 
   packages/core:
+    dependencies:
+      '@dudousxd/nestjs-diagnostics':
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@fastify/cookie':
         specifier: ^9.3.1
@@ -898,6 +902,10 @@ packages:
         optional: true
       tsx:
         optional: true
+
+  '@dudousxd/nestjs-diagnostics@0.2.0':
+    resolution: {integrity: sha512-2jGsifkiX/6k5KJEy/fStZk4qGl+xF3kx+R/2erqcA24Cj8hiHfAFBicMHCl5qnDVice2o+JPr7sXtLcvOtg4g==}
+    engines: {node: '>=20'}
 
   '@dudousxd/nestjs-filter-client@1.0.2':
     resolution: {integrity: sha512-t+oru5KVu/gh0EztoiOQX+eR9xZrlUlhkYKRLdy7qPQBUcbdslM5toY/RKtU3rdYCqH//M6gK4LFL5zjwUR45g==}
@@ -6369,6 +6377,8 @@ snapshots:
     optionalDependencies:
       '@nestjs/common': 11.1.23(reflect-metadata@0.2.2)(rxjs@7.8.2)
       tsx: 4.22.3
+
+  '@dudousxd/nestjs-diagnostics@0.2.0': {}
 
   '@dudousxd/nestjs-filter-client@1.0.2': {}
 
