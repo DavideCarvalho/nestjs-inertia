@@ -1,17 +1,100 @@
 ---
-title: Documentation
-description: Inertia.js adapter for NestJS -- TypeScript-first, multi-app, Tuyau-style typed client.
+title: Introduction
+description: A TypeScript-first Inertia.js adapter for NestJS — multi-app, Vite-native, with a Tuyau-style typed client.
 ---
 
-Welcome to the **nestjs-inertia** documentation.
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
 
-Head to the [Getting Started](/docs/getting-started) guide to set up Inertia.js in your NestJS project in under 5 minutes, or use the sidebar to explore guides, packages, and API reference.
+**`@dudousxd/nestjs-inertia`** brings the [Inertia.js](https://inertiajs.com) protocol to NestJS without giving up TypeScript. You render a page by returning a component name and props from a normal controller — `@Inertia('Home')` — and the adapter speaks the Inertia protocol over the wire, serves your Vite-built frontend, and (optionally) hands your React, Vue, or Svelte client a fully typed map of every route, query, and response derived straight from your controllers.
 
-## Quick links
+The result is a single-page app with server-side routing: no REST contract to maintain by hand, no client/server type drift, and no second build pipeline to babysit. You write a controller, you write a page component, and the types between them stay in sync.
 
-- [Getting Started](/docs/getting-started) -- install, `init`, and go
-- [Codegen](/docs/guides/codegen) -- typed pages, routes, and API client from your controllers
-- [Typed Client](/docs/guides/typed-client) -- `queryOptions`, `mutationOptions`, `queryKey` with TanStack Query
-- [Typed Link](/docs/guides/typed-link) -- `<Link>` with route-name autocomplete for React, Vue, and Svelte
-- [Testing](/docs/guides/testing) -- `expectInertia` matchers and `InertiaTestingModule`
-- [Multi-app](/docs/guides/multi-app) -- `forFeature` for multiple independent frontends
+<Callout type="info">
+Inertia.js is the "modern monolith" pattern — your server controllers stay the source of truth for routing and data, while your pages are real client-side components. This adapter is the NestJS half of that contract.
+</Callout>
+
+## Quickstart
+
+The whole loop — install, scaffold, render a page — in three steps. For the full walkthrough (SSR, Docker, manual setup, options), see [Getting Started](/docs/getting-started).
+
+<Steps>
+<Step>
+
+Install the suite, plus your framework's Inertia adapter and Vite plugin (React shown here):
+
+```bash
+pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
+pnpm add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
+pnpm add @inertiajs/react@^3.0.0 react react-dom
+pnpm add -D @types/react @types/react-dom @vitejs/plugin-react
+```
+
+</Step>
+<Step>
+
+Run `init` — it detects your frontend framework and template engine, scaffolds the HTML shell, Vite config, entry point, a sample page, and auto-patches your `app.module.ts` and `main.ts`:
+
+```bash
+pnpm exec nestjs-inertia init
+```
+
+Every create and patch is idempotent, so it's safe to re-run. If `init` can't parse your bootstrap files, it prints the exact snippets to add by hand — `InertiaModule.forRoot({ rootView })` in `app.module.ts` and `setupInertiaVite(app, {...})` in `main.ts`.
+
+</Step>
+<Step>
+
+Render a page from any controller — return the component name and props, and the adapter handles the protocol:
+
+```ts title="src/home.controller.ts"
+import { Controller, Get } from '@nestjs/common';
+import { Inertia } from '@dudousxd/nestjs-inertia';
+
+@Controller()
+export class HomeController {
+  @Get()
+  @Inertia('Home')
+  home() {
+    return { message: 'Hello from NestJS' };
+  }
+}
+```
+
+Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000) — done.
+
+</Step>
+</Steps>
+
+<Callout type="info" title="Typed client is opt-in">
+The render loop above is all you need to ship. When you want end-to-end types, codegen runs automatically under `nest start --watch` and emits a typed page map, route constants, and a TanStack-Query-powered `api.ts` into `.nestjs-inertia/`. See the [Typed Client](/docs/guides/typed-client) and [Codegen](/docs/guides/codegen) guides.
+</Callout>
+
+## What it is
+
+The adapter is built as a small suite of packages, so you only pull in what you use:
+
+- **`@dudousxd/nestjs-inertia`** — the core protocol and `InertiaModule`. Speaks the Inertia request/response contract, manages shared props, asset versioning, partial reloads, and SSR.
+- **`@dudousxd/nestjs-inertia-vite`** — Vite dev-server middleware in development and static-manifest serving in production, wired with one call to `setupInertiaVite`.
+- **`@dudousxd/nestjs-inertia-client`** — the Tuyau-style typed client: a typed `<Link>` with route-name autocomplete and `createFetcher` for SSR-safe data fetching.
+- **`@dudousxd/nestjs-inertia-codegen-extension`** + **`@dudousxd/nestjs-codegen`** — read your existing NestJS decorators (`@Controller`, `@Get`, `@Query`, `@ApiResponse`, `@As`) and generate typed pages, routes, and an `api.ts` client. No Zod, no contracts, no extra schemas required.
+- **`@dudousxd/nestjs-inertia-testing`** — `expectInertia()` matchers and a testing harness for asserting on Inertia responses.
+
+## The problem it solves
+
+A conventional NestJS + SPA setup means running two worlds in parallel: REST controllers on one side, a hand-written API client and route table on the other, and a contract between them that only TypeScript can't see. Every new endpoint is a place for the two to drift.
+
+Inertia collapses that gap — the server stays in charge of routing and data — and this adapter makes the NestJS side first-class:
+
+- **TypeScript-first.** Page props, route names, query shapes, and response types are derived from your controllers, not declared twice. Change a controller signature and the client types follow.
+- **Vite-native.** HMR and React Refresh in development, hashed manifest assets in production, with the dev-server-versus-static switch handled for you.
+- **Multi-app.** `InertiaModule.forFeature(...)` lets a single NestJS process serve several independent frontends — an admin panel and a storefront, say — each with its own pages and assets.
+
+## Where to go next
+
+<Cards>
+  <Card title="Getting Started" href="/docs/getting-started" description="Install, run init, and render your first page — plus SSR, Docker, and the full forRoot options." />
+  <Card title="Guides" href="/docs/guides/installation" description="Installation, multi-app, codegen, the typed client, and testing in depth." />
+  <Card title="Recipes" href="/docs/recipes/auth-redirect" description="Copy-paste solutions: auth-redirect guard and a not-found exception filter." />
+  <Card title="Packages" href="/docs/packages/core" description="Per-package API reference for core, vite, client, codegen, and testing." />
+  <Card title="Architecture" href="/docs/reference/architecture" description="Package responsibilities and the Inertia request lifecycle." />
+</Cards>
