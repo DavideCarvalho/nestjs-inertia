@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.6.1
+
+### Patch Changes
+
+- [`a02f880`](https://github.com/DavideCarvalho/nestjs-inertia/commit/a02f880c4ec9399e6e4ca9f4f6477dd6397ee4e2) - perf: avoid redundant prop-tree work per render — identity fast-path in `unpackDotKeys` when no dot-keys are present, `nullifyUndefined` returns existing references when no `undefined` is found (no full deep clone), and header splits are guarded behind presence to avoid array allocation on the common path.
+
 ## 1.6.0
 
 ### Minor Changes
