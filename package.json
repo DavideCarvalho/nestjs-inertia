@@ -25,6 +25,14 @@
     "version-packages": "changeset version && sh scripts/sync-versions.sh && biome check --write .",
     "release": "pnpm -r build && changeset publish"
   },
+  "pnpm": {
+    "overrides": {
+      "@nestjs/platform-fastify": ">=11.1.24",
+      "esbuild": ">=0.28.1",
+      "form-data": ">=4.0.6",
+      "vite": ">=7.3.5 <8"
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
     "@changesets/changelog-github": "^0.7.0",
