@@ -1,3 +1,16 @@
+<p align="center">
+  <a href="https://davidecarvalho.github.io/aviary/docs/inertia">
+    <img src="./.github/banner.svg" alt="@dudousxd/nestjs-inertia — an Aviary library. Call sign: Swallow.">
+  </a>
+</p>
+
+<p align="center">
+  <b><a href="https://davidecarvalho.github.io/aviary/docs/inertia">📖 Read the documentation</a></b>
+  &nbsp;·&nbsp; part of the <a href="https://davidecarvalho.github.io/aviary/"><b>Aviary</b></a> ecosystem for NestJS
+</p>
+
+---
+
 # nestjs-inertia
 
 Inertia.js adapter for NestJS — TypeScript-first, multi-app, Tuyau-style typed client.
