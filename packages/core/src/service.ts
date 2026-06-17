@@ -18,6 +18,13 @@ import type { InertiaPages } from './types/registry.js';
 /** Sentinel to indicate a prop should be omitted from the output. */
 const OMIT = Symbol('inertia.omit');
 
+/**
+ * Shared empty key list, returned when a partial-reload header is absent.
+ * These lists are read-only at the use sites (only `.includes`), so a single
+ * shared instance is safe and avoids per-request array allocation.
+ */
+const EMPTY_KEYS: string[] = [];
+
 /** Returns true if the value contains any `always()` markers at any nesting depth. */
 function containsAlwaysMarker(value: unknown): boolean {
   if (isMarker(value)) {
@@ -341,13 +348,14 @@ export class InertiaService {
     const keep = keepList && keepList.length > 0 ? keepList : null;
 
     const resetHeader = this.req.header('X-Inertia-Reset');
-    const resetKeys = (resetHeader ?? '').split(',').filter(Boolean);
+    const resetKeys = resetHeader ? resetHeader.split(',').filter(Boolean) : EMPTY_KEYS;
 
     const resetOnceHeader = this.req.header('X-Inertia-Reset-Once');
-    const resetOnceKeys = (resetOnceHeader ?? '').split(',').filter(Boolean);
+    const resetOnceKeys = resetOnceHeader ? resetOnceHeader.split(',').filter(Boolean) : EMPTY_KEYS;
 
     const exceptHeader = this.req.header('X-Inertia-Partial-Except');
-    const exceptKeys = isPartial ? (exceptHeader ?? '').split(',').filter(Boolean) : [];
+    const exceptKeys =
+      isPartial && exceptHeader ? exceptHeader.split(',').filter(Boolean) : EMPTY_KEYS;
 
     const finalProps: Props = {};
     const deferredProps: Record<string, string[]> = {};
@@ -423,7 +431,10 @@ export class InertiaService {
       //   (d) a keep entry is a dot-path starting with this key (e.g. keep=["user.avatar"] passes key="user")
       //   (e) value contains a nested always() marker (always() must resolve regardless of partial filter)
       const hasNestedKeepPath = keep?.some((k) => k.startsWith(`${key}.`)) ?? false;
-      const hasNestedAlways = keep ? containsAlwaysMarker(value) : false;
+      // Markers are always objects, so primitives/null can never contain an
+      // always() marker — skip the recursive scan for them.
+      const hasNestedAlways =
+        keep && typeof value === 'object' && value !== null ? containsAlwaysMarker(value) : false;
       if (
         keep &&
         !keep.includes(key) &&

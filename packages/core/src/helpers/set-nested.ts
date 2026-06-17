@@ -31,6 +31,8 @@ export function setNested(target: Record<string, unknown>, path: string[], value
 }
 
 export function unpackDotKeys(props: Props): Props {
+  // Fast path: nothing to unpack when no top-level key uses dot-notation.
+  if (!Object.keys(props).some((k) => k.includes('.'))) return props;
   const out: Props = {};
   // First pass: detect non-dot keys that would conflict with parent paths
   const dotKeysParents = new Set<string>();
