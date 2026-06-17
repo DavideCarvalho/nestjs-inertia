@@ -2,7 +2,11 @@ import { Logger } from '@nestjs/common';
 import type { InertiaRequest, InertiaResponse } from './adapter/adapter.js';
 import type { Manifest } from './asset/version.provider.js';
 import { buildDiagnostic } from './diagnostics-builder.js';
-import { type InertiaRenderDiagnostic, inertiaDiagChannel } from './diagnostics.js';
+import {
+  type InertiaRenderDiagnostic,
+  inertiaRenderChannel,
+  publishInertiaRender,
+} from './diagnostics.js';
 import type { FlashStore } from './flash/flash-store.js';
 import { nullifyUndefined } from './helpers/nullify-undefined.js';
 import { unpackDotKeys } from './helpers/set-nested.js';
@@ -260,7 +264,7 @@ export class InertiaService {
   async render(component: string, props: Props = {}): Promise<void> {
     // Diagnostics gate — captured once. Zero-cost when no telescope watcher is
     // subscribed (or when hard-disabled via `diagnostics: false`).
-    const diagOn = this.deps.diagnostics !== false && inertiaDiagChannel.hasSubscribers;
+    const diagOn = this.deps.diagnostics !== false && inertiaRenderChannel.hasSubscribers;
 
     // Version mismatch check (short-circuit before any factory resolution)
     const clientVersion = this.req.header('X-Inertia-Version');
@@ -278,7 +282,7 @@ export class InertiaService {
           url: this.req.originalUrl,
           version: this.deps.assetVersion,
         };
-        inertiaDiagChannel.publish(
+        publishInertiaRender(
           buildDiagnostic(
             page,
             {
@@ -497,7 +501,7 @@ export class InertiaService {
     // telescope's redactBounded clips/masks it (never pre-stringified here).
     if (isInertia) {
       if (diagOn) {
-        inertiaDiagChannel.publish(
+        publishInertiaRender(
           this.buildRenderDiagnostic(page, sharedKeys, {
             isPartial,
             keep,
@@ -530,7 +534,7 @@ export class InertiaService {
     // JSON is serialized only inside this guard, keeping cost off the hot path when
     // no watcher is subscribed.
     if (diagOn) {
-      inertiaDiagChannel.publish(
+      publishInertiaRender(
         this.buildRenderDiagnostic(page, sharedKeys, {
           isPartial,
           keep,

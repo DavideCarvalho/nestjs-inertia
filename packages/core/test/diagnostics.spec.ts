@@ -1,6 +1,7 @@
 import diagnostics_channel from 'node:diagnostics_channel';
+import { type DiagnosticEvent, channelName } from '@dudousxd/nestjs-diagnostics';
 import { afterEach, describe, expect, it } from 'vitest';
-import { INERTIA_DIAG_CHANNEL, type InertiaRenderDiagnostic } from '../src/diagnostics.js';
+import type { InertiaRenderDiagnostic } from '../src/diagnostics.js';
 import { Inertia } from '../src/markers.js';
 import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
@@ -28,22 +29,29 @@ function makeService(
   };
 }
 
+/** The standard aviary channel inertia emits render diagnostics on. */
+const INERTIA_RENDER_CHANNEL = channelName('inertia', 'render');
+
 const subscribers: ((msg: unknown) => void)[] = [];
 
-/** Subscribe a capturing listener for the duration of one test. */
+/**
+ * Subscribe a capturing listener for the duration of one test. `emit` wraps the
+ * diagnostic in the standard envelope, so we unwrap `payload` to keep asserting
+ * on the render-diagnostic shape directly.
+ */
 function captureEvents(): InertiaRenderDiagnostic[] {
   const events: InertiaRenderDiagnostic[] = [];
   const fn = (msg: unknown) => {
-    events.push(msg as InertiaRenderDiagnostic);
+    events.push((msg as DiagnosticEvent).payload as InertiaRenderDiagnostic);
   };
-  diagnostics_channel.channel(INERTIA_DIAG_CHANNEL).subscribe(fn);
+  diagnostics_channel.channel(INERTIA_RENDER_CHANNEL).subscribe(fn);
   subscribers.push(fn);
   return events;
 }
 
 afterEach(() => {
   for (const fn of subscribers.splice(0)) {
-    diagnostics_channel.channel(INERTIA_DIAG_CHANNEL).unsubscribe(fn);
+    diagnostics_channel.channel(INERTIA_RENDER_CHANNEL).unsubscribe(fn);
   }
 });
 
@@ -155,7 +163,7 @@ describe('diagnostics — partial reload', () => {
 
 describe('diagnostics — zero-cost when off', () => {
   it('does not publish when no subscriber', async () => {
-    expect(diagnostics_channel.channel(INERTIA_DIAG_CHANNEL).hasSubscribers).toBe(false);
+    expect(diagnostics_channel.channel(INERTIA_RENDER_CHANNEL).hasSubscribers).toBe(false);
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const { svc, res } = makeService(req);
     await svc.render('Home', { a: 1 });
@@ -164,7 +172,7 @@ describe('diagnostics — zero-cost when off', () => {
 
   it('does not publish when diagnostics: false even with a subscriber', async () => {
     const events = captureEvents();
-    expect(diagnostics_channel.channel(INERTIA_DIAG_CHANNEL).hasSubscribers).toBe(true);
+    expect(diagnostics_channel.channel(INERTIA_RENDER_CHANNEL).hasSubscribers).toBe(true);
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const { svc } = makeService(req, fakeResponse(), { diagnostics: false });
     await svc.render('Home', { a: 1 });

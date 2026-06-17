@@ -1,11 +1,22 @@
-import diagnostics_channel from 'node:diagnostics_channel';
+import { emit, getChannel } from '@dudousxd/nestjs-diagnostics';
 
-/** Channel name — the wire contract with nestjs-telescope's InertiaWatcher.
- *  Versioned by the payload's `v` field, not by name. */
-export const INERTIA_DIAG_CHANNEL = 'nestjs-inertia:render';
+/**
+ * The standard `aviary:` channel this library emits render diagnostics on, via
+ * the shared `@dudousxd/nestjs-diagnostics` convention. `getChannel` registers the
+ * name so the generic `@dudousxd/nestjs-diagnostics-telescope` watcher discovers
+ * it. Read `.hasSubscribers` to gate the (potentially expensive) payload build —
+ * when nothing subscribes the render path stays free.
+ */
+export const inertiaRenderChannel = getChannel('inertia', 'render');
 
-/** Memoized by Node: same object per name. Read `.hasSubscribers` to gate. */
-export const inertiaDiagChannel = diagnostics_channel.channel(INERTIA_DIAG_CHANNEL);
+/**
+ * Publish one render diagnostic via the standard envelope (`{ ts, lib, event,
+ * traceId?, payload }`), with `traceId` auto-filled from the optional context
+ * accessor. `emit` re-checks `hasSubscribers` and never throws.
+ */
+export function publishInertiaRender(payload: InertiaRenderDiagnostic): void {
+  emit('inertia', 'render', payload);
+}
 
 export interface InertiaRenderDiagnostic {
   v: 1;

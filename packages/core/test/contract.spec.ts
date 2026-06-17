@@ -4,12 +4,12 @@ import { describe, expect, it } from 'vitest';
 import type { InertiaRenderDiagnostic } from '../src/diagnostics.js';
 
 /**
- * Cross-repo producer-side contract for the `nestjs-inertia:render` diagnostics
- * channel. `inertia-render.v1.json` is committed byte-identically in BOTH this
- * repo and nestjs-telescope (the consumer's InertiaWatcher). It MUST stay
- * byte-identical across both — do not edit one without the other. These tests
- * are the tripwire: a producer-side field rename/removal on
- * `InertiaRenderDiagnostic` fails the build here.
+ * Producer-side contract for the render diagnostic payload. Since the move to
+ * the shared `@dudousxd/nestjs-diagnostics` convention, this payload travels as
+ * the `payload` of the standard envelope on the `aviary:inertia:render` channel;
+ * its shape (`InertiaRenderDiagnostic`) is the wire contract any subscriber reads.
+ * `inertia-render.v1.json` pins that shape. These tests are the tripwire: a
+ * producer-side field rename/removal on `InertiaRenderDiagnostic` fails here.
  */
 
 const fixturePath = fileURLToPath(new URL('./fixtures/inertia-render.v1.json', import.meta.url));
