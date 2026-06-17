@@ -13,8 +13,8 @@
     "@dudousxd/nestjs-inertia": "workspace:*",
     "@dudousxd/nestjs-inertia-client": "workspace:*",
     "@dudousxd/nestjs-inertia-codegen": "workspace:*",
-    "@dudousxd/nestjs-inertia-vite": "workspace:*",
     "@dudousxd/nestjs-inertia-testing": "workspace:*",
+    "@dudousxd/nestjs-inertia-vite": "workspace:*",
     "@inertiajs/svelte": "^3.2.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
@@ -22,11 +22,11 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "svelte": "^5.55.9",
-    "vite": "^6.4.2",
+    "vite": "^7.0.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/node": "^20.0.0",
     "tsx": "^4.16.0",
     "typescript": "^5.4.0",
