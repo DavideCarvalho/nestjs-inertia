@@ -41,9 +41,14 @@ describe('Inertia markers', () => {
     expect(getMarkerMeta(m)).toEqual({ deep: false });
   });
 
-  it('merge() marker, with matchOn + deep', () => {
+  it('merge() marker, with matchOn (string) + deep', () => {
     const m = Inertia.merge(() => [1], { matchOn: 'id', deep: true });
     expect(getMarkerMeta(m)).toEqual({ matchOn: 'id', deep: true });
+  });
+
+  it('merge() marker, with matchOn as string array (Inertia v2 multi-key)', () => {
+    const m = Inertia.merge(() => [1], { matchOn: ['id', 'slug'] });
+    expect(getMarkerMeta(m)).toEqual({ matchOn: ['id', 'slug'], deep: false });
   });
 
   it('getMarkerValue extracts the inner function', async () => {
@@ -60,8 +65,9 @@ describe('Inertia markers', () => {
     expect(isMarker('x')).toBe(false);
   });
 
-  it('Inertia.lazy is a deprecated alias for optional (v3: warns once, returns optional marker)', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('Inertia.lazy is a deprecated alias for optional (v3: warns once, returns optional marker)', async () => {
+    const { Logger } = await import('@nestjs/common');
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     try {
       const m1 = Inertia.lazy(() => 'x');
       const m2 = Inertia.lazy(() => 'y');

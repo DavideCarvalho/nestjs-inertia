@@ -16,13 +16,75 @@ import type { ShellRenderer } from '../shell/shell.js';
 import { featureToken } from '../tokens.js';
 import type { InertiaModuleOptions } from '../types.js';
 
+/**
+ * Per-scope resolution cache.
+ *
+ * All providers resolved here are bootstrap-time singletons that never change
+ * after the application has started, so they are resolved once per scope and
+ * reused on subsequent requests. Only the per-request `InertiaService`
+ * (which depends on the live request/response) is rebuilt per request.
+ */
+interface ScopeResolution {
+  deps: InertiaServiceDeps;
+  adapter: typeof expressAdapter | typeof fastifyAdapter;
+}
+
 @Injectable()
 export class InertiaScopeSwitcherInterceptor implements NestInterceptor {
+  private readonly scopeCache = new Map<string, ScopeResolution>();
+
   constructor(
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(ModuleRef) private readonly moduleRef: ModuleRef,
     @Inject(HttpAdapterHost) private readonly httpAdapterHost: HttpAdapterHost,
   ) {}
+
+  private resolveScope(scope: string): ScopeResolution {
+    const cached = this.scopeCache.get(scope);
+    if (cached) {
+      return cached;
+    }
+
+    const opts = this.moduleRef.get<InertiaModuleOptions>(featureToken('OPTIONS', scope), {
+      strict: false,
+    });
+    const manifest = this.moduleRef.get<Manifest | null>(featureToken('MANIFEST', scope), {
+      strict: false,
+    });
+    const assetVersion = this.moduleRef.get<string>(featureToken('ASSET_VERSION', scope), {
+      strict: false,
+    });
+    const shellRenderer = this.moduleRef.get<ShellRenderer>(featureToken('SHELL_RENDERER', scope), {
+      strict: false,
+    });
+    const ssrLoader = this.moduleRef.get<{ load: () => Promise<never> }>(
+      featureToken('SSR_LOADER', scope),
+      { strict: false },
+    );
+
+    const deps: InertiaServiceDeps = {
+      assetVersion,
+      manifest,
+      ssrLoader,
+      rootViewRender: (c) => shellRenderer.render(c),
+      rootViewRenderToParts: shellRenderer.renderToParts
+        ? (c) => shellRenderer.renderToParts!(c)
+        : undefined,
+      ssrStreaming: (opts as { ssr?: { streaming?: boolean } }).ssr?.streaming,
+      moduleShare: (opts as { share?: unknown }).share as InertiaModuleOptions['share'],
+      featureShare: undefined,
+      historyEncryptionDefault:
+        (opts as { historyEncryption?: { default?: boolean } }).historyEncryption?.default ?? false,
+      flashStore: (opts as { flashStore?: InertiaModuleOptions['flashStore'] }).flashStore,
+      diagnostics: (opts as { diagnostics?: boolean }).diagnostics,
+    };
+    const platform = this.httpAdapterHost.httpAdapter?.getType();
+    const adapter = platform === 'fastify' ? fastifyAdapter : expressAdapter;
+
+    const resolution: ScopeResolution = { deps, adapter };
+    this.scopeCache.set(scope, resolution);
+    return resolution;
+  }
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
     const scope = this.reflector.getAllAndOverride<string>(INERTIA_USE_SCOPE, [
@@ -30,41 +92,10 @@ export class InertiaScopeSwitcherInterceptor implements NestInterceptor {
       ctx.getClass(),
     ]);
     if (scope && scope !== 'default') {
-      const opts = this.moduleRef.get<InertiaModuleOptions>(featureToken('OPTIONS', scope), {
-        strict: false,
-      });
-      const manifest = this.moduleRef.get<Manifest | null>(featureToken('MANIFEST', scope), {
-        strict: false,
-      });
-      const assetVersion = this.moduleRef.get<string>(featureToken('ASSET_VERSION', scope), {
-        strict: false,
-      });
-      const shellRenderer = this.moduleRef.get<ShellRenderer>(
-        featureToken('SHELL_RENDERER', scope),
-        { strict: false },
-      );
-      const ssrLoader = this.moduleRef.get<{ load: () => Promise<never> }>(
-        featureToken('SSR_LOADER', scope),
-        { strict: false },
-      );
+      const { deps, adapter } = this.resolveScope(scope);
 
       const req = ctx.switchToHttp().getRequest();
       const res = ctx.switchToHttp().getResponse();
-      const deps: InertiaServiceDeps = {
-        assetVersion,
-        manifest,
-        ssrLoader,
-        rootViewRender: (c) => shellRenderer.render(c),
-        moduleShare: (opts as { share?: unknown }).share as InertiaModuleOptions['share'],
-        featureShare: undefined,
-        historyEncryptionDefault:
-          (opts as { historyEncryption?: { default?: boolean } }).historyEncryption?.default ??
-          false,
-        flashStore: (opts as { flashStore?: InertiaModuleOptions['flashStore'] }).flashStore,
-        diagnostics: (opts as { diagnostics?: boolean }).diagnostics,
-      };
-      const platform = this.httpAdapterHost.httpAdapter?.getType();
-      const adapter = platform === 'fastify' ? fastifyAdapter : expressAdapter;
 
       req.inertia = new InertiaService(adapter.adaptRequest(req), adapter.adaptResponse(res), deps);
     }

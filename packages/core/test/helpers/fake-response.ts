@@ -7,6 +7,8 @@ export function fakeResponse(): InertiaResponse & {
     body?: unknown;
     bodyHtml?: string;
     ended: boolean;
+    chunks: string[];
+    streamed: boolean;
   };
 } {
   const captured = {
@@ -15,6 +17,8 @@ export function fakeResponse(): InertiaResponse & {
     body: undefined as unknown,
     bodyHtml: undefined as string | undefined,
     ended: false,
+    chunks: [] as string[],
+    streamed: false,
   };
   let sent = false;
   const res = {
@@ -42,6 +46,22 @@ export function fakeResponse(): InertiaResponse & {
     html(body: string) {
       captured.bodyHtml = body;
       sent = true;
+    },
+    htmlStream(initialChunk: string) {
+      captured.streamed = true;
+      captured.chunks.push(initialChunk);
+      sent = true;
+      return {
+        write(chunk: string) {
+          captured.chunks.push(chunk);
+          return true;
+        },
+        end(chunk?: string) {
+          if (chunk !== undefined) captured.chunks.push(chunk);
+          captured.ended = true;
+          captured.bodyHtml = captured.chunks.join('');
+        },
+      };
     },
     end() {
       captured.ended = true;

@@ -9,6 +9,13 @@ type FastifyReq = {
   raw?: { originalUrl?: string };
 };
 
+type FastifyRawReply = {
+  statusCode: number;
+  setHeader(name: string, value: string): void;
+  write(chunk: string): boolean;
+  end(chunk?: string): void;
+};
+
 type FastifyReply = {
   statusCode: number;
   sent: boolean;
@@ -18,6 +25,8 @@ type FastifyReply = {
   getHeader(name: string): string | string[] | number | undefined;
   send(body: unknown): FastifyReply;
   type(t: string): FastifyReply;
+  /** Underlying Node `ServerResponse` — used for true streaming (bypasses send()'s buffering). */
+  raw: FastifyRawReply;
 };
 
 export const fastifyAdapter: RequestAdapter = {
@@ -63,6 +72,21 @@ export const fastifyAdapter: RequestAdapter = {
       html(body) {
         r.header('Content-Type', 'text/html; charset=utf-8');
         r.send(body);
+      },
+      htmlStream(initialChunk) {
+        // Stream via the underlying Node response: reply.send() buffers and would
+        // defeat progressive flushing. Mirror Fastify's own header copying.
+        const copied = r.getHeader('Content-Type');
+        r.raw.setHeader('Content-Type', (copied as string) ?? 'text/html; charset=utf-8');
+        r.raw.write(initialChunk);
+        return {
+          write(chunk) {
+            return r.raw.write(chunk);
+          },
+          end(chunk) {
+            r.raw.end(chunk);
+          },
+        };
       },
       end() {
         r.send('');

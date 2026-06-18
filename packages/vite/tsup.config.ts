@@ -57,7 +57,10 @@ export default defineConfig([
   {
     entry,
     format: ['cjs'],
-    dts: false,
+    // Emit CJS-flavoured declarations (*.d.cts) so the package "require"
+    // condition resolves to declarations matching the CommonJS output under
+    // NodeNext, rather than masquerading the ESM *.d.ts.
+    dts: true,
     clean: false,
     splitting: false,
     sourcemap: true,

@@ -59,6 +59,11 @@ if (globalExpect?.extend) {
   globalExpect.extend(matchers);
 }
 
+// Marks the emitted declaration as a module (not an ambient script) so the
+// `/jest` subpath type-resolves under NodeNext via namespace/`require` imports
+// as well as the documented bare side-effect import.
+export const JEST_MATCHERS_INSTALLED = true;
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {

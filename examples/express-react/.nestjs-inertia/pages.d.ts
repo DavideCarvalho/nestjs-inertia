@@ -11,5 +11,5 @@ declare module '@dudousxd/nestjs-inertia' {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-interface
-  interface InertiaSharedProps extends Awaited<ReturnType<typeof import('/home/dudousxd/personal/nestjs-inertia/examples/express-react/src/shared-props').getSharedProps>> {}
+  interface InertiaSharedProps extends Awaited<ReturnType<typeof import('/home/dudousxd/personal/oss/nestjs/nestjs-inertia/examples/express-react/src/shared-props').getSharedProps>> {}
 }

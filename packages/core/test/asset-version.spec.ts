@@ -108,13 +108,64 @@ describe('computeAssetVersion', () => {
     expect(computeAssetVersion({ a: 1 } as never)).not.toBe(computeAssetVersion({ a: 2 } as never));
   });
 
-  it('returns UUID (32 hex chars) when manifest is null', () => {
+  it('returns a 32 hex-char version when manifest is null', () => {
     const v = computeAssetVersion(null);
     expect(v).toMatch(/^[a-f0-9]{32}$/);
   });
 
-  it('UUID branch is non-deterministic', () => {
-    expect(computeAssetVersion(null)).not.toBe(computeAssetVersion(null));
+  it('is STABLE across instantiations when manifest is null (no random per-boot)', () => {
+    // cwd is the core package, which has a package.json version → stable fallback.
+    expect(computeAssetVersion(null)).toBe(computeAssetVersion(null));
+  });
+
+  it('uses INERTIA_ASSET_VERSION env var when set (stable, distinct from pkg fallback)', () => {
+    const orig = process.env.INERTIA_ASSET_VERSION;
+    try {
+      const pkgFallback = computeAssetVersion(null);
+      process.env.INERTIA_ASSET_VERSION = 'build-abc-123';
+      const a = computeAssetVersion(null);
+      const b = computeAssetVersion(null);
+      expect(a).toMatch(/^[a-f0-9]{32}$/);
+      expect(a).toBe(b);
+      expect(a).not.toBe(pkgFallback);
+    } finally {
+      if (orig === undefined) {
+        process.env.INERTIA_ASSET_VERSION = undefined;
+        // biome-ignore lint/performance/noDelete: restore env to absent
+        delete process.env.INERTIA_ASSET_VERSION;
+      } else {
+        process.env.INERTIA_ASSET_VERSION = orig;
+      }
+    }
+  });
+
+  it('falls back to random (with warning) when no manifest/env/package version exists', async () => {
+    const { vi } = await import('vitest');
+    const { Logger } = await import('@nestjs/common');
+    const { mkdtempSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { _resetRandomFallbackWarning } = await import('../src/asset/version.provider.js');
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const origEnv = process.env.INERTIA_ASSET_VERSION;
+    // Empty tmp dir → no package.json → stable fallback unavailable.
+    const emptyDir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-nopkg-'));
+    try {
+      // biome-ignore lint/performance/noDelete: ensure env source is absent
+      delete process.env.INERTIA_ASSET_VERSION;
+      _resetRandomFallbackWarning();
+      process.chdir(emptyDir);
+      const a = computeAssetVersion(null);
+      const b = computeAssetVersion(null);
+      expect(a).toMatch(/^[a-f0-9]{32}$/);
+      expect(a).not.toBe(b); // random → non-deterministic last resort
+      expect(warnSpy).toHaveBeenCalledTimes(1); // de-duplicated warning
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('INERTIA_ASSET_VERSION'));
+    } finally {
+      if (origEnv !== undefined) process.env.INERTIA_ASSET_VERSION = origEnv;
+      warnSpy.mockRestore();
+      _resetRandomFallbackWarning();
+    }
   });
 });
 

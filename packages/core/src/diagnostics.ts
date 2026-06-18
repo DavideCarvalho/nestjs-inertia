@@ -32,7 +32,7 @@ export interface InertiaRenderDiagnostic {
     deferred: Record<string, string[]>;
     merge: string[];
     deepMerge: string[];
-    matchPropsOn: Record<string, string>;
+    matchPropsOn: Record<string, string | string[]>;
     optionalKeys: string[];
     onceKeys: string[];
     excludedKeys: string[];

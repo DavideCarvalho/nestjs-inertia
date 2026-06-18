@@ -48,6 +48,11 @@ expect.extend({
   },
 });
 
+// Marks the emitted declaration as a module (not an ambient script) so the
+// `/vitest` subpath type-resolves under NodeNext via namespace/`require` imports
+// as well as the documented bare side-effect import.
+export const VITEST_MATCHERS_INSTALLED = true;
+
 declare module 'vitest' {
   interface Assertion {
     toRenderInertiaComponent(name: string): void;

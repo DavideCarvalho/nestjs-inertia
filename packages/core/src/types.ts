@@ -11,12 +11,58 @@ export interface PageObject {
   deferredProps?: Record<string, string[]>;
   mergeProps?: string[];
   deepMergeProps?: string[];
-  matchPropsOn?: Record<string, string>;
+  matchPropsOn?: Record<string, string | string[]>;
 }
 
 export interface SsrResult {
   head: string[];
   body: string;
+}
+
+/**
+ * Minimal writable sink that a streaming SSR bundle pipes its app HTML into.
+ * Intentionally narrow so the loader/service stay agnostic of the concrete
+ * HTTP framework (Express `res`, Fastify `reply.raw`, or a test double all
+ * satisfy this). Mirrors the relevant surface of `node:stream.Writable`.
+ */
+export interface SsrWritable {
+  write(chunk: string | Uint8Array): boolean;
+  end(chunk?: string | Uint8Array): void;
+  on?(event: string, listener: (...args: unknown[]) => void): unknown;
+}
+
+/**
+ * The object a streaming SSR bundle returns from `renderToStream(page)`.
+ *
+ * This is the minimal optional streaming contract a bundle may implement (in
+ * addition to, or instead of, `render(page)`). It is shaped to map cleanly onto
+ * React 18's `renderToPipeableStream` (which yields `{ pipe(writable) }`):
+ *
+ * - `head`  — head fragments to flush BEFORE the app body (same role as
+ *             `SsrResult.head`). Optional; defaults to `[]`.
+ * - `pipe`  — writes the app HTML into `writable` progressively. The adapter
+ *             owns `writable.end()` of the *response*, so a bundle's `pipe`
+ *             should NOT end the response; if it ends its own intermediate
+ *             stream that is fine. React's `renderToPipeableStream().pipe(dest)`
+ *             both writes and ends `dest`, so bundles wrapping React should pipe
+ *             into a pass-through and let the adapter append the shell tail.
+ */
+export interface SsrStreamResult {
+  head?: string[];
+  pipe(writable: SsrWritable): void;
+}
+
+/**
+ * Retry policy for the SSR bundle loader. A transient load failure (e.g. the
+ * bundle is not on disk yet at boot) is retried on later requests instead of
+ * disabling SSR for the whole process. After `maxRetries` consecutive failures
+ * the loader cools down for `cooldownMs`, then becomes eligible to retry again.
+ */
+export interface SsrRetryOptions {
+  /** Additional attempts after the first, before entering cooldown. Default `3`. */
+  maxRetries?: number;
+  /** Cooldown (ms) after retries are exhausted before retrying again. Default `30000`. */
+  cooldownMs?: number;
 }
 
 export type Props = Record<string, unknown>;
@@ -46,6 +92,16 @@ export interface SsrOptions {
   bundlePath?: string;
   devMode?: 'off' | 'vite';
   throwOnError?: boolean;
+  /**
+   * Opt into progressive SSR streaming. When `true` AND the loaded bundle
+   * exports a streaming entry (`renderToStream`), the HTML (non-XHR) response is
+   * streamed: shell head → app body (piped) → shell tail, improving TTFB.
+   * Falls back to the buffered `render()` path when the bundle has no streaming
+   * entry. Default `false` (backward-compatible).
+   */
+  streaming?: boolean;
+  /** Retry policy for transient bundle-load failures. See {@link SsrRetryOptions}. */
+  retry?: SsrRetryOptions;
 }
 
 /**

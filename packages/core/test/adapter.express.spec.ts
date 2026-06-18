@@ -65,8 +65,13 @@ function fakeExpressRes() {
       calls.push(`send:${body.slice(0, 30)}`);
       sent = true;
     },
-    end() {
-      calls.push('end');
+    write(chunk: string) {
+      calls.push(`write:${chunk}`);
+      sent = true;
+      return true;
+    },
+    end(chunk?: string) {
+      calls.push(chunk !== undefined ? `end:${chunk}` : 'end');
       sent = true;
     },
     redirect(_status: number, _url: string) {
@@ -181,5 +186,15 @@ describe('expressAdapter', () => {
     const res = expressAdapter.adaptResponse(raw);
     res.end();
     expect(raw._calls).toContain('end');
+  });
+
+  it('adaptResponse.htmlStream writes head chunk, streams writes, and ends with tail', () => {
+    const raw = fakeExpressRes();
+    const res = expressAdapter.adaptResponse(raw);
+    const sink = res.htmlStream('<head-chunk>');
+    sink.write('<body-chunk>');
+    sink.end('<tail-chunk>');
+    expect(raw._headers['Content-Type']).toMatch(/text\/html/);
+    expect(raw._calls).toEqual(['write:<head-chunk>', 'write:<body-chunk>', 'end:<tail-chunk>']);
   });
 });

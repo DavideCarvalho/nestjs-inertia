@@ -3,7 +3,7 @@ export { ErrorBagInterceptor } from './interceptor/error-bag.interceptor.js';
 export { RedirectInterceptor } from './interceptor/redirect.interceptor.js';
 export { MethodSpoofMiddleware } from './middleware/method-spoof.middleware.js';
 export { InertiaMiddleware } from './middleware/express.middleware.js';
-export type { FlashStore, FlashErrors } from './flash/flash-store.js';
+export type { FlashStore, FlashErrors, FlashData } from './flash/flash-store.js';
 export {
   InvalidInertiaConfigException,
   InertiaServiceNotAvailableException,
@@ -44,6 +44,9 @@ export {
 export type {
   PageObject,
   SsrResult,
+  SsrStreamResult,
+  SsrWritable,
+  SsrRetryOptions,
   Props,
   SharedFactory,
   SharedInput,
