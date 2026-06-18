@@ -7,12 +7,13 @@ import {
   inertiaRenderChannel,
   publishInertiaRender,
 } from './diagnostics.js';
-import type { FlashStore } from './flash/flash-store.js';
+import type { FlashData, FlashStore } from './flash/flash-store.js';
 import { nullifyUndefined } from './helpers/nullify-undefined.js';
 import { unpackDotKeys } from './helpers/set-nested.js';
 import { validateLocationUrl } from './helpers/validate-location-url.js';
 import { type Marker, getMarkerKind, getMarkerMeta, getMarkerValue, isMarker } from './markers.js';
-import type { PageObject, Props, SharedInput, ShellRenderCtx } from './types.js';
+import type { ShellParts } from './shell/shell.js';
+import type { PageObject, Props, SharedInput, ShellRenderCtx, SsrStreamResult } from './types.js';
 import type { InertiaPages } from './types/registry.js';
 
 /** Sentinel to indicate a prop should be omitted from the output. */
@@ -172,6 +173,7 @@ async function resolveMarker(
 
 export interface SsrModule {
   render(page: PageObject): Promise<{ head: string[]; body: string }>;
+  renderToStream?: (page: PageObject) => SsrStreamResult | Promise<SsrStreamResult>;
 }
 
 export interface SsrLoader {
@@ -183,6 +185,14 @@ export interface InertiaServiceDeps {
   manifest: Manifest | null;
   ssrLoader: SsrLoader;
   rootViewRender: (ctx: ShellRenderCtx) => Promise<string>;
+  /**
+   * Optional streaming seam: render the shell split into head/tail around the
+   * app body. Present only when the shell renderer supports splitting; absence
+   * disables streaming (buffered SSR still works).
+   */
+  rootViewRenderToParts?: ((ctx: ShellRenderCtx) => Promise<ShellParts>) | undefined;
+  /** Opt-in to progressive SSR streaming when the bundle exposes a streaming entry. */
+  ssrStreaming?: boolean | undefined;
   moduleShare: SharedInput | undefined;
   featureShare: SharedInput | undefined;
   historyEncryptionDefault?: boolean;
@@ -222,6 +232,35 @@ export class InertiaService {
   share(input: SharedInput): this {
     this.shared.push(input);
     return this;
+  }
+
+  /**
+   * Flash general (non-error) data for the *next* request, Laravel/Rails-style.
+   * The data is persisted via the configured `flashStore` and surfaced to the
+   * client as the `flash` shared prop on the following render, then cleared.
+   *
+   * Supports both an object form and a key/value form:
+   *
+   * @example
+   * await inertia.flash({ success: 'Saved!' });
+   * await inertia.flash('status', 'profile-updated');
+   *
+   * No-ops (does not throw) when no `flashStore` is configured or the store does
+   * not implement `writeFlash`.
+   */
+  async flash(data: FlashData): Promise<void>;
+  async flash(key: string, value: unknown): Promise<void>;
+  async flash(dataOrKey: FlashData | string, value?: unknown): Promise<void> {
+    const store = this.deps.flashStore;
+    if (!store?.writeFlash) return;
+    const data: FlashData = typeof dataOrKey === 'string' ? { [dataOrKey]: value } : dataOrKey;
+    try {
+      await store.writeFlash(this.req.raw, data);
+    } catch (err) {
+      this.logger.warn(
+        `FlashStore.writeFlash() threw: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   /**
@@ -336,6 +375,24 @@ export class InertiaService {
       }
     }
 
+    // Auto-resolve general flash data (success/info/etc.) from FlashStore and
+    // surface it as the `flash` shared prop. `readFlash` is expected to be
+    // consume-once (Laravel/Rails semantics): reading it clears it so it is gone
+    // on the following request. Only shared when the store implements readFlash
+    // and the caller has not already provided an explicit `flash` prop.
+    if (this.deps.flashStore?.readFlash && props.flash === undefined) {
+      try {
+        const flash = await this.deps.flashStore.readFlash(this.req.raw);
+        if (flash !== undefined && flash !== null) {
+          this.share({ flash });
+        }
+      } catch (err) {
+        this.logger.warn(
+          `FlashStore.readFlash() threw: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     const sharedProps = await this.resolveShared();
     const rawProps: Props = { ...sharedProps, ...props };
     if (rawProps.errors === undefined) rawProps.errors = {};
@@ -361,7 +418,7 @@ export class InertiaService {
     const deferredProps: Record<string, string[]> = {};
     const mergeProps: string[] = [];
     const deepMergeProps: string[] = [];
-    const matchPropsOn: Record<string, string> = {};
+    const matchPropsOn: Record<string, string | string[]> = {};
 
     // Diagnostics-only marker classification bookkeeping. Only populated when
     // `diagOn`; the pushes below are cheap no-ops otherwise.
@@ -409,7 +466,7 @@ export class InertiaService {
           continue;
         }
         if (kind === 'merge') {
-          const meta = getMarkerMeta(value) as { matchOn?: string; deep?: boolean };
+          const meta = getMarkerMeta(value) as { matchOn?: string | string[]; deep?: boolean };
           if (keep && !keep.includes(key) && key !== 'errors') continue;
           const resolved = await getMarkerValue(value)();
           finalProps[key] = resolved;
@@ -533,6 +590,45 @@ export class InertiaService {
     }
 
     const ssrModule = await this.deps.ssrLoader.load();
+
+    // Streaming SSR path: enabled, bundle exposes a streaming entry, and the
+    // shell renderer can split into head/tail. Falls through to buffered SSR
+    // otherwise so behaviour is identical when any prerequisite is missing.
+    const canStream =
+      this.deps.ssrStreaming === true &&
+      typeof ssrModule?.renderToStream === 'function' &&
+      typeof this.deps.rootViewRenderToParts === 'function';
+
+    if (canStream) {
+      // `ssrModule` and `rootViewRenderToParts` are narrowed by `canStream`.
+      const renderToStream = ssrModule.renderToStream as NonNullable<SsrModule['renderToStream']>;
+      const renderToParts = this.deps.rootViewRenderToParts as NonNullable<
+        InertiaServiceDeps['rootViewRenderToParts']
+      >;
+      const streamed = await this.tryStream(page, renderToStream, renderToParts);
+      if (streamed) {
+        if (diagOn) {
+          publishInertiaRender(
+            this.buildRenderDiagnostic(page, sharedKeys, {
+              isPartial,
+              keep,
+              exceptKeys,
+              resetKeys,
+              resetOnceKeys,
+              optionalKeys,
+              onceKeys,
+              excludedKeys,
+              clientVersion: clientVersion ?? null,
+              encryptHistory,
+              ssr: true,
+            }),
+          );
+        }
+        return;
+      }
+      // Streaming failed before any byte was written → fall back to buffered SSR.
+    }
+
     const ssr = ssrModule ? await ssrModule.render(page) : null;
     const html = await this.deps.rootViewRender({
       page,
@@ -562,6 +658,79 @@ export class InertiaService {
       );
     }
     this.res.setHeader('Vary', 'X-Inertia').html(html);
+  }
+
+  /**
+   * Stream the SSR response progressively: render the shell head (with the SSR
+   * head fragments), flush it, pipe the bundle's app HTML, then write the shell
+   * tail and end. Returns `true` on success; returns `false` (without writing
+   * anything) when the stream cannot be started so the caller can fall back to
+   * buffered SSR. Once the first byte is written, a mid-stream error can no
+   * longer fall back — it ends the (partial) response.
+   */
+  private async tryStream(
+    page: PageObject,
+    renderToStream: NonNullable<SsrModule['renderToStream']>,
+    renderToParts: NonNullable<InertiaServiceDeps['rootViewRenderToParts']>,
+  ): Promise<boolean> {
+    let streamResult: SsrStreamResult;
+    let parts: ShellParts;
+    try {
+      streamResult = await renderToStream(page);
+      parts = await renderToParts({
+        page,
+        ssr: { head: streamResult.head ?? [], body: '' },
+        manifest: this.deps.manifest,
+        assetVersion: this.deps.assetVersion,
+        ctx: { req: this.req.raw, res: this.res.raw },
+      });
+    } catch (err) {
+      // Nothing written yet — safe to fall back to buffered SSR.
+      this.logger.warn(
+        `SSR streaming setup failed, falling back to buffered SSR: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return false;
+    }
+
+    this.res.setHeader('Vary', 'X-Inertia');
+    const sink = this.res.htmlStream(parts.head);
+
+    return new Promise<boolean>((resolvePromise) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        sink.end(parts.tail);
+        resolvePromise(true);
+      };
+      // Bridge the bundle's writable: the bundle writes app HTML; when it ends
+      // its stream we append the shell tail and close the response. We never let
+      // the bundle close the real response directly.
+      const writable = {
+        write: (chunk: string | Uint8Array): boolean =>
+          sink.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')),
+        end: (chunk?: string | Uint8Array): void => {
+          if (chunk !== undefined) {
+            sink.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+          }
+          finish();
+        },
+      };
+      try {
+        streamResult.pipe(writable);
+      } catch (err) {
+        // Mid-stream failure after head was flushed: we cannot fall back, so end
+        // the response with the tail to keep the document well-formed.
+        this.logger.warn(
+          `SSR stream pipe threw after head flush: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        finish();
+      }
+    });
   }
 
   /**

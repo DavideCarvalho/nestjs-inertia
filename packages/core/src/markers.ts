@@ -1,5 +1,8 @@
+import { Logger } from '@nestjs/common';
 import { createInertiaDecorator } from './decorator/inertia.decorator.js';
 import type { InertiaPages } from './types/registry.js';
+
+const markerLogger = new Logger('Inertia');
 
 const MARKER = Symbol('inertia.marker');
 
@@ -47,8 +50,8 @@ let _lazyWarned = false;
 function lazy<T>(fn: () => T | Promise<T>): Marker<T> {
   if (!_lazyWarned) {
     _lazyWarned = true;
-    console.warn(
-      '[nestjs-inertia] Inertia.lazy() is deprecated and will be removed in a future version. ' +
+    markerLogger.warn(
+      'Inertia.lazy() is deprecated and will be removed in a future version. ' +
         'Use Inertia.optional() instead (Inertia v3).',
     );
   }
@@ -62,7 +65,7 @@ function once<T>(fn: () => T | Promise<T>): Marker<T> {
 }
 function merge<T>(
   fn: () => T | Promise<T>,
-  opts?: { matchOn?: string; deep?: boolean },
+  opts?: { matchOn?: string | string[]; deep?: boolean },
 ): Marker<T> {
   const meta: Record<string, unknown> = { deep: opts?.deep ?? false };
   if (opts?.matchOn !== undefined) meta.matchOn = opts.matchOn;

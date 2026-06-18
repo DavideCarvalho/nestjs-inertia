@@ -5,7 +5,12 @@ import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
 import type { ShellRenderCtx } from '../types.js';
 import { processDirectives } from './directives.js';
 import { serializePageData } from './serialize-page.js';
-import type { ShellRenderer } from './shell.js';
+import {
+  SSR_BODY_SENTINEL,
+  type ShellParts,
+  type ShellRenderer,
+  splitOnSentinel,
+} from './shell.js';
 import type { TemplateEngineAdapter } from './template-engine.adapter.js';
 import { resolveTemplateEngine } from './template-engine.registry.js';
 
@@ -90,5 +95,19 @@ export class FileBasedShellRenderer implements ShellRenderer {
     // Run directive parser on output too — supports devs who mix template syntax with @inertia
     output = processDirectives(output, directiveCtx);
     return output;
+  }
+
+  /**
+   * Streaming seam: render the shell with the SSR body replaced by a sentinel,
+   * then split into head/tail so the head can be flushed before the app body has
+   * finished rendering. Reuses the normal {@link render} path so directives,
+   * template engines, and @inertiaHead all behave identically.
+   */
+  async renderToParts(ctx: ShellRenderCtx): Promise<ShellParts> {
+    const full = await this.render({
+      ...ctx,
+      ssr: { head: ctx.ssr?.head ?? [], body: SSR_BODY_SENTINEL },
+    });
+    return splitOnSentinel(full);
   }
 }

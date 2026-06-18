@@ -18,8 +18,10 @@ type ExpressRes = {
   getHeader(name: string): string | string[] | number | undefined;
   json(body: unknown): ExpressRes;
   send(body: string): ExpressRes;
-  end(): void;
+  write(chunk: string): boolean;
+  end(chunk?: string): void;
   type(t: string): ExpressRes;
+  flush?: () => void;
 };
 
 export const expressAdapter: RequestAdapter = {
@@ -66,6 +68,21 @@ export const expressAdapter: RequestAdapter = {
       html(body) {
         r.setHeader('Content-Type', 'text/html; charset=utf-8');
         r.send(body);
+      },
+      htmlStream(initialChunk) {
+        r.setHeader('Content-Type', 'text/html; charset=utf-8');
+        r.write(initialChunk);
+        r.flush?.();
+        return {
+          write(chunk) {
+            const ok = r.write(chunk);
+            r.flush?.();
+            return ok;
+          },
+          end(chunk) {
+            r.end(chunk);
+          },
+        };
       },
       end() {
         r.end();

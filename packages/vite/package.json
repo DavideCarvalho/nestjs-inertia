@@ -15,16 +15,27 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./plugin": {
-      "types": "./dist/plugin/plugin.d.ts",
-      "import": "./dist/plugin/plugin.js",
-      "require": "./dist/plugin/plugin.cjs"
+      "import": {
+        "types": "./dist/plugin/plugin.d.ts",
+        "default": "./dist/plugin/plugin.js"
+      },
+      "require": {
+        "types": "./dist/plugin/plugin.d.cts",
+        "default": "./dist/plugin/plugin.cjs"
+      }
     }
   },
+  "sideEffects": false,
   "files": ["dist/", "README.md", "CHANGELOG.md"],
   "scripts": {
     "build": "tsup",

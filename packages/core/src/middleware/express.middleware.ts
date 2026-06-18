@@ -31,6 +31,10 @@ export class InertiaMiddleware implements NestMiddleware {
         manifest: this.manifest,
         ssrLoader: this.ssrLoader,
         rootViewRender: (ctx) => this.shellRenderer.render(ctx),
+        rootViewRenderToParts: this.shellRenderer.renderToParts
+          ? (ctx) => this.shellRenderer.renderToParts!(ctx)
+          : undefined,
+        ssrStreaming: this.options.ssr?.streaming,
         moduleShare: this.options.share,
         featureShare: undefined,
         historyEncryptionDefault: this.options.historyEncryption?.default ?? false,

@@ -63,7 +63,16 @@ function fakeFastifyReply() {
       sent = true;
     },
     raw: {
-      end: vi.fn(() => {
+      setHeader: vi.fn((name: string, value: string) => {
+        calls.push(`raw.setHeader:${name}=${value}`);
+      }),
+      write: vi.fn((chunk: string) => {
+        calls.push(`raw.write:${chunk}`);
+        sent = true;
+        return true;
+      }),
+      end: vi.fn((chunk?: string) => {
+        calls.push(chunk !== undefined ? `raw.end:${chunk}` : 'raw.end');
         sent = true;
       }),
     },
@@ -171,5 +180,25 @@ describe('fastifyAdapter', () => {
     const res = fastifyAdapter.adaptResponse(raw);
     res.end();
     expect(raw._captured.calls).toContain('send:');
+  });
+
+  it('adaptResponse.htmlStream streams via raw response (bypasses send buffering)', () => {
+    const raw = fakeFastifyReply();
+    const res = fastifyAdapter.adaptResponse(raw);
+    const sink = res.htmlStream('<head-chunk>');
+    sink.write('<body-chunk>');
+    sink.end('<tail-chunk>');
+    expect(raw.raw.setHeader).toHaveBeenCalledWith(
+      'Content-Type',
+      expect.stringMatching(/text\/html/),
+    );
+    expect(raw._captured.calls).toEqual([
+      'raw.setHeader:Content-Type=text/html; charset=utf-8',
+      'raw.write:<head-chunk>',
+      'raw.write:<body-chunk>',
+      'raw.end:<tail-chunk>',
+    ]);
+    // Must NOT use the buffering send() path.
+    expect(raw._captured.calls.some((c) => c.startsWith('send:'))).toBe(false);
   });
 });

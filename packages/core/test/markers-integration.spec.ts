@@ -68,6 +68,18 @@ describe('render — Inertia v2 markers (full reload)', () => {
     expect(body.matchPropsOn).toEqual({ rows: 'id' });
   });
 
+  it('merge() with matchOn as string array populates matchPropsOn with the array', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, deps());
+    await svc.render('Page', {
+      rows: Inertia.merge(() => [{ id: 1, slug: 'a' }], { matchOn: ['id', 'slug'] }),
+    });
+    const body = res._captured.body as any;
+    expect(body.mergeProps).toEqual(['rows']);
+    expect(body.matchPropsOn).toEqual({ rows: ['id', 'slug'] });
+  });
+
   it('merge() with deep: true adds to deepMergeProps', async () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();

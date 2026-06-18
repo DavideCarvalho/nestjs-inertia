@@ -57,7 +57,9 @@ describe('SsrLoaderService — real bundle loading', () => {
     await expect(svc.load()).rejects.toThrow();
   });
 
-  it('memoizes the failed state — does not retry after first failure', async () => {
+  it('retries a transient failure on the next request instead of latching permanently', async () => {
+    // Default retry policy allows a second attempt with no cooldown gating between
+    // the first failures, so a missing bundle is re-attempted on the next load().
     const svc = new SsrLoaderService(baseOpts({ bundlePath: '/nonexistent/ssr.mjs' }) as never);
     const first = await svc.load();
     const second = await svc.load();
