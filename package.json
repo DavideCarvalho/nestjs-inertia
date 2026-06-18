@@ -27,7 +27,8 @@
   },
   "pnpm": {
     "overrides": {
-      "esbuild": ">=0.28.1"
+      "esbuild": ">=0.28.1",
+      "multer": ">=2.2.0"
     }
   },
   "devDependencies": {
