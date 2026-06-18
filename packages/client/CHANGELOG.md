@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 2.1.1
+
+### Patch Changes
+
+- [`ee4f88e`](https://github.com/DavideCarvalho/nestjs-inertia/commit/ee4f88ebb50183a1633056b81c275e1adf3159a6) - feat: `createFetcher` now implements `sse()` to satisfy the codegen `Fetcher` contract (SSE/@Sse() endpoints), fixing `createApi(fetcher)` typecheck against generated Inertia APIs.
+
 ## 2.1.0
 
 ### Minor Changes
