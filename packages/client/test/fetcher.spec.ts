@@ -208,3 +208,94 @@ describe('createFetcher', () => {
     expect(headersFn).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('fetcher.sse — server-sent events streaming', () => {
+  function sseResponse(chunks: string[], status = 200): Response {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const enc = new TextEncoder();
+        for (const c of chunks) controller.enqueue(enc.encode(c));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      status,
+      headers: { 'content-type': 'text/event-stream' },
+    });
+  }
+
+  it('yields JSON-parsed data payloads as a typed async iterable', async () => {
+    const f = vi.fn(async () =>
+      sseResponse(['data: {"count":1}\n\n', 'data: {"count":2}\n\n']),
+    ) as unknown as typeof fetch;
+    const fetcher = createFetcher({ fetch: f });
+    const seen: number[] = [];
+    for await (const ev of fetcher.sse<{ count: number }>('/events')) {
+      seen.push(ev.count);
+    }
+    expect(seen).toEqual([1, 2]);
+    // accept header negotiates the event-stream content type
+    expect((vi.mocked(f).mock.calls[0]?.[1] as RequestInit).headers).toMatchObject({
+      accept: 'text/event-stream',
+    });
+  });
+
+  it('handles events split across chunk boundaries', async () => {
+    const f = vi.fn(async () =>
+      sseResponse(['data: {"co', 'unt":7}\n\n']),
+    ) as unknown as typeof fetch;
+    const fetcher = createFetcher({ fetch: f });
+    const seen: number[] = [];
+    for await (const ev of fetcher.sse<{ count: number }>('/events')) {
+      seen.push(ev.count);
+    }
+    expect(seen).toEqual([7]);
+  });
+
+  it('throws ApiHttpError on a non-ok response', async () => {
+    const f = mockFetch(
+      new Response('nope', { status: 500, headers: { 'content-type': 'text/plain' } }),
+    );
+    const fetcher = createFetcher({ fetch: f });
+    await expect(async () => {
+      for await (const _ of fetcher.sse('/events')) {
+        // unreachable
+      }
+    }).rejects.toBeInstanceOf(ApiHttpError);
+  });
+
+  it('forwards the abort signal to fetch and stops early', async () => {
+    const controller = new AbortController();
+    const f = vi.fn(async (_url: string, init?: RequestInit) => {
+      // Abort immediately so the consumer rejects rather than streaming.
+      if (init?.signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      return sseResponse(['data: {"count":1}\n\n']);
+    }) as unknown as typeof fetch;
+    controller.abort();
+    const fetcher = createFetcher({ fetch: f });
+    await expect(async () => {
+      for await (const _ of fetcher.sse('/events', { signal: controller.signal })) {
+        // unreachable
+      }
+    }).rejects.toThrow();
+    expect((vi.mocked(f).mock.calls[0]?.[1] as RequestInit).signal).toBe(controller.signal);
+  });
+
+  it('throws clearly when no fetch implementation is available', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      // @ts-expect-error — intentionally unset for SSR simulation
+      globalThis.fetch = undefined;
+      const fetcher = createFetcher();
+      await expect(async () => {
+        for await (const _ of fetcher.sse('/events')) {
+          // unreachable
+        }
+      }).rejects.toThrow('No fetch implementation: pass opts.fetch or set globalThis.fetch');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

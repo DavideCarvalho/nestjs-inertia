@@ -19,6 +19,22 @@ export interface Fetcher {
   put<T>(path: string, opts?: RequestOpts): Promise<T>;
   patch<T>(path: string, opts?: RequestOpts): Promise<T>;
   delete<T>(path: string, opts?: RequestOpts): Promise<T>;
+  /**
+   * Consume a server-sent-events (`@Sse()`) endpoint as a typed async stream.
+   * Each yielded value is the JSON-parsed `data:` payload of one SSE event,
+   * typed as `T` (the streamed element type the codegen carried through). The
+   * stream ends when the connection closes; aborting the optional
+   * {@link SseOpts.signal} stops it early.
+   */
+  sse<T>(path: string, opts?: SseOpts): AsyncIterable<T>;
+}
+
+/** Options for a streaming {@link Fetcher.sse} consumption. */
+export interface SseOpts {
+  params?: Record<string, unknown> | undefined;
+  query?: Record<string, unknown> | undefined;
+  /** Abort the stream early. */
+  signal?: AbortSignal;
 }
 
 interface RequestOpts {
@@ -72,11 +88,89 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     return (await res.text()) as unknown as T;
   }
 
+  function sse<T>(path: string, so: SseOpts = {}): AsyncIterable<T> {
+    const url = buildUrl(
+      path,
+      { ...(so.params ? { params: so.params } : {}), ...(so.query ? { query: so.query } : {}) },
+      baseUrl,
+    );
+    const headers: Record<string, string> = {
+      ...getGlobalHeaders(),
+      ...opts.headers?.(),
+      accept: 'text/event-stream',
+    };
+    return consumeSse<T>(fetchImpl, url, headers, so.signal);
+  }
+
   return {
     get: <T>(p: string, ro?: RequestOpts) => request<T>('GET', p, ro),
     post: <T>(p: string, ro?: RequestOpts) => request<T>('POST', p, ro),
     put: <T>(p: string, ro?: RequestOpts) => request<T>('PUT', p, ro),
     patch: <T>(p: string, ro?: RequestOpts) => request<T>('PATCH', p, ro),
     delete: <T>(p: string, ro?: RequestOpts) => request<T>('DELETE', p, ro),
+    sse,
   };
+}
+
+/**
+ * Consume a `text/event-stream` response as an async iterable of parsed `data:`
+ * payloads. Parses the SSE wire format (events separated by a blank line, `data:`
+ * lines concatenated) and JSON-parses each event's data. Bring-your-own-`fetch`
+ * so it works in any runtime.
+ */
+export async function* consumeSse<T>(
+  fetchImpl: typeof fetch | undefined,
+  url: string,
+  headers: Record<string, string>,
+  signal?: AbortSignal,
+): AsyncIterable<T> {
+  if (!fetchImpl) {
+    throw new Error('No fetch implementation: pass opts.fetch or set globalThis.fetch');
+  }
+  const res = await fetchImpl(url, {
+    method: 'GET',
+    headers,
+    ...(signal ? { signal } : {}),
+  });
+  if (!res.ok) {
+    const err = await ApiHttpError.fromResponse(res);
+    throw err;
+  }
+  const body = res.body;
+  if (!body) return;
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      // Events are separated by a blank line.
+      let sep = buf.indexOf('\n\n');
+      while (sep !== -1) {
+        const raw = buf.slice(0, sep);
+        buf = buf.slice(sep + 2);
+        const data = parseEventData(raw);
+        if (data !== null) yield JSON.parse(data) as T;
+        sep = buf.indexOf('\n\n');
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/** Extract and concatenate the `data:` lines of one SSE event block. */
+function parseEventData(block: string): string | null {
+  const dataLines: string[] = [];
+  for (const line of block.split('\n')) {
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).replace(/^ /, ''));
+    }
+  }
+  return dataLines.length > 0 ? dataLines.join('\n') : null;
 }
