@@ -248,3 +248,84 @@ describe('nested markers — partial reload with dot-notation paths', () => {
     expect((props.meta as Record<string, unknown>).version).toBe('42');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Nested once(): must mirror the top-level once() contract (resolve on a full
+// reload or an explicit X-Inertia-Reset-Once; omit on partials). Regression for
+// the bug where a nested once() resolved on any partial that included its parent
+// and ignored Reset-Once entirely.
+// ---------------------------------------------------------------------------
+describe('nested markers — once() mirrors top-level semantics', () => {
+  it('once() nested inside object resolves on full reload', async () => {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, deps());
+    let called = false;
+    await svc.render('Page', {
+      user: {
+        name: 'Alice',
+        token: Inertia.once(() => {
+          called = true;
+          return 'T';
+        }),
+      },
+    });
+    expect(called).toBe(true);
+    const props = (res._captured.body as { props: Record<string, unknown> }).props;
+    expect((props.user as Record<string, unknown>).token).toBe('T');
+  });
+
+  it('once() nested is OMITTED on a partial reload that includes the parent (no Reset-Once)', async () => {
+    // Bug: previously resolved because the parent being fully included made
+    // subKeep === null, which the resolver mistook for a full reload.
+    const req = fakeRequest({
+      headers: {
+        'x-inertia': 'true',
+        'x-inertia-partial-component': 'Page',
+        'x-inertia-partial-data': 'user',
+      },
+    });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, deps());
+    let called = false;
+    await svc.render('Page', {
+      user: {
+        name: 'Alice',
+        token: Inertia.once(() => {
+          called = true;
+          return 'T';
+        }),
+      },
+    });
+    expect(called).toBe(false);
+    const props = (res._captured.body as { props: Record<string, unknown> }).props;
+    expect(props.user as Record<string, unknown>).not.toHaveProperty('token');
+    expect((props.user as Record<string, unknown>).name).toBe('Alice');
+  });
+
+  it('once() nested resolves on a partial when X-Inertia-Reset-Once lists its full dot-path', async () => {
+    const req = fakeRequest({
+      headers: {
+        'x-inertia': 'true',
+        'x-inertia-partial-component': 'Page',
+        'x-inertia-partial-data': 'user',
+        'x-inertia-reset-once': 'user.token',
+      },
+    });
+    const res = fakeResponse();
+    const svc = new InertiaService(req, res, deps());
+    let called = false;
+    await svc.render('Page', {
+      user: {
+        name: 'Alice',
+        token: Inertia.once(() => {
+          called = true;
+          return 'T-fresh';
+        }),
+      },
+    });
+    expect(called).toBe(true);
+    const props = (res._captured.body as { props: Record<string, unknown> }).props;
+    expect((props.user as Record<string, unknown>).token).toBe('T-fresh');
+  });
+});
