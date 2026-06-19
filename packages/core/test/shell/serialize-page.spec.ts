@@ -58,4 +58,16 @@ describe('serializePageData', () => {
     expect(serialized).not.toContain('&amp;');
     expect(JSON.parse(serialized)).toEqual(obj);
   });
+
+  it('escapes every forward slash to \\/ per the Inertia protocol', () => {
+    const obj = { component: 'users/index', url: '/users?page=2', version: 'v1' };
+    const serialized = serializePageData(obj);
+    // No bare forward slash survives — all are escaped to \/
+    expect(serialized).not.toMatch(/[^\\]\//);
+    expect(serialized).not.toMatch(/^\//);
+    expect(serialized).toContain('users\\/index');
+    expect(serialized).toContain('\\/users');
+    // round-trip is preserved (\/ is a valid JSON escape for /)
+    expect(JSON.parse(serialized)).toEqual(obj);
+  });
 });

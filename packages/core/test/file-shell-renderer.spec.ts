@@ -33,6 +33,32 @@ describe('FileBasedShellRenderer', () => {
     expect(html).toContain('<script data-page="app" type="application/json">');
   });
 
+  it('marks the SSR mount with data-server-rendered when an SSR body is present', async () => {
+    const path = makeRoot('<!doctype html><body>@inertia</body>');
+    const renderer = new FileBasedShellRenderer(path);
+    const html = await renderer.render({
+      page: { component: 'Home', props: {}, url: '/', version: 'v1' },
+      ssr: { head: [], body: '<div id="app">PRE-RENDERED</div>' },
+      manifest: null,
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+    expect(html).toContain('<div id="app" data-server-rendered="true">PRE-RENDERED</div>');
+  });
+
+  it('does not mark the mount as server-rendered on a CSR (no SSR body) render', async () => {
+    const path = makeRoot('<!doctype html><body>@inertia</body>');
+    const renderer = new FileBasedShellRenderer(path);
+    const html = await renderer.render({
+      page: { component: 'Home', props: {}, url: '/', version: 'v1' },
+      ssr: null,
+      manifest: null,
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+    expect(html).not.toContain('data-server-rendered');
+  });
+
   it('throws UnsupportedRootViewExtensionException for unsupported extension', () => {
     expect(() => new FileBasedShellRenderer('inertia/root.txt')).toThrow(
       UnsupportedRootViewExtensionException,

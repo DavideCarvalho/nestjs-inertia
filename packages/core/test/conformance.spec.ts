@@ -299,12 +299,17 @@ describe('conformance / tier 3 — props v2', () => {
     const body = res._captured.body as { mergeProps?: string[] };
     expect(body.mergeProps).toBeUndefined();
   });
-  it('[A.2 done] once() resolves on first visit; skips on partial without Reset-Once', async () => {
+  it('[A.2 done] once() resolves on first visit and announces onceProps metadata', async () => {
     const req = fakeRequest({ headers: { 'x-inertia': 'true' } });
     const res = fakeResponse();
     const svc = new InertiaService(req, res, baseDeps());
     await svc.render('Page', { token: Inertia.once(() => 'T') });
-    expect((res._captured.body as { props: Record<string, unknown> }).props.token).toBe('T');
+    const page = res._captured.body as {
+      props: Record<string, unknown>;
+      onceProps?: Record<string, { prop: string; expiresAt: number | null }>;
+    };
+    expect(page.props.token).toBe('T');
+    expect(page.onceProps).toEqual({ token: { prop: 'token', expiresAt: null } });
   });
 });
 

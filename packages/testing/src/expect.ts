@@ -8,7 +8,20 @@ export interface PageObject {
   deferredProps?: Record<string, string[]>;
   mergeProps?: string[];
   deepMergeProps?: string[];
-  matchPropsOn?: Record<string, string>;
+  prependProps?: string[];
+  matchPropsOn?: Record<string, string | string[]>;
+  onceProps?: Record<string, { prop: string; expiresAt: number | null }>;
+  rescuedProps?: string[];
+  scrollProps?: Record<
+    string,
+    {
+      pageName: string;
+      currentPage: unknown;
+      nextPage: unknown;
+      previousPage: unknown;
+      reset: boolean;
+    }
+  >;
 }
 
 interface ResponseLike {
@@ -143,23 +156,114 @@ export class InertiaAssertion {
 
   toHaveMergeProp(
     name: string,
-    opts?: { matchOn?: string; strategy?: 'append' | 'prepend' },
+    opts?: { matchOn?: string | string[]; strategy?: 'append' | 'prepend' },
   ): this {
     const page = this.page();
-    const merge = page.mergeProps ?? [];
-    const deepMerge = page.deepMergeProps ?? [];
-    const all = [...merge, ...deepMerge];
-    if (!all.includes(name)) {
-      fail(
-        `Expected merge prop "${name}", got mergeProps=${JSON.stringify(merge)}, deepMergeProps=${JSON.stringify(deepMerge)}`,
-        page,
-      );
+    if (opts?.strategy === 'prepend') {
+      const prepend = page.prependProps ?? [];
+      if (!prepend.includes(name)) {
+        fail(`Expected prepend prop "${name}", got prependProps=${JSON.stringify(prepend)}`, page);
+      }
+    } else {
+      const merge = page.mergeProps ?? [];
+      const deepMerge = page.deepMergeProps ?? [];
+      const all = [...merge, ...deepMerge];
+      if (!all.includes(name)) {
+        fail(
+          `Expected merge prop "${name}", got mergeProps=${JSON.stringify(merge)}, deepMergeProps=${JSON.stringify(deepMerge)}`,
+          page,
+        );
+      }
     }
     if (opts?.matchOn !== undefined) {
       const actual = page.matchPropsOn?.[name];
-      if (actual !== opts.matchOn) {
-        fail(`Expected matchOn[${name}] = "${opts.matchOn}", got "${actual}"`, page);
+      if (JSON.stringify(actual) !== JSON.stringify(opts.matchOn)) {
+        fail(
+          `Expected matchOn[${name}] = ${JSON.stringify(opts.matchOn)}, got ${JSON.stringify(actual)}`,
+          page,
+        );
       }
+    }
+    return this;
+  }
+
+  /** Asserts the prop is labeled for prepend-merge (in `prependProps`). */
+  toHavePrependProp(name: string, opts?: { matchOn?: string | string[] }): this {
+    return this.toHaveMergeProp(name, { ...opts, strategy: 'prepend' });
+  }
+
+  /**
+   * Asserts a once prop is announced under `onceProps`. `name` matches either the
+   * cache key or the underlying prop name. Optionally assert the cache `key` and
+   * `expiresAt` (epoch ms, or `null` for no expiry).
+   */
+  toHaveOnceProp(name: string, opts?: { key?: string; expiresAt?: number | null }): this {
+    const page = this.page();
+    const once = page.onceProps ?? {};
+    const entry = once[name] ?? Object.values(once).find((o) => o.prop === name);
+    if (!entry) {
+      fail(`Expected once prop "${name}", got onceProps=${JSON.stringify(once)}`, page);
+    }
+    const cacheKey = once[name] ? name : Object.keys(once).find((k) => once[k] === entry);
+    if (opts?.key !== undefined && cacheKey !== opts.key) {
+      fail(`Expected once cache key "${opts.key}" for "${name}", got "${cacheKey}"`, page);
+    }
+    if (opts?.expiresAt !== undefined && entry.expiresAt !== opts.expiresAt) {
+      fail(
+        `Expected once "${name}" expiresAt ${JSON.stringify(opts.expiresAt)}, got ${JSON.stringify(entry.expiresAt)}`,
+        page,
+      );
+    }
+    return this;
+  }
+
+  /** Asserts an infinite-scroll prop announces a `scrollProps` cursor; optionally checks cursor fields. */
+  toHaveScrollProp(
+    name: string,
+    opts?: {
+      pageName?: string;
+      currentPage?: unknown;
+      nextPage?: unknown;
+      previousPage?: unknown;
+      reset?: boolean;
+    },
+  ): this {
+    const page = this.page();
+    const cursor = page.scrollProps?.[name];
+    if (!cursor) {
+      fail(
+        `Expected scroll prop "${name}", got scrollProps=${JSON.stringify(page.scrollProps ?? {})}`,
+        page,
+      );
+    }
+    if (opts) {
+      for (const field of [
+        'pageName',
+        'currentPage',
+        'nextPage',
+        'previousPage',
+        'reset',
+      ] as const) {
+        if (
+          opts[field] !== undefined &&
+          JSON.stringify(cursor[field]) !== JSON.stringify(opts[field])
+        ) {
+          fail(
+            `Expected scroll "${name}".${field} = ${JSON.stringify(opts[field])}, got ${JSON.stringify(cursor[field])}`,
+            page,
+          );
+        }
+      }
+    }
+    return this;
+  }
+
+  /** Asserts a deferred prop failed and was rescued (listed in `rescuedProps`). */
+  toHaveRescuedProp(name: string): this {
+    const page = this.page();
+    const rescued = page.rescuedProps ?? [];
+    if (!rescued.includes(name)) {
+      fail(`Expected rescued prop "${name}", got rescuedProps=${JSON.stringify(rescued)}`, page);
     }
     return this;
   }

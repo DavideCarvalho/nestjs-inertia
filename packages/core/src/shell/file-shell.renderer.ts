@@ -4,6 +4,7 @@ import type { Manifest } from '../asset/version.provider.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
 import type { ShellRenderCtx } from '../types.js';
 import { processDirectives } from './directives.js';
+import { markServerRendered } from './mark-server-rendered.js';
 import { serializePageData } from './serialize-page.js';
 import {
   SSR_BODY_SENTINEL,
@@ -50,7 +51,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
 
     const pageJson = serializePageData(ctx.page);
     const ssrHead = ctx.ssr?.head.join('\n') ?? '';
-    const ssrBody = ctx.ssr?.body ?? null;
+    const ssrBody = ctx.ssr?.body != null ? markServerRendered(ctx.ssr.body) : null;
     const manifest = ctx.manifest as Manifest | null;
 
     if (PLAIN_HTML.has(this.ext)) {

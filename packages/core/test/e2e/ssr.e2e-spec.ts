@@ -76,6 +76,7 @@ export const render = async (page) => ({
   it('serves HTML with SSR head and body injected', async () => {
     const res = await request(app.getHttpServer()).get('/');
     expect(res.text).toContain('<title>Home SSR</title>');
-    expect(res.text).toContain('<div id="app">SSR body for Home</div>');
+    // The SSR mount is marked so the Inertia client hydrates rather than re-renders.
+    expect(res.text).toContain('<div id="app" data-server-rendered="true">SSR body for Home</div>');
   });
 });

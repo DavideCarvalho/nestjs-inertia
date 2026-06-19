@@ -11,7 +11,20 @@ export interface PageObject {
   deferredProps?: Record<string, string[]>;
   mergeProps?: string[];
   deepMergeProps?: string[];
+  prependProps?: string[];
   matchPropsOn?: Record<string, string | string[]>;
+  onceProps?: Record<string, { prop: string; expiresAt: number | null }>;
+  rescuedProps?: string[];
+  scrollProps?: Record<
+    string,
+    {
+      pageName: string;
+      currentPage: unknown;
+      nextPage: unknown;
+      previousPage: unknown;
+      reset: boolean;
+    }
+  >;
 }
 
 export interface SsrResult {

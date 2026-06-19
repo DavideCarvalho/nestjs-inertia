@@ -1,4 +1,5 @@
 import type { ShellRenderCtx } from '../types.js';
+import { markServerRendered } from './mark-server-rendered.js';
 import { serializePageData } from './serialize-page.js';
 
 /** The two halves of the shell document surrounding the streamed app body. */
@@ -30,7 +31,7 @@ export const SSR_BODY_SENTINEL = '<!--nestjs-inertia-ssr-body-CFB1A7-->';
 export class DefaultShellRenderer implements ShellRenderer {
   async render(ctx: ShellRenderCtx): Promise<string> {
     const pageJson = serializePageData(ctx.page);
-    const body = ctx.ssr?.body ?? '<div id="app"></div>';
+    const body = ctx.ssr?.body != null ? markServerRendered(ctx.ssr.body) : '<div id="app"></div>';
     return `<!doctype html>
 <html lang="en">
   <head>

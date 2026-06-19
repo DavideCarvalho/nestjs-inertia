@@ -36,7 +36,9 @@ describe('DefaultShellRenderer.renderToParts', () => {
     expect(head).toContain('<body>');
     expect(tail).toContain('data-page="app"');
     // Reassembling head + appBody + tail equals the buffered render with that body.
-    const reassembled = `${head}<div id="app">APP</div>${tail}`;
+    // The buffered render marks the mount as server-rendered; a conforming
+    // streamed body carries the same attribute, so reassemble with it too.
+    const reassembled = `${head}<div id="app" data-server-rendered="true">APP</div>${tail}`;
     const buffered = await r.render({
       ...baseCtx,
       ssr: { head: ['<title>S</title>'], body: '<div id="app">APP</div>' },
@@ -58,7 +60,9 @@ describe('FileBasedShellRenderer.renderToParts', () => {
     expect(head).toContain('<body>');
     expect(tail).toContain('</body>');
     // Reassembly equals a buffered render with the same body.
-    const reassembled = `${head}<div id="app">APP</div>${tail}`;
+    // The buffered render marks the mount as server-rendered; a conforming
+    // streamed body carries the same attribute, so reassemble with it too.
+    const reassembled = `${head}<div id="app" data-server-rendered="true">APP</div>${tail}`;
     const buffered = await r.render({
       ...baseCtx,
       ssr: { head: ['<title>S</title>'], body: '<div id="app">APP</div>' },

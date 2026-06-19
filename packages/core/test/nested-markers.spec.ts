@@ -251,9 +251,9 @@ describe('nested markers — partial reload with dot-notation paths', () => {
 
 // ---------------------------------------------------------------------------
 // Nested once(): must mirror the top-level once() contract (resolve on a full
-// reload or an explicit X-Inertia-Reset-Once; omit on partials). Regression for
-// the bug where a nested once() resolved on any partial that included its parent
-// and ignored Reset-Once entirely.
+// reload unless the client already holds it; on a partial reload resolve only
+// when its exact dot-path is requested). Regression for the bug where a nested
+// once() resolved on any partial that merely included its parent.
 // ---------------------------------------------------------------------------
 describe('nested markers — once() mirrors top-level semantics', () => {
   it('once() nested inside object resolves on full reload', async () => {
@@ -303,13 +303,12 @@ describe('nested markers — once() mirrors top-level semantics', () => {
     expect((props.user as Record<string, unknown>).name).toBe('Alice');
   });
 
-  it('once() nested resolves on a partial when X-Inertia-Reset-Once lists its full dot-path', async () => {
+  it('once() nested resolves on a partial when its full dot-path is explicitly requested', async () => {
     const req = fakeRequest({
       headers: {
         'x-inertia': 'true',
         'x-inertia-partial-component': 'Page',
-        'x-inertia-partial-data': 'user',
-        'x-inertia-reset-once': 'user.token',
+        'x-inertia-partial-data': 'user.token',
       },
     });
     const res = fakeResponse();
@@ -325,7 +324,11 @@ describe('nested markers — once() mirrors top-level semantics', () => {
       },
     });
     expect(called).toBe(true);
-    const props = (res._captured.body as { props: Record<string, unknown> }).props;
-    expect((props.user as Record<string, unknown>).token).toBe('T-fresh');
+    const page = res._captured.body as {
+      props: Record<string, unknown>;
+      onceProps?: Record<string, { prop: string; expiresAt: number | null }>;
+    };
+    expect((page.props.user as Record<string, unknown>).token).toBe('T-fresh');
+    expect(page.onceProps).toEqual({ 'user.token': { prop: 'user.token', expiresAt: null } });
   });
 });

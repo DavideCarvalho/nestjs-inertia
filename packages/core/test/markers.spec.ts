@@ -27,28 +27,34 @@ describe('Inertia markers', () => {
   it('defer() marker with group default "default"', () => {
     const m = Inertia.defer(() => 'x');
     expect(getMarkerKind(m)).toBe('defer');
-    expect(getMarkerMeta(m)).toEqual({ group: 'default' });
+    expect(getMarkerMeta(m)).toEqual({ group: 'default', rescue: false });
   });
 
   it('defer() marker with custom group', () => {
     const m = Inertia.defer(() => 'x', 'secondary');
-    expect(getMarkerMeta(m)).toEqual({ group: 'secondary' });
+    expect(getMarkerMeta(m)).toEqual({ group: 'secondary', rescue: false });
+  });
+
+  it('defer() marker with options object (group + rescue)', () => {
+    const m = Inertia.defer(() => 'x', { group: 'secondary', rescue: true });
+    expect(getMarkerKind(m)).toBe('defer');
+    expect(getMarkerMeta(m)).toEqual({ group: 'secondary', rescue: true });
   });
 
   it('merge() marker, default opts', () => {
     const m = Inertia.merge(() => [1, 2]);
     expect(getMarkerKind(m)).toBe('merge');
-    expect(getMarkerMeta(m)).toEqual({ deep: false });
+    expect(getMarkerMeta(m)).toEqual({ deep: false, prepend: false });
   });
 
   it('merge() marker, with matchOn (string) + deep', () => {
     const m = Inertia.merge(() => [1], { matchOn: 'id', deep: true });
-    expect(getMarkerMeta(m)).toEqual({ matchOn: 'id', deep: true });
+    expect(getMarkerMeta(m)).toEqual({ matchOn: 'id', deep: true, prepend: false });
   });
 
   it('merge() marker, with matchOn as string array (Inertia v2 multi-key)', () => {
     const m = Inertia.merge(() => [1], { matchOn: ['id', 'slug'] });
-    expect(getMarkerMeta(m)).toEqual({ matchOn: ['id', 'slug'], deep: false });
+    expect(getMarkerMeta(m)).toEqual({ matchOn: ['id', 'slug'], deep: false, prepend: false });
   });
 
   it('getMarkerValue extracts the inner function', async () => {
@@ -98,5 +104,17 @@ describe('Inertia markers', () => {
     const fn = getMarkerValue(m);
     expect(await fn()).toBe(42);
     expect(called).toBe(true);
+  });
+
+  it('scroll() marker', () => {
+    const m = Inertia.scroll(() => ({ data: [] }));
+    expect(isMarker(m)).toBe(true);
+    expect(getMarkerKind(m)).toBe('scroll');
+    expect(getMarkerMeta(m)).toEqual({});
+  });
+
+  it('scroll() marker with pageName + matchOn', () => {
+    const m = Inertia.scroll(() => ({ data: [] }), { pageName: 'cursor', matchOn: 'id' });
+    expect(getMarkerMeta(m)).toEqual({ pageName: 'cursor', matchOn: 'id' });
   });
 });

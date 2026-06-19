@@ -25,16 +25,37 @@ export interface InertiaRenderDiagnostic {
   method: string;
   isInertia: boolean;
   isPartial: boolean;
-  partial: { only: string[]; except: string[]; reset: string[]; resetOnce: string[] };
+  partial: {
+    only: string[];
+    except: string[];
+    reset: string[];
+    /** @deprecated Legacy X-Inertia-Reset-Once header; always empty since v3 once-props. */
+    resetOnce: string[];
+    /** Once cache keys the client reported holding fresh (X-Inertia-Except-Once-Props). */
+    exceptOnce: string[];
+  };
   props: {
     sharedKeys: string[];
     finalKeys: string[];
     deferred: Record<string, string[]>;
     merge: string[];
     deepMerge: string[];
+    prepend: string[];
     matchPropsOn: Record<string, string | string[]>;
     optionalKeys: string[];
     onceKeys: string[];
+    once: Record<string, { prop: string; expiresAt: number | null }>;
+    scroll: Record<
+      string,
+      {
+        pageName: string;
+        currentPage: unknown;
+        nextPage: unknown;
+        previousPage: unknown;
+        reset: boolean;
+      }
+    >;
+    rescued: string[];
     excludedKeys: string[];
   };
   /** FINAL wire props by REFERENCE — never pre-stringified. */

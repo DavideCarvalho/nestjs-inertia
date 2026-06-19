@@ -98,6 +98,74 @@ describe('expectInertia — v2 markers', () => {
   });
 });
 
+describe('expectInertia — v3 protocol metadata', () => {
+  it('toHavePrependProp checks prependProps list', () => {
+    const res = buildRes({
+      component: 'X',
+      props: { feed: [] },
+      url: '/',
+      version: 'v',
+      prependProps: ['feed'],
+      matchPropsOn: { feed: 'id' },
+    });
+    expectInertia(res).toHavePrependProp('feed').toHavePrependProp('feed', { matchOn: 'id' });
+  });
+
+  it('toHaveMergeProp with strategy "prepend" reads prependProps', () => {
+    const res = buildRes({
+      component: 'X',
+      props: { feed: [] },
+      url: '/',
+      version: 'v',
+      prependProps: ['feed'],
+    });
+    expectInertia(res).toHaveMergeProp('feed', { strategy: 'prepend' });
+    expect(() => expectInertia(res).toHaveMergeProp('feed')).toThrow();
+  });
+
+  it('toHaveOnceProp checks onceProps by prop name and cache key', () => {
+    const res = buildRes({
+      component: 'X',
+      props: { lookups: [] },
+      url: '/',
+      version: 'v',
+      onceProps: { enums: { prop: 'lookups', expiresAt: 1718700000000 } },
+    });
+    expectInertia(res)
+      .toHaveOnceProp('lookups')
+      .toHaveOnceProp('enums', { key: 'enums', expiresAt: 1718700000000 });
+    expect(() => expectInertia(res).toHaveOnceProp('missing')).toThrow();
+  });
+
+  it('toHaveScrollProp checks the scrollProps cursor', () => {
+    const res = buildRes({
+      component: 'X',
+      props: { users: { data: [] } },
+      url: '/',
+      version: 'v',
+      scrollProps: {
+        users: { pageName: 'page', currentPage: 2, nextPage: 3, previousPage: 1, reset: false },
+      },
+    });
+    expectInertia(res)
+      .toHaveScrollProp('users')
+      .toHaveScrollProp('users', { pageName: 'page', nextPage: 3, reset: false });
+    expect(() => expectInertia(res).toHaveScrollProp('users', { nextPage: 99 })).toThrow();
+  });
+
+  it('toHaveRescuedProp checks rescuedProps list', () => {
+    const res = buildRes({
+      component: 'X',
+      props: {},
+      url: '/',
+      version: 'v',
+      rescuedProps: ['stats'],
+    });
+    expectInertia(res).toHaveRescuedProp('stats');
+    expect(() => expectInertia(res).toHaveRescuedProp('other')).toThrow();
+  });
+});
+
 describe('expectInertia — redirects', () => {
   it('toRedirectExternal checks 409 + X-Inertia-Location', () => {
     const res = {

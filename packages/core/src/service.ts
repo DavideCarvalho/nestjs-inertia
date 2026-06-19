@@ -12,6 +12,7 @@ import { nullifyUndefined } from './helpers/nullify-undefined.js';
 import { unpackDotKeys } from './helpers/set-nested.js';
 import { validateLocationUrl } from './helpers/validate-location-url.js';
 import { type Marker, getMarkerKind, getMarkerMeta, getMarkerValue, isMarker } from './markers.js';
+import { markServerRendered } from './shell/mark-server-rendered.js';
 import type { ShellParts } from './shell/shell.js';
 import type { PageObject, Props, SharedInput, ShellRenderCtx, SsrStreamResult } from './types.js';
 import type { InertiaPages } from './types/registry.js';
@@ -43,11 +44,12 @@ function containsAlwaysMarker(value: unknown): boolean {
 /**
  * Immutable per-(top-level-key) context threaded through the nested marker
  * resolver. `topKey`/`subKeep` scope the walk to one top-level prop; `isFullReload`
- * and `resetOnceKeys` let a nested once() honor the same contract as a top-level
- * once() (resolve on a full reload or an explicit Reset-Once, omit on partials).
+ * and `exceptOnceKeys` let a nested once() honor the same contract as a top-level
+ * once() (resolve on a full reload unless the client already holds it fresh; on a
+ * partial reload resolve only when its path is explicitly requested).
  */
 interface NestedResolveContext {
-  /** Top-level prop key — used to build full dot-paths (deferredProps / Reset-Once). */
+  /** Top-level prop key — used to build full dot-paths (deferredProps / onceProps). */
   topKey: string;
   /**
    * Relative sub-path keep list (null = include all non-optional markers).
@@ -56,10 +58,16 @@ interface NestedResolveContext {
   subKeep: string[] | null;
   /** True when this is a full reload (no X-Inertia-Partial-Data). */
   isFullReload: boolean;
-  /** Full dot-paths the client asked to re-send via X-Inertia-Reset-Once. */
-  resetOnceKeys: string[];
+  /** Once cache keys the client already holds fresh (X-Inertia-Except-Once-Props). */
+  exceptOnceKeys: string[];
   /** Mutable deferred-props sink (group → full dot-paths). */
   deferredProps: Record<string, string[]>;
+  /** Mutable once-props metadata sink (cache key → { prop, expiresAt }). */
+  onceProps: Record<string, { prop: string; expiresAt: number | null }>;
+  /** Mutable rescued-props sink (full dot-paths of rescued deferred failures). */
+  rescuedProps: string[];
+  /** Reports a rescued deferred-prop failure (out-of-band, non-fatal). */
+  reportRescue: (path: string, err: unknown) => void;
 }
 
 /**
@@ -147,24 +155,47 @@ async function resolveMarker(
   }
 
   if (kind === 'once') {
-    // Mirror the top-level once() contract: resolve on a full reload, or when the
-    // client explicitly re-sends it via X-Inertia-Reset-Once (keyed by full
-    // dot-path, like nested partial-data). On a partial reload it is omitted —
-    // even if its parent is requested — because it was already delivered.
-    if (ctx.isFullReload || ctx.resetOnceKeys.includes(fullPath)) {
+    // Mirror the top-level once() contract. The cache key defaults to the full
+    // dot-path but can be overridden via once(fn, { key }).
+    const meta = getMarkerMeta(marker) as { key?: string; expiresAt?: number | null };
+    const onceKey = meta.key ?? fullPath;
+    const expiresAt = meta.expiresAt ?? null;
+    if (ctx.isFullReload) {
+      // Full reload: announce the once prop; resolve unless the client reported it
+      // already holds a fresh copy via X-Inertia-Except-Once-Props.
+      ctx.onceProps[onceKey] = { prop: fullPath, expiresAt };
+      if (!ctx.exceptOnceKeys.includes(onceKey)) return getMarkerValue(marker)();
+      return OMIT;
+    }
+    // Partial reload: the except-once header is ignored. A once prop is treated
+    // like any other cached prop — resent only when its exact path is requested
+    // (a parent-only request does NOT pull it back down).
+    if (ctx.subKeep?.includes(relPath)) {
+      ctx.onceProps[onceKey] = { prop: fullPath, expiresAt };
       return getMarkerValue(marker)();
     }
     return OMIT;
   }
 
   if (kind === 'defer') {
+    const meta = getMarkerMeta(marker) as { group: string; rescue?: boolean };
     if (ctx.subKeep !== null) {
       // Partial reload: resolve only if listed
-      if (ctx.subKeep.includes(relPath)) return getMarkerValue(marker)();
+      if (ctx.subKeep.includes(relPath)) {
+        if (meta.rescue) {
+          try {
+            return await getMarkerValue(marker)();
+          } catch (err) {
+            ctx.rescuedProps.push(fullPath);
+            ctx.reportRescue(fullPath, err);
+            return OMIT;
+          }
+        }
+        return getMarkerValue(marker)();
+      }
       return OMIT;
     }
     // Full reload: register as deferred using full dot-path
-    const meta = getMarkerMeta(marker) as { group: string };
     const group = meta.group;
     const existing = ctx.deferredProps[group];
     if (existing) existing.push(fullPath);
@@ -353,6 +384,7 @@ export class InertiaService {
               exceptKeys: [],
               resetKeys: [],
               resetOnceKeys: [],
+              exceptOnceKeys: [],
               clientVersion: clientVersion ?? null,
             },
             { ssr: false, statusCode: 409, versionMismatch: true },
@@ -419,8 +451,15 @@ export class InertiaService {
     const resetHeader = this.req.header('X-Inertia-Reset');
     const resetKeys = resetHeader ? resetHeader.split(',').filter(Boolean) : EMPTY_KEYS;
 
-    const resetOnceHeader = this.req.header('X-Inertia-Reset-Once');
-    const resetOnceKeys = resetOnceHeader ? resetOnceHeader.split(',').filter(Boolean) : EMPTY_KEYS;
+    // Once cache keys the client already holds fresh — server skips resolving them.
+    const exceptOnceHeader = this.req.header('X-Inertia-Except-Once-Props');
+    const exceptOnceKeys = exceptOnceHeader
+      ? exceptOnceHeader.split(',').filter(Boolean)
+      : EMPTY_KEYS;
+
+    // Infinite-scroll merge direction: 'prepend' prepends new rows, otherwise append.
+    const mergeIntent = this.req.header('X-Inertia-Infinite-Scroll-Merge-Intent');
+    const scrollPrepend = mergeIntent === 'prepend';
 
     const exceptHeader = this.req.header('X-Inertia-Partial-Except');
     const exceptKeys =
@@ -428,9 +467,29 @@ export class InertiaService {
 
     const finalProps: Props = {};
     const deferredProps: Record<string, string[]> = {};
+    const rescuedProps: string[] = [];
+    const reportRescue = (path: string, err: unknown): void => {
+      this.logger.warn(
+        `Deferred prop "${path}" failed to resolve and was rescued: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    };
     const mergeProps: string[] = [];
     const deepMergeProps: string[] = [];
+    const prependProps: string[] = [];
     const matchPropsOn: Record<string, string | string[]> = {};
+    const onceProps: Record<string, { prop: string; expiresAt: number | null }> = {};
+    const scrollProps: Record<
+      string,
+      {
+        pageName: string;
+        currentPage: unknown;
+        nextPage: unknown;
+        previousPage: unknown;
+        reset: boolean;
+      }
+    > = {};
 
     // Diagnostics-only marker classification bookkeeping. Only populated when
     // `diagOn`; the pushes below are cheap no-ops otherwise.
@@ -459,18 +518,44 @@ export class InertiaService {
         }
         if (kind === 'once') {
           if (diagOn) onceKeys.push(key);
-          // Initial visit (no partial) OR explicit reset-once for this key
-          if (!keep || resetOnceKeys.includes(key)) {
+          const meta = getMarkerMeta(value) as { key?: string; expiresAt?: number | null };
+          const onceKey = meta.key ?? key;
+          const expiresAt = meta.expiresAt ?? null;
+          if (keep) {
+            // Partial reload: except-once header is ignored; resend only when the
+            // prop is explicitly requested (ordinary cherry-picking otherwise).
+            if (keep.includes(key)) {
+              finalProps[key] = await getMarkerValue(value)();
+              onceProps[onceKey] = { prop: key, expiresAt };
+            }
+            continue;
+          }
+          // Full visit: always announce the once prop; resolve its value unless the
+          // client reported (via X-Inertia-Except-Once-Props) it already holds a
+          // fresh copy.
+          onceProps[onceKey] = { prop: key, expiresAt };
+          if (!exceptOnceKeys.includes(onceKey)) {
             finalProps[key] = await getMarkerValue(value)();
           }
           continue;
         }
         if (kind === 'defer') {
+          const meta = getMarkerMeta(value) as { group: string; rescue?: boolean };
           if (keep) {
-            if (keep.includes(key)) finalProps[key] = await getMarkerValue(value)();
+            if (keep.includes(key)) {
+              if (meta.rescue) {
+                try {
+                  finalProps[key] = await getMarkerValue(value)();
+                } catch (err) {
+                  rescuedProps.push(key);
+                  reportRescue(key, err);
+                }
+              } else {
+                finalProps[key] = await getMarkerValue(value)();
+              }
+            }
             continue;
           }
-          const meta = getMarkerMeta(value) as { group: string };
           const group = meta.group;
           const existing = deferredProps[group];
           if (existing) existing.push(key);
@@ -478,16 +563,68 @@ export class InertiaService {
           continue;
         }
         if (kind === 'merge') {
-          const meta = getMarkerMeta(value) as { matchOn?: string | string[]; deep?: boolean };
+          const meta = getMarkerMeta(value) as {
+            matchOn?: string | string[];
+            deep?: boolean;
+            prepend?: boolean;
+          };
           if (keep && !keep.includes(key) && key !== 'errors') continue;
           const resolved = await getMarkerValue(value)();
           finalProps[key] = resolved;
           // Suppress merge metadata if key is in X-Inertia-Reset
           if (!resetKeys.includes(key)) {
-            if (meta.deep) deepMergeProps.push(key);
+            if (meta.prepend) prependProps.push(key);
+            else if (meta.deep) deepMergeProps.push(key);
             else mergeProps.push(key);
           }
           if (meta.matchOn !== undefined) matchPropsOn[key] = meta.matchOn;
+          continue;
+        }
+        if (kind === 'scroll') {
+          // Like a normal prop on partial reloads: cherry-picked by `keep`.
+          if (keep && !keep.includes(key) && key !== 'errors') continue;
+          const meta = getMarkerMeta(value) as {
+            pageName?: string;
+            matchOn?: string | string[];
+            defer?: boolean;
+            group?: string;
+          };
+          const isReset = resetKeys.includes(key);
+          // On reset the client discards its cache, so the inner data array is sent
+          // unlabeled (a plain replace); otherwise it is labeled for merge/prepend so
+          // the client knows how to combine it. The label is emitted even for a
+          // deferred scroll's announcement (full visit), per the protocol.
+          const labelData = (): void => {
+            if (isReset) return;
+            const dataPath = `${key}.data`;
+            if (scrollPrepend) prependProps.push(dataPath);
+            else mergeProps.push(dataPath);
+            if (meta.matchOn !== undefined) matchPropsOn[dataPath] = meta.matchOn;
+          };
+
+          // Deferred scroll on a full visit: announce + label, but ship no value
+          // or cursor until the follow-up partial reload resolves it.
+          if (meta.defer && !keep) {
+            const group = meta.group ?? 'default';
+            const existing = deferredProps[group];
+            if (existing) existing.push(key);
+            else deferredProps[group] = [key];
+            labelData();
+            continue;
+          }
+
+          const resolved = (await getMarkerValue(value)()) as Record<string, unknown>;
+          finalProps[key] = resolved;
+          const pageName =
+            meta.pageName ?? (typeof resolved?.pageName === 'string' ? resolved.pageName : 'page');
+          scrollProps[key] = {
+            pageName,
+            currentPage: resolved?.currentPage ?? null,
+            nextPage: resolved?.nextPage ?? null,
+            previousPage: resolved?.previousPage ?? null,
+            reset: isReset,
+          };
+          labelData();
           continue;
         }
       }
@@ -543,8 +680,11 @@ export class InertiaService {
           topKey: key,
           subKeep: nestedKeep,
           isFullReload: keep === null,
-          resetOnceKeys,
+          exceptOnceKeys,
           deferredProps,
+          onceProps,
+          rescuedProps,
+          reportRescue,
         });
       }
 
@@ -566,7 +706,11 @@ export class InertiaService {
     if (Object.keys(deferredProps).length > 0) page.deferredProps = deferredProps;
     if (mergeProps.length > 0) page.mergeProps = mergeProps;
     if (deepMergeProps.length > 0) page.deepMergeProps = deepMergeProps;
+    if (prependProps.length > 0) page.prependProps = prependProps;
     if (Object.keys(matchPropsOn).length > 0) page.matchPropsOn = matchPropsOn;
+    if (Object.keys(onceProps).length > 0) page.onceProps = onceProps;
+    if (rescuedProps.length > 0) page.rescuedProps = rescuedProps;
+    if (Object.keys(scrollProps).length > 0) page.scrollProps = scrollProps;
     // v3: only emit encryptHistory / clearHistory when truthy
     const encryptHistory =
       this.encryptHistoryFlag !== undefined
@@ -588,7 +732,8 @@ export class InertiaService {
             keep,
             exceptKeys,
             resetKeys,
-            resetOnceKeys,
+            resetOnceKeys: [],
+            exceptOnceKeys,
             optionalKeys,
             onceKeys,
             excludedKeys,
@@ -627,7 +772,8 @@ export class InertiaService {
               keep,
               exceptKeys,
               resetKeys,
-              resetOnceKeys,
+              resetOnceKeys: [],
+              exceptOnceKeys,
               optionalKeys,
               onceKeys,
               excludedKeys,
@@ -660,7 +806,8 @@ export class InertiaService {
           keep,
           exceptKeys,
           resetKeys,
-          resetOnceKeys,
+          resetOnceKeys: [],
+          exceptOnceKeys,
           optionalKeys,
           onceKeys,
           excludedKeys,
@@ -721,12 +868,23 @@ export class InertiaService {
       // Bridge the bundle's writable: the bundle writes app HTML; when it ends
       // its stream we append the shell tail and close the response. We never let
       // the bundle close the real response directly.
+      //
+      // The first chunk carries the `#app` mount opening tag, so it is run through
+      // markServerRendered() to guarantee the streamed mount carries
+      // data-server-rendered="true" — keeping streaming output byte-identical to
+      // the buffered SSR path (where the renderer marks the body).
+      let firstChunk = true;
+      const toStr = (chunk: string | Uint8Array): string => {
+        const s = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        if (!firstChunk) return s;
+        firstChunk = false;
+        return markServerRendered(s);
+      };
       const writable = {
-        write: (chunk: string | Uint8Array): boolean =>
-          sink.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')),
+        write: (chunk: string | Uint8Array): boolean => sink.write(toStr(chunk)),
         end: (chunk?: string | Uint8Array): void => {
           if (chunk !== undefined) {
-            sink.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+            sink.write(toStr(chunk));
           }
           finish();
         },
@@ -761,6 +919,7 @@ export class InertiaService {
       exceptKeys: string[];
       resetKeys: string[];
       resetOnceKeys: string[];
+      exceptOnceKeys: string[];
       optionalKeys: string[];
       onceKeys: string[];
       excludedKeys: string[];
@@ -781,6 +940,7 @@ export class InertiaService {
         exceptKeys: meta.exceptKeys,
         resetKeys: meta.resetKeys,
         resetOnceKeys: meta.resetOnceKeys,
+        exceptOnceKeys: meta.exceptOnceKeys,
         clientVersion: meta.clientVersion,
       },
       { ssr: meta.ssr, statusCode: 200, versionMismatch: false },

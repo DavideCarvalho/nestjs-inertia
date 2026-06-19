@@ -17,6 +17,7 @@ export interface DiagnosticMarkerMeta {
   exceptKeys: string[];
   resetKeys: string[];
   resetOnceKeys: string[];
+  exceptOnceKeys: string[];
   clientVersion: string | null;
 }
 
@@ -68,6 +69,7 @@ export function buildDiagnostic(
       except: markerMeta.exceptKeys,
       reset: markerMeta.resetKeys,
       resetOnce: markerMeta.resetOnceKeys,
+      exceptOnce: markerMeta.exceptOnceKeys,
     },
     props: {
       sharedKeys: markerMeta.sharedKeys,
@@ -75,9 +77,13 @@ export function buildDiagnostic(
       deferred: page.deferredProps ?? {},
       merge: page.mergeProps ?? [],
       deepMerge: page.deepMergeProps ?? [],
+      prepend: page.prependProps ?? [],
       matchPropsOn: page.matchPropsOn ?? {},
       optionalKeys: markerMeta.optionalKeys,
       onceKeys: markerMeta.onceKeys,
+      once: page.onceProps ?? {},
+      scroll: page.scrollProps ?? {},
+      rescued: page.rescuedProps ?? [],
       excludedKeys: markerMeta.excludedKeys,
     },
     resolvedProps: ctx.resolvedProps,
