@@ -1,5 +1,13 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.7.1
+
+### Patch Changes
+
+- [`d40e23e`](https://github.com/DavideCarvalho/nestjs-inertia/commit/d40e23ed3860d8499d9042bef836cabc26232a84) - Fix: nested `once()` markers now mirror top-level `once()` semantics — they re-resolve only on a full reload or when their key is explicitly reset (was incorrectly gated on `subKeep === null`).
+
+  Internal refactors (behavior-preserving): share the method-spoof rule across Express and Fastify, collapse the handlebars/ejs/pug/liquid template-engine adapters into one `createTemplateEngineAdapter` factory, route the validation filter through the request adapter (inject `HttpAdapterHost`, drop the bespoke `sendRedirect`), and extract `zodAstToTs` + route-name helpers out of `contracts-fast`.
+
 ## 1.7.0
 
 ### Minor Changes
