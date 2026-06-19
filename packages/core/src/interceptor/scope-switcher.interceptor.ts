@@ -7,8 +7,8 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost, ModuleRef, Reflector } from '@nestjs/core';
 import type { Observable } from 'rxjs';
-import { expressAdapter } from '../adapter/express.js';
-import { fastifyAdapter } from '../adapter/fastify.js';
+import type { RequestAdapter } from '../adapter/adapter.js';
+import { resolvePlatformAdapter } from '../adapter/resolve-adapter.js';
 import type { Manifest } from '../asset/version.provider.js';
 import { INERTIA_USE_SCOPE } from '../decorator/use-inertia.decorator.js';
 import { InertiaService, type InertiaServiceDeps } from '../service.js';
@@ -26,7 +26,7 @@ import type { InertiaModuleOptions } from '../types.js';
  */
 interface ScopeResolution {
   deps: InertiaServiceDeps;
-  adapter: typeof expressAdapter | typeof fastifyAdapter;
+  adapter: RequestAdapter;
 }
 
 @Injectable()
@@ -78,8 +78,7 @@ export class InertiaScopeSwitcherInterceptor implements NestInterceptor {
       flashStore: (opts as { flashStore?: InertiaModuleOptions['flashStore'] }).flashStore,
       diagnostics: (opts as { diagnostics?: boolean }).diagnostics,
     };
-    const platform = this.httpAdapterHost.httpAdapter?.getType();
-    const adapter = platform === 'fastify' ? fastifyAdapter : expressAdapter;
+    const adapter = resolvePlatformAdapter(this.httpAdapterHost);
 
     const resolution: ScopeResolution = { deps, adapter };
     this.scopeCache.set(scope, resolution);

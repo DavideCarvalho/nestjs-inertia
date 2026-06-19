@@ -111,8 +111,11 @@ export class InertiaModule
       },
       {
         provide: APP_FILTER,
-        inject: [INERTIA_MODULE_OPTIONS],
-        useFactory: (opts: InertiaModuleOptions): ExceptionFilter => {
+        inject: [INERTIA_MODULE_OPTIONS, HttpAdapterHost],
+        useFactory: (
+          opts: InertiaModuleOptions,
+          httpAdapterHost: HttpAdapterHost,
+        ): ExceptionFilter => {
           // Fail fast at bootstrap: validation needs a flashStore to write to.
           if (opts.validation?.enabled && !opts.flashStore) {
             throw new InvalidInertiaConfigException(
@@ -122,7 +125,7 @@ export class InertiaModule
           // The filter is @Catch(BadRequestException)-scoped and rethrows whenever
           // it does not apply (disabled, non-Inertia, non-validation), so it is
           // inert by default and never swallows unrelated exceptions.
-          return new InertiaValidationFilter(opts);
+          return new InertiaValidationFilter(opts, httpAdapterHost);
         },
       },
     ];
