@@ -5,7 +5,7 @@
  */
 import { Project, SyntaxKind } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
-import { zodAstToTs } from '../../src/discovery/contracts-fast.js';
+import { zodAstToTs } from '../../src/discovery/zod-ast-to-ts.js';
 
 /** Parse a TypeScript expression snippet and return the root CallExpression node. */
 function parseExpr(snippet: string) {

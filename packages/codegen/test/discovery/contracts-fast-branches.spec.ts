@@ -20,8 +20,8 @@ import {
   extractDtoContract,
   joinPaths,
   resolveRouteName,
-  zodAstToTs,
 } from '../../src/discovery/contracts-fast.js';
+import { zodAstToTs } from '../../src/discovery/zod-ast-to-ts.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = resolve(__dirname, '../__fixtures__/app');
