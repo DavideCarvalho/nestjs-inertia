@@ -1,23 +1,13 @@
-import { createRequire } from 'node:module';
-import { MissingTemplateEngineDepException } from '../errors/exceptions.js';
-import type { TemplateEngineAdapter } from './template-engine.adapter.js';
+import { createTemplateEngineAdapter } from './create-template-engine-adapter.js';
 
-const require = createRequire(import.meta.url);
-
-function loadEjs(): { compile: (src: string, opts?: unknown) => (locals: unknown) => string } {
-  try {
-    return require('ejs');
-  } catch {
-    throw new MissingTemplateEngineDepException('EJS', 'ejs');
-  }
-}
-
-export const ejsAdapter: TemplateEngineAdapter = {
+export const ejsAdapter = createTemplateEngineAdapter<{
+  compile: (src: string, opts?: unknown) => (locals: unknown) => string;
+}>({
   extension: '.ejs',
   packageName: 'ejs',
-  compile(templateSource: string, absPath: string) {
-    const ejs = loadEjs();
+  displayName: 'EJS',
+  compile(ejs, templateSource, absPath) {
     const compiled = ejs.compile(templateSource, { filename: absPath, async: false });
     return (locals) => compiled(locals);
   },
-};
+});

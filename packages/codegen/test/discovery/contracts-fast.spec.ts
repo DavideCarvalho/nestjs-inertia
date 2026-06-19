@@ -8,13 +8,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Project } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
+import { discoverContractsFast, extractDtoContract } from '../../src/discovery/contracts-fast.js';
 import {
   deriveClassSegment,
   deriveRouteName,
-  discoverContractsFast,
-  extractDtoContract,
   resolveRouteName,
-} from '../../src/discovery/contracts-fast.js';
+} from '../../src/discovery/route-name.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = resolve(__dirname, '../__fixtures__/app');
