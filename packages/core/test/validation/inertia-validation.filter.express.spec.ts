@@ -1,8 +1,14 @@
 import { type ArgumentsHost, BadRequestException } from '@nestjs/common';
+import type { HttpAdapterHost } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import type { FlashStore } from '../../src/flash/flash-store.js';
 import type { InertiaModuleOptions } from '../../src/types.js';
 import { InertiaValidationFilter } from '../../src/validation/inertia-validation.filter.js';
+
+// Express is the default platform; getType() reports anything but 'fastify'.
+const expressHost = {
+  httpAdapter: { getType: () => 'express' },
+} as unknown as HttpAdapterHost;
 
 function fakeExpressReq(
   overrides: Partial<{
@@ -66,7 +72,7 @@ function makeFilter(opts: Partial<InertiaModuleOptions> = {}, write = vi.fn()) {
     validation: { enabled: true },
     ...opts,
   };
-  return { filter: new InertiaValidationFilter(options), write };
+  return { filter: new InertiaValidationFilter(options, expressHost), write };
 }
 
 describe('InertiaValidationFilter (express)', () => {

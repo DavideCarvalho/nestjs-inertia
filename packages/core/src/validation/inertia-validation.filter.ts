@@ -5,8 +5,10 @@ import {
   type ExceptionFilter,
   Inject,
 } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
+import type { InertiaRequest } from '../adapter/adapter.js';
+import { resolvePlatformAdapter } from '../adapter/resolve-adapter.js';
 import type { FlashErrors } from '../flash/flash-store.js';
-import { getHeader } from '../helpers/get-header.js';
 import { validateLocationUrl } from '../helpers/validate-location-url.js';
 import { INERTIA_MODULE_OPTIONS } from '../tokens.js';
 import type { InertiaModuleOptions } from '../types.js';
@@ -24,12 +26,18 @@ import { extractFieldErrors } from './extract-field-errors.js';
  */
 @Catch(BadRequestException)
 export class InertiaValidationFilter implements ExceptionFilter {
-  constructor(@Inject(INERTIA_MODULE_OPTIONS) private readonly options: InertiaModuleOptions) {}
+  constructor(
+    @Inject(INERTIA_MODULE_OPTIONS) private readonly options: InertiaModuleOptions,
+    @Inject(HttpAdapterHost) private readonly httpAdapterHost: HttpAdapterHost,
+  ) {}
 
   async catch(exception: BadRequestException, host: ArgumentsHost): Promise<void> {
     const http = host.switchToHttp();
-    const req = http.getRequest<unknown>();
-    const res = http.getResponse<unknown>();
+    // Normalize req/res through the platform adapter rather than duck-typing
+    // Express vs Fastify inline — the cross-runtime concern lives in adapter/.
+    const adapter = resolvePlatformAdapter(this.httpAdapterHost);
+    const req = adapter.adaptRequest(http.getRequest<unknown>());
+    const rawRes = http.getResponse<unknown>();
 
     // Disabled (default): rethrow so normal Nest error handling applies. The
     // filter is registered unconditionally but stays inert unless opted in.
@@ -37,10 +45,10 @@ export class InertiaValidationFilter implements ExceptionFilter {
       throw exception;
     }
 
-    const method = (req as { method?: string }).method;
+    const method = req.method;
 
     // Gate: only Inertia non-GET requests. Else rethrow for normal handling.
-    if (!getHeader(req, 'X-Inertia') || method === 'GET' || method === undefined) {
+    if (!req.header('X-Inertia') || method === 'GET' || method === undefined) {
       throw exception;
     }
 
@@ -55,24 +63,26 @@ export class InertiaValidationFilter implements ExceptionFilter {
     // The bag wrapper nests one level deeper; `FlashErrors` is recursive so this
     // is representable directly (no cast). The read side passes it through
     // untouched.
-    const bag = getHeader(req, 'X-Inertia-Error-Bag');
+    const bag = req.header('X-Inertia-Error-Bag');
     const scoped: FlashErrors = bag ? { [bag]: errors } : errors;
 
     // flashStore presence is guaranteed by the bootstrap check in module.ts.
+    // Write against the underlying framework request: Fastify exposes the Node
+    // req as `.raw`; Express is the request itself.
     const flashStore = this.options.flashStore;
     if (flashStore?.write) {
-      const rawReq = (req as { raw?: unknown }).raw ?? req;
-      await flashStore.write(rawReq, scoped);
+      const frameworkReq = req.raw as { raw?: unknown };
+      await flashStore.write(frameworkReq.raw ?? frameworkReq, scoped);
     }
 
     const target = this.resolveRedirectTarget(req);
-    sendRedirect(res, 303, target);
+    adapter.adaptResponse(rawRes).status(303).setHeader('Location', target).end();
   }
 
-  private resolveRedirectTarget(req: unknown): string {
+  private resolveRedirectTarget(req: InertiaRequest): string {
     const fallback = this.options.validation?.fallbackRedirect ?? '/';
-    const candidate = getHeader(req, 'X-Inertia-Referer') ?? getHeader(req, 'Referer') ?? fallback;
-    const host = getHeader(req, 'Host');
+    const candidate = req.header('X-Inertia-Referer') ?? req.header('Referer') ?? fallback;
+    const host = req.header('Host');
     return toSafeSameOriginPath(candidate, host, fallback);
   }
 }
@@ -109,39 +119,5 @@ function toSafeSameOriginPath(
     return validateLocationUrl(value);
   } catch {
     return fallback;
-  }
-}
-
-/**
- * Cross-runtime redirect emit. Sets the status code + `Location` header and ends
- * the response, duck-typing Express (`res.status`/`setHeader`/`end`) vs raw
- * Fastify (`res.code`/`header`/`send`).
- */
-function sendRedirect(res: unknown, status: number, url: string): void {
-  const r = res as {
-    status?: (code: number) => unknown;
-    code?: (code: number) => unknown;
-    setHeader?: (name: string, value: string) => unknown;
-    header?: (name: string, value: string) => unknown;
-    end?: () => unknown;
-    send?: (body?: unknown) => unknown;
-  };
-
-  if (typeof r.status === 'function') {
-    r.status(status);
-  } else if (typeof r.code === 'function') {
-    r.code(status);
-  }
-
-  if (typeof r.setHeader === 'function') {
-    r.setHeader('Location', url);
-  } else if (typeof r.header === 'function') {
-    r.header('Location', url);
-  }
-
-  if (typeof r.end === 'function') {
-    r.end();
-  } else if (typeof r.send === 'function') {
-    r.send();
   }
 }

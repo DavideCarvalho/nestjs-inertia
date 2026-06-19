@@ -1,8 +1,13 @@
 import { type ArgumentsHost, BadRequestException } from '@nestjs/common';
+import type { HttpAdapterHost } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import type { FlashStore } from '../../src/flash/flash-store.js';
 import type { InertiaModuleOptions } from '../../src/types.js';
 import { InertiaValidationFilter } from '../../src/validation/inertia-validation.filter.js';
+
+const fastifyHost = {
+  httpAdapter: { getType: () => 'fastify' },
+} as unknown as HttpAdapterHost;
 
 // Raw Fastify request: no header() method, headers dict only; carries a .raw.
 function fakeFastifyReq(
@@ -65,7 +70,7 @@ function makeFilter(opts: Partial<InertiaModuleOptions> = {}, write = vi.fn()) {
     validation: { enabled: true },
     ...opts,
   };
-  return { filter: new InertiaValidationFilter(options), write };
+  return { filter: new InertiaValidationFilter(options, fastifyHost), write };
 }
 
 describe('InertiaValidationFilter (fastify)', () => {
