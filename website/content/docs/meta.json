@@ -3,13 +3,9 @@
   "pages": [
     "index",
     "getting-started",
-    "---Guides---",
     "guides",
-    "---Recipes---",
     "recipes",
-    "---Packages---",
     "packages",
-    "---Reference---",
     "reference"
   ]
 }
