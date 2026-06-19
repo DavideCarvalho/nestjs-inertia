@@ -41,25 +41,38 @@ function containsAlwaysMarker(value: unknown): boolean {
 }
 
 /**
- * Recursively resolve a nested plain object, walking all keys and resolving markers.
- *
- * @param obj         The object whose keys should be walked
- * @param topKey      The top-level prop key (used to build full dot-paths for deferredProps)
- * @param subKeep     Relative sub-path keep list (null = include all non-optional markers)
- *                    e.g. if top-level keep=["user.avatar"], subKeep=["avatar"] for the "user" object
- * @param deferredProps Mutable deferred props map
+ * Immutable per-(top-level-key) context threaded through the nested marker
+ * resolver. `topKey`/`subKeep` scope the walk to one top-level prop; `isFullReload`
+ * and `resetOnceKeys` let a nested once() honor the same contract as a top-level
+ * once() (resolve on a full reload or an explicit Reset-Once, omit on partials).
+ */
+interface NestedResolveContext {
+  /** Top-level prop key — used to build full dot-paths (deferredProps / Reset-Once). */
+  topKey: string;
+  /**
+   * Relative sub-path keep list (null = include all non-optional markers).
+   * e.g. if top-level keep=["user.avatar"], subKeep=["avatar"] for the "user" object.
+   */
+  subKeep: string[] | null;
+  /** True when this is a full reload (no X-Inertia-Partial-Data). */
+  isFullReload: boolean;
+  /** Full dot-paths the client asked to re-send via X-Inertia-Reset-Once. */
+  resetOnceKeys: string[];
+  /** Mutable deferred-props sink (group → full dot-paths). */
+  deferredProps: Record<string, string[]>;
+}
+
+/**
+ * Recursively resolve a nested plain object, walking all keys and resolving markers
+ * at any depth with the same semantics as the top-level resolver.
  */
 async function resolveNestedObjectValue(
   obj: Record<string, unknown>,
-  topKey: string,
-  subKeep: string[] | null,
-  deferredProps: Record<string, string[]>,
+  ctx: NestedResolveContext,
 ): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    // Build relative dotPath for this child (relative to topKey)
-    // Full path = topKey + "." + k  but we store sub-paths relative to topKey
-    const resolved = await resolveNestedValueInner(v, k, topKey, subKeep, deferredProps);
+    const resolved = await resolveNestedValueInner(v, k, ctx);
     if (resolved !== OMIT) out[k] = resolved;
   }
   return out;
@@ -68,27 +81,23 @@ async function resolveNestedObjectValue(
 /**
  * Inner recursive resolver. Works on arbitrary values (markers, objects, arrays, scalars).
  *
- * @param value       Value to resolve
- * @param relPath     Path relative to topKey (e.g. "profile.avatar" for user.profile.avatar)
- * @param topKey      Top-level prop key
- * @param subKeep     Sub-path keep list relative to topKey (null = no filter)
- * @param deferredProps Mutable deferred props map
+ * @param value   Value to resolve
+ * @param relPath Path relative to ctx.topKey (e.g. "profile.avatar" for user.profile.avatar)
+ * @param ctx     Per-top-level-key resolution context
  */
 async function resolveNestedValueInner(
   value: unknown,
   relPath: string,
-  topKey: string,
-  subKeep: string[] | null,
-  deferredProps: Record<string, string[]>,
+  ctx: NestedResolveContext,
 ): Promise<unknown | typeof OMIT> {
   if (isMarker(value)) {
-    return resolveMarker(value as Marker, relPath, topKey, subKeep, deferredProps);
+    return resolveMarker(value as Marker, relPath, ctx);
   }
 
   if (Array.isArray(value)) {
     const out: unknown[] = [];
     for (const item of value) {
-      const resolved = await resolveNestedValueInner(item, relPath, topKey, subKeep, deferredProps);
+      const resolved = await resolveNestedValueInner(item, relPath, ctx);
       if (resolved !== OMIT) out.push(resolved);
     }
     return out;
@@ -99,16 +108,16 @@ async function resolveNestedValueInner(
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj)) {
       const childPath = `${relPath}.${k}`;
-      const resolved = await resolveNestedValueInner(v, childPath, topKey, subKeep, deferredProps);
+      const resolved = await resolveNestedValueInner(v, childPath, ctx);
       if (resolved !== OMIT) out[k] = resolved;
     }
     return out;
   }
 
   // Scalar value: apply sub-path filter if active
-  if (subKeep !== null) {
+  if (ctx.subKeep !== null) {
     // Include scalars only if their relPath is explicitly listed OR is a prefix of a listed path
-    const included = subKeep.some((k) => k === relPath || k.startsWith(`${relPath}.`));
+    const included = ctx.subKeep.some((k) => k === relPath || k.startsWith(`${relPath}.`));
     if (!included) return OMIT;
   }
 
@@ -118,13 +127,11 @@ async function resolveNestedValueInner(
 async function resolveMarker(
   marker: Marker,
   relPath: string,
-  topKey: string,
-  subKeep: string[] | null,
-  deferredProps: Record<string, string[]>,
+  ctx: NestedResolveContext,
 ): Promise<unknown | typeof OMIT> {
   const kind = getMarkerKind(marker);
-  // Full dot-path (as it would appear in X-Inertia-Partial-Data)
-  const fullPath = `${topKey}.${relPath}`;
+  // Full dot-path (as it would appear in X-Inertia-Partial-Data / -Reset-Once)
+  const fullPath = `${ctx.topKey}.${relPath}`;
 
   if (kind === 'always') {
     return getMarkerValue(marker)();
@@ -133,38 +140,43 @@ async function resolveMarker(
   if (kind === 'optional') {
     // subKeep === null: full reload — omit optional
     // subKeep !== null: partial reload — include only if relPath is listed
-    if (subKeep?.includes(relPath)) {
+    if (ctx.subKeep?.includes(relPath)) {
       return getMarkerValue(marker)();
     }
     return OMIT;
   }
 
   if (kind === 'once') {
-    // once() at nested level: resolve on full reload (subKeep === null), omit on partial
-    if (subKeep === null) {
+    // Mirror the top-level once() contract: resolve on a full reload, or when the
+    // client explicitly re-sends it via X-Inertia-Reset-Once (keyed by full
+    // dot-path, like nested partial-data). On a partial reload it is omitted —
+    // even if its parent is requested — because it was already delivered.
+    if (ctx.isFullReload || ctx.resetOnceKeys.includes(fullPath)) {
       return getMarkerValue(marker)();
     }
     return OMIT;
   }
 
   if (kind === 'defer') {
-    if (subKeep !== null) {
+    if (ctx.subKeep !== null) {
       // Partial reload: resolve only if listed
-      if (subKeep.includes(relPath)) return getMarkerValue(marker)();
+      if (ctx.subKeep.includes(relPath)) return getMarkerValue(marker)();
       return OMIT;
     }
     // Full reload: register as deferred using full dot-path
     const meta = getMarkerMeta(marker) as { group: string };
     const group = meta.group;
-    const existing = deferredProps[group];
+    const existing = ctx.deferredProps[group];
     if (existing) existing.push(fullPath);
-    else deferredProps[group] = [fullPath];
+    else ctx.deferredProps[group] = [fullPath];
     return OMIT;
   }
 
   if (kind === 'merge') {
-    // merge() at nested level: resolve (merge metadata only applies at top-level)
-    if (subKeep !== null && !subKeep.includes(relPath)) return OMIT;
+    // merge() at nested level: resolve the value. Merge METADATA (mergeProps /
+    // matchOn) addresses top-level prop keys only — the X-Inertia merge headers
+    // can't reference a nested path — so nested merge carries no metadata, by design.
+    if (ctx.subKeep !== null && !ctx.subKeep.includes(relPath)) return OMIT;
     return getMarkerValue(marker)();
   }
 
@@ -527,12 +539,13 @@ export class InertiaService {
 
       if (typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)) {
         // Walk nested object for markers
-        resolved = await resolveNestedObjectValue(
-          resolved as Record<string, unknown>,
-          key,
-          nestedKeep,
+        resolved = await resolveNestedObjectValue(resolved as Record<string, unknown>, {
+          topKey: key,
+          subKeep: nestedKeep,
+          isFullReload: keep === null,
+          resetOnceKeys,
           deferredProps,
-        );
+        });
       }
 
       finalProps[key] = resolved;
