@@ -1,5 +1,15 @@
 # Changelog — @dudousxd/nestjs-inertia-codegen
 
+## 1.11.4
+
+### Patch Changes
+
+- [`c70b423`](https://github.com/DavideCarvalho/nestjs-inertia/commit/c70b4236bb86efae43e8dd7060582c3ac16dfcbb) - Resolve `@Filterable` entities imported from node_modules packages.
+
+  `resolveModuleSpecifier` only handled relative imports and tsconfig path aliases, so an `@ApplyFilter` whose filter's `@Filterable({ entity: X })` referenced an entity published in a dependency (rather than declared in `src/`) failed to resolve. The endpoint was then mis-emitted as a non-filter route — `body: never`, no `.filterQuery()` builder — and the generated client POSTed an empty body, silently dropping the consumer's filter/sort/pagination.
+
+  Bare package specifiers now resolve to their declaration files: a new `resolveBarePackageTypes` walks `node_modules` upward from the importing file, reads the package's `package.json` (`exports` conditions, then top-level `types`/`typings`), and falls back to conventional layouts (`<sub>.d.ts`, `dist/index.d.ts`). The package directory is located on disk rather than via `require.resolve('<pkg>/package.json')`, which `exports` encapsulation otherwise blocks.
+
 ## 1.11.3
 
 ### Patch Changes
