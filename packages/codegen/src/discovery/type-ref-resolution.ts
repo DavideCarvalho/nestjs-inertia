@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import {
   type ClassDeclaration,
   type InterfaceDeclaration,
@@ -165,7 +165,110 @@ export function resolveModuleSpecifier(
     }
   }
 
+  // Bare specifier for a node_modules package (e.g. `@scope/pkg` or `pkg/sub`).
+  // A `@Filterable({ entity: X })` whose entity is published in a dependency
+  // (rather than declared in `src/`) only resolves if we follow the package's
+  // type declarations — otherwise the endpoint is mis-emitted as a non-filter
+  // route (`body: never`). Resolve the package's `.d.ts` candidates here.
+  const dtsCandidates = resolveBarePackageTypes(moduleSpecifier, sourceFile.getFilePath());
+  if (dtsCandidates.length > 0) {
+    dbg('  resolved bare-package candidates:', dtsCandidates);
+    return dtsCandidates;
+  }
+
   return [];
+}
+
+/**
+ * Resolve a bare node_modules package specifier to the `.d.ts` file(s) that
+ * declare its types. Reads the package's `package.json` (`exports` conditions,
+ * then top-level `types`/`typings`) and falls back to conventional layouts
+ * (`<sub>.d.ts`, `dist/index.d.ts`). Returns absolute candidate paths in
+ * priority order; `resolveImportedType` tries each and skips ones that don't
+ * exist, so over-generating candidates is safe.
+ */
+/**
+ * Walk node_modules upward from `fromFilePath` to find the directory of an
+ * installed package (handles workspace hoisting). Returns the package root, or
+ * null if not found.
+ */
+function findPackageDir(pkgName: string, fromFilePath: string): string | null {
+  let dir = dirname(fromFilePath);
+  let prev = '';
+  // `dirname` is idempotent at the filesystem root, so the dir === prev guard
+  // terminates the upward walk (and still checks the root directory itself).
+  while (dir !== prev) {
+    const candidate = join(dir, 'node_modules', pkgName);
+    if (existsSync(join(candidate, 'package.json'))) return candidate;
+    prev = dir;
+    dir = dirname(dir);
+  }
+  return null;
+}
+
+export function resolveBarePackageTypes(specifier: string, fromFilePath: string): string[] {
+  // Split `@scope/name/sub/path` → pkgName `@scope/name`, subpath `sub/path`.
+  const segments = specifier.split('/');
+  const pkgName = specifier.startsWith('@') ? segments.slice(0, 2).join('/') : segments[0];
+  const subpath = specifier.slice(pkgName.length).replace(/^\//, '');
+
+  // Locate the package directory by walking node_modules up from the importing
+  // file. We read `package.json` straight off disk rather than via
+  // `require.resolve` — a package with an `exports` field that doesn't export
+  // `./package.json` (the common case) refuses `require.resolve('<pkg>/package.json')`.
+  const pkgDir = findPackageDir(pkgName, fromFilePath);
+  if (!pkgDir) return [];
+
+  let pkg: {
+    types?: string;
+    typings?: string;
+    exports?: Record<string, unknown>;
+  };
+  try {
+    pkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
+  } catch {
+    return [];
+  }
+
+  const candidates: string[] = [];
+  const pushDts = (rel: unknown): void => {
+    if (typeof rel !== 'string') return;
+    // A `.d.ts`/`.d.cts` entry is used directly; a JS entry is mapped to its
+    // sibling declaration file (tsup et al. emit `index.js` + `index.d.ts`).
+    const dts = /\.d\.[cm]?ts$/.test(rel) ? rel : rel.replace(/\.[cm]?js$/, '.d.ts');
+    candidates.push(resolve(pkgDir, dts));
+  };
+
+  // `exports` map — honour the conditional sub-object (`types`/`import`/`require`/`default`).
+  const exportKey = subpath ? `./${subpath}` : '.';
+  const entry = pkg.exports?.[exportKey];
+  if (typeof entry === 'string') {
+    pushDts(entry);
+  } else if (entry && typeof entry === 'object') {
+    const conds = entry as Record<string, unknown>;
+    pushDts(conds.types);
+    for (const cond of [conds.import, conds.require, conds.default]) {
+      if (typeof cond === 'string') pushDts(cond);
+      else if (cond && typeof cond === 'object') pushDts((cond as Record<string, unknown>).types);
+    }
+  }
+
+  // Root specifier → top-level `types`/`typings`.
+  if (!subpath) pushDts(pkg.types ?? pkg.typings);
+
+  // Conventional fallbacks.
+  if (subpath) {
+    candidates.push(
+      resolve(pkgDir, `${subpath}.d.ts`),
+      resolve(pkgDir, subpath, 'index.d.ts'),
+      resolve(pkgDir, 'dist', `${subpath}.d.ts`),
+    );
+  } else {
+    candidates.push(resolve(pkgDir, 'index.d.ts'), resolve(pkgDir, 'dist', 'index.d.ts'));
+  }
+
+  // De-duplicate while preserving priority order.
+  return [...new Set(candidates)];
 }
 
 export function resolveImportedType(
