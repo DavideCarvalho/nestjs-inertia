@@ -58,4 +58,53 @@ describe('Jsonify', () => {
     expectTypeOf<Jsonify<Map<string, number>>>().toEqualTypeOf<Record<string, never>>();
     expectTypeOf<Jsonify<Set<number>>>().toEqualTypeOf<Record<string, never>>();
   });
+
+  it('transforms Date inside a union with null (Date | null → string | null)', () => {
+    expectTypeOf<Jsonify<Date | null>>().toEqualTypeOf<string | null>();
+  });
+
+  it('handles a self-referential recursive type without infinite recursion', () => {
+    interface Tree {
+      value: Date;
+      children: Tree[];
+    }
+    // Compiles (regression guard) and the leaf Date is serialized to string.
+    expectTypeOf<Jsonify<Tree>['value']>().toEqualTypeOf<string>();
+  });
+
+  it('keeps an any-valued property (not dropped)', () => {
+    type Input = { x: any };
+    expectTypeOf<Jsonify<Input>>().toHaveProperty('x');
+  });
+
+  it('keeps an unknown-valued property (not dropped)', () => {
+    type Input = { y: unknown };
+    expectTypeOf<Jsonify<Input>>().toHaveProperty('y');
+  });
+
+  it('keeps any and unknown while dropping a function property', () => {
+    type Input = { x: any; y: unknown; z: () => void };
+    type Result = Jsonify<Input>;
+    expectTypeOf<Result>().toHaveProperty('x');
+    expectTypeOf<Result>().toHaveProperty('y');
+    expectTypeOf<Result>().not.toHaveProperty('z');
+  });
+
+  it('transforms an index signature value (Record<string, Date> → Record<string, string>)', () => {
+    expectTypeOf<Jsonify<Record<string, Date>>>().toEqualTypeOf<Record<string, string>>();
+  });
+
+  it('transforms a readonly array element (readonly Date[] → readonly string[])', () => {
+    expectTypeOf<Jsonify<readonly Date[]>>().toEqualTypeOf<readonly string[]>();
+  });
+
+  it('collapses bigint to never (no JSON wire representation)', () => {
+    expectTypeOf<Jsonify<bigint>>().toEqualTypeOf<never>();
+  });
+
+  it('keeps optional under nesting ({ a?: { b: Date } } → { a?: { b: string } })', () => {
+    type Input = { a?: { b: Date } };
+    type Expected = { a?: { b: string } };
+    expectTypeOf<Jsonify<Input>>().toEqualTypeOf<Expected>();
+  });
 });

@@ -41,9 +41,14 @@ type NonSerializableValue = ((...args: never[]) => unknown) | symbol | undefined
  * value type assignable to the non-serializable set?" rather than distributing
  * over a union, so `string | undefined` (an optional property) is kept while a
  * bare `() => void` method is dropped.
+ *
+ * The leading `0 extends 1 & T[K]` guard short-circuits an `any`-valued
+ * property: `any` is assignable to `NonSerializableValue`, so without the guard
+ * an `{ x: any }` would silently DROP `x`. We KEEP `any` properties (matching
+ * how `unknown` properties survive — both pass straight through `Jsonify`).
  */
 type SerializableKeys<T> = {
-  [K in keyof T]-?: [T[K]] extends [NonSerializableValue] ? never : K;
+  [K in keyof T]-?: 0 extends 1 & T[K] ? K : [T[K]] extends [NonSerializableValue] ? never : K;
 }[keyof T];
 
 /**
@@ -67,16 +72,20 @@ type JsonifyObject<T> = {
  *  3. Anything with a `toJSON(): R` method serializes to `Jsonify<R>`. This is
  *     the general mechanism that also covers `Date` (whose `toJSON` returns
  *     `string`), so we do not need a dedicated `Date` branch.
- *  4. Arrays/tuples recurse element-wise (`readonly` arrays included via the
+ *  4. `bigint` is not representable in JSON — `JSON.stringify` THROWS on it, so
+ *     there is no wire value. It maps to `never` (a `bigint`-only property is
+ *     dropped upstream by `SerializableKeys`; see `NonSerializableValue`).
+ *  5. Arrays/tuples recurse element-wise (`readonly` arrays included via the
  *     `readonly` array branch).
- *  5. `Map`/`Set` stringify to `{}` (they have no enumerable own properties and
+ *  6. `Map`/`Set` stringify to `{}` (they have no enumerable own properties and
  *     no `toJSON`), so we model them as the empty object `{}`. This is a
  *     deliberate, documented approximation — JSON genuinely drops their
  *     contents; we don't try to be cleverer than `JSON.stringify`.
- *  6. Functions/symbols/`undefined` at a value position are not serializable;
- *     they map to `never` (callers reach this only via a union arm — a whole
- *     non-serializable *property* is removed upstream by `SerializableKeys`).
- *  7. Everything else is a plain object → `JsonifyObject`.
+ *  7. Functions/symbols/`undefined`/`bigint` at a value position are not
+ *     serializable; they map to `never` (callers reach this only via a union arm
+ *     — a whole non-serializable *property* is removed upstream by
+ *     `SerializableKeys`).
+ *  8. Everything else is a plain object → `JsonifyObject`.
  */
 export type Jsonify<T> = 0 extends 1 & T // matches `any` only
   ? T
@@ -84,7 +93,10 @@ export type Jsonify<T> = 0 extends 1 & T // matches `any` only
     ? unknown
     : T extends JsonPrimitive
       ? T
-      : // `toJSON` holders (Date, Luxon, Moment, MikroORM entities with toJSON…)
+      : // Any type with a `toJSON()` collapses to `Jsonify<ReturnType>` and ALL
+        // other properties are discarded — exactly what `JSON.stringify` does
+        // (it serializes only the `toJSON()` return and ignores the rest). This
+        // covers Date (toJSON → string), Luxon, Moment, etc.
         T extends { toJSON(): infer R }
         ? Jsonify<R>
         : // Tuples / arrays — recurse element types, preserving `readonly`.
@@ -95,10 +107,14 @@ export type Jsonify<T> = 0 extends 1 & T // matches `any` only
             // shape JSON.stringify produces for Map/Set instances.
             T extends Map<unknown, unknown> | Set<unknown>
             ? Record<string, never>
-            : // Bare non-serializable values in a union arm collapse to `never`.
-              T extends NonSerializableValue
+            : // `bigint` has no JSON representation (JSON.stringify throws) — no
+              // wire value exists, so it collapses to `never`.
+              T extends bigint
               ? never
-              : // Plain object → recurse properties, dropping unserializable ones.
-                T extends object
-                ? JsonifyObject<T>
-                : T;
+              : // Bare non-serializable values in a union arm collapse to `never`.
+                T extends NonSerializableValue
+                ? never
+                : // Plain object → recurse properties, dropping unserializable ones.
+                  T extends object
+                  ? JsonifyObject<T>
+                  : T;

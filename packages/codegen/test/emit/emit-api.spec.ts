@@ -103,7 +103,7 @@ describe('emitApi', () => {
   });
 
   it('imports fetcher from custom path when provided', async () => {
-    await emitApi(routesWithContract, outDir, '@/my-custom-api');
+    await emitApi(routesWithContract, outDir, { fetcherImportPath: '@/my-custom-api' });
     const content = await readFile(join(outDir, 'api.ts'), 'utf8');
     expect(content).toContain("import { fetcher } from '@/my-custom-api'");
     expect(content).not.toContain('createFetcher');
@@ -363,20 +363,20 @@ describe('emitApi', () => {
     });
 
     it('json mode emits the Jsonify type import', async () => {
-      await emitApi(routesWithContract, outDir, undefined, 'json');
+      await emitApi(routesWithContract, outDir, { serialization: 'json' });
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
       expect(content).toContain("import type { Jsonify } from '@dudousxd/nestjs-inertia-client';");
     });
 
     it('superjson mode leaves response types raw (no Jsonify wrapper)', async () => {
-      await emitApi(routesWithContract, outDir, undefined, 'superjson');
+      await emitApi(routesWithContract, outDir, { serialization: 'superjson' });
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
       expect(content).toContain('response: Array<{ id: string; name: string }>');
       expect(content).not.toContain('Jsonify<');
     });
 
     it('superjson mode does NOT emit the Jsonify import', async () => {
-      await emitApi(routesWithContract, outDir, undefined, 'superjson');
+      await emitApi(routesWithContract, outDir, { serialization: 'superjson' });
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
       expect(content).not.toContain('Jsonify');
     });
@@ -398,7 +398,7 @@ describe('emitApi', () => {
           },
         },
       ];
-      await emitApi(routesWithControllerRef, outDir, undefined, 'json');
+      await emitApi(routesWithControllerRef, outDir, { serialization: 'json' });
       const content = await readFile(join(outDir, 'api.ts'), 'utf8');
       expect(content).toMatch(/response: Jsonify<Awaited<ReturnType<import\(.*ItemsController.*>>/);
     });

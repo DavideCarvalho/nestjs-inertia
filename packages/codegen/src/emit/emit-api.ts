@@ -19,12 +19,17 @@ import type {
  * generated type reflects the JSON wire shape, e.g. `Date` → `string`); in
  * `'superjson'` mode the raw controller return type is emitted unchanged.
  */
+export interface EmitApiOptions {
+  fetcherImportPath?: string | undefined;
+  serialization?: SerializationMode | undefined;
+}
+
 export async function emitApi(
   routes: RouteDescriptor[],
   outDir: string,
-  fetcherImportPath?: string,
-  serialization: SerializationMode = 'json',
+  opts: EmitApiOptions = {},
 ): Promise<void> {
+  const { fetcherImportPath, serialization = 'json' } = opts;
   await mkdir(outDir, { recursive: true });
   const content = buildApiFile(routes, outDir, fetcherImportPath, serialization);
   await writeFile(join(outDir, 'api.ts'), content, 'utf8');
