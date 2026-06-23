@@ -8,6 +8,7 @@ export default defineConfig({
     'svelte/index': 'src/svelte/index.ts',
     'ssr/hydrate': 'src/ssr/hydrate.ts',
     'server/index': 'src/server/index.ts',
+    'superjson/index': 'src/superjson/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
@@ -38,5 +39,6 @@ export default defineConfig({
     'vue',
     'svelte',
     '@tanstack/query-core',
+    'superjson',
   ],
 });
