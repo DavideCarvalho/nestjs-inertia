@@ -36,6 +36,18 @@ export interface UserConfig {
     importPath: string;
   };
   /**
+   * How response payloads are deserialized on the client, which determines the
+   * generated `response` type shape.
+   *
+   * - `'json'` (default): responses cross the wire as plain JSON, so the
+   *   generated type is wrapped in `Jsonify<...>` (e.g. `Date` → `string`).
+   * - `'superjson'`: responses are revived (Dates/Maps/Sets restored), so the
+   *   raw controller return type is emitted unchanged.
+   *
+   * @default 'json'
+   */
+  serialization?: 'json' | 'superjson';
+  /**
    * Typed-form schema emit (`forms.ts`). Re-exports / translates contract and
    * class-validator-decorated DTO schemas into zod schemas for client-side
    * validation.
@@ -73,6 +85,9 @@ export interface ResolvedCodegenConfig {
   cwd: string;
 }
 
+/** How response payloads are deserialized on the client. */
+export type SerializationMode = 'json' | 'superjson';
+
 export interface ResolvedAppConfig {
   moduleEntry: string;
   tsconfig: string | null;
@@ -91,5 +106,6 @@ export interface ResolvedConfig {
   codegen: ResolvedCodegenConfig;
   app: ResolvedAppConfig | null;
   fetcher: { importPath: string } | null;
+  serialization: SerializationMode;
   forms: ResolvedFormsConfig;
 }

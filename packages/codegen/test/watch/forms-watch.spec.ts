@@ -30,6 +30,7 @@ function makeConfig(cwd: string, outDir: string): ResolvedConfig {
     codegen: { outDir, cwd },
     app: null,
     fetcher: null,
+    serialization: 'json',
     forms: { enabled: true, watch: 'src/**/*.dto.ts', zodImport: 'zod' },
   };
 }

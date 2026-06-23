@@ -8,5 +8,6 @@ export { defineContract } from './contract/contract.js';
 export { invalidate } from './invalidate.js';
 export type { FetcherOptions, Fetcher, SseOpts } from './fetcher/fetcher.js';
 export type { ContractDef } from './contract/contract.js';
+export type { Jsonify } from './shared/jsonify.js';
 // Server-only exports (NestJS decorators) → @dudousxd/nestjs-inertia-client/server
 // SSR helpers → @dudousxd/nestjs-inertia-client/ssr

@@ -37,6 +37,7 @@ function makeConfig(pagesDir: string, outDir: string, contractsGlob?: string): R
     codegen: { outDir, cwd: pagesDir },
     app: null,
     fetcher: null,
+    serialization: 'json',
     forms: { enabled: true, watch: 'src/**/*.dto.ts', zodImport: 'zod' },
   };
 }

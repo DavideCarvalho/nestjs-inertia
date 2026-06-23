@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative } from 'node:path';
+import type { SerializationMode } from '../config/types.js';
 import type {
   ContractSource,
   ControllerRef,
@@ -12,14 +13,20 @@ import type {
  * Emits `api.ts` into `outDir` for all routes that carry a `.contract`.
  * - GET routes get `queryOptions`
  * - POST/PUT/PATCH/DELETE routes get `mutationOptions`
+ *
+ * `serialization` controls how response types are emitted (default `'json'`):
+ * in `'json'` mode each `response` type is wrapped in `Jsonify<...>` (so the
+ * generated type reflects the JSON wire shape, e.g. `Date` → `string`); in
+ * `'superjson'` mode the raw controller return type is emitted unchanged.
  */
 export async function emitApi(
   routes: RouteDescriptor[],
   outDir: string,
   fetcherImportPath?: string,
+  serialization: SerializationMode = 'json',
 ): Promise<void> {
   await mkdir(outDir, { recursive: true });
-  const content = buildApiFile(routes, outDir, fetcherImportPath);
+  const content = buildApiFile(routes, outDir, fetcherImportPath, serialization);
   await writeFile(join(outDir, 'api.ts'), content, 'utf8');
 }
 
@@ -227,7 +234,17 @@ function emitFilterQueryType(c: LeafEntry): string {
 /**
  * Emit the nested ApiRouter type block.
  */
-function buildResponseType(c: LeafEntry, outDir: string): string {
+function buildResponseType(c: LeafEntry, outDir: string, serialization: SerializationMode): string {
+  const raw = rawResponseType(c, outDir);
+  // In `'json'` mode the response crosses the wire as plain JSON, so wrap it in
+  // `Jsonify<...>` to reflect the serialized shape (Date → string, etc.). In
+  // `'superjson'` mode the payload is revived on the client, so emit the raw
+  // controller return type unchanged.
+  return serialization === 'json' ? `Jsonify<${raw}>` : raw;
+}
+
+/** The un-wrapped response type expression for a leaf (controllerRef / ref / inline). */
+function rawResponseType(c: LeafEntry, outDir: string): string {
   if (c.controllerRef) {
     let relPath = relative(outDir, c.controllerRef.filePath).replace(/\.ts$/, '');
     if (!relPath.startsWith('.')) relPath = `./${relPath}`;
@@ -244,6 +261,7 @@ function emitRouterTypeBlock(
   tree: Map<string, TreeNode>,
   indent: number,
   outDir: string,
+  serialization: SerializationMode,
 ): string[] {
   const pad = ' '.repeat(indent);
   const lines: string[] = [];
@@ -275,7 +293,7 @@ function emitRouterTypeBlock(
               ? `Array<${bodyRef.name}>`
               : bodyRef.name
             : (c.contractSource.body ?? 'never');
-      const response = buildResponseType(c, outDir);
+      const response = buildResponseType(c, outDir, serialization);
       const params = buildParamsType(c.params);
       const safeMethod = JSON.stringify(method);
       const safeUrl = JSON.stringify(c.path);
@@ -290,7 +308,7 @@ function emitRouterTypeBlock(
       );
     } else {
       lines.push(`${pad}${objKey}: {`);
-      lines.push(...emitRouterTypeBlock(node.children, indent + 2, outDir));
+      lines.push(...emitRouterTypeBlock(node.children, indent + 2, outDir, serialization));
       lines.push(`${pad}};`);
     }
   }
@@ -458,6 +476,7 @@ function buildApiFile(
   routes: RouteDescriptor[],
   outDir?: string,
   fetcherImportPath?: string,
+  serialization: SerializationMode = 'json',
 ): string {
   const contracted = routes.filter((r) => r.contract);
 
@@ -517,6 +536,12 @@ function buildApiFile(
   );
   const resolvedFetcherPath = fetcherImportPath ?? '@/lib/api';
   lines.push(`import { fetcher } from '${resolvedFetcherPath}';`);
+  // In `'json'` mode every `response` type is wrapped in `Jsonify<...>` so the
+  // generated type reflects the JSON wire shape; import the type helper. Only
+  // when at least one route is emitted (the empty-routes branch wraps nothing).
+  if (serialization === 'json' && contracted.length > 0) {
+    lines.push("import type { Jsonify } from '@dudousxd/nestjs-inertia-client';");
+  }
 
   // Emit type imports from source files.
   // When two different files export the same type name, alias the duplicate
@@ -616,7 +641,7 @@ function buildApiFile(
 
   // --- ApiRouter type ---
   lines.push('export type ApiRouter = {');
-  lines.push(...emitRouterTypeBlock(tree, 2, outDir ?? ''));
+  lines.push(...emitRouterTypeBlock(tree, 2, outDir ?? '', serialization));
   lines.push('};');
   lines.push('');
 

@@ -351,6 +351,60 @@ describe('emitApi', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Serialization transform: Jsonify-by-default (json) vs raw (superjson)
+  // ---------------------------------------------------------------------------
+
+  describe('serialization transform', () => {
+    it('defaults to json mode: wraps response types in Jsonify<...>', async () => {
+      await emitApi(routesWithContract, outDir);
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('response: Jsonify<Array<{ id: string; name: string }>>');
+      expect(content).toContain('response: Jsonify<{ id: string; name: string; email: string }>');
+    });
+
+    it('json mode emits the Jsonify type import', async () => {
+      await emitApi(routesWithContract, outDir, undefined, 'json');
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain("import type { Jsonify } from '@dudousxd/nestjs-inertia-client';");
+    });
+
+    it('superjson mode leaves response types raw (no Jsonify wrapper)', async () => {
+      await emitApi(routesWithContract, outDir, undefined, 'superjson');
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toContain('response: Array<{ id: string; name: string }>');
+      expect(content).not.toContain('Jsonify<');
+    });
+
+    it('superjson mode does NOT emit the Jsonify import', async () => {
+      await emitApi(routesWithContract, outDir, undefined, 'superjson');
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).not.toContain('Jsonify');
+    });
+
+    it('json mode wraps controllerRef ReturnType responses too', async () => {
+      const routesWithControllerRef: RouteDescriptor[] = [
+        {
+          method: 'GET',
+          path: '/api/items',
+          name: 'items.list',
+          params: [],
+          controllerRef: {
+            filePath: '/src/items/items.controller.ts',
+            className: 'ItemsController',
+            methodName: 'list',
+          },
+          contract: {
+            contractSource: { query: null, body: null, response: 'unknown' },
+          },
+        },
+      ];
+      await emitApi(routesWithControllerRef, outDir, undefined, 'json');
+      const content = await readFile(join(outDir, 'api.ts'), 'utf8');
+      expect(content).toMatch(/response: Jsonify<Awaited<ReturnType<import\(.*ItemsController.*>>/);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Q1: Tuyau-style Route + Path namespaced type helpers
   // ---------------------------------------------------------------------------
 
