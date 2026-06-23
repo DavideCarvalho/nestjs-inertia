@@ -56,7 +56,7 @@ Five focused packages that together implement the [Inertia.js](https://inertiajs
 - `CsrfCookieInterceptor` / `CsrfGuard` for CSRF protection.
 - `RedirectInterceptor` converts 302 to 303 for PUT/PATCH/DELETE per the Inertia protocol.
 - `MethodSpoofMiddleware` enables `_method` field support for HTML forms.
-- Auto-starts codegen watcher in development when `@dudousxd/nestjs-inertia-codegen` is installed.
+- Auto-starts codegen watcher in development when `@dudousxd/nestjs-codegen` is installed.
 
 ### vite (`@dudousxd/nestjs-inertia-vite`)
 
@@ -72,15 +72,15 @@ Five focused packages that together implement the [Inertia.js](https://inertiajs
 - `createFakeInertiaRequest()` / `createFakeInertiaResponse()` for unit tests without HTTP.
 - Framework matchers for Vitest and Jest via subpath imports.
 
-### codegen (`@dudousxd/nestjs-inertia-codegen`)
+### codegen (`@dudousxd/nestjs-codegen` + `@dudousxd/nestjs-inertia-codegen-extension`)
 
-CLI (`nestjs-inertia codegen`) that statically analyses the NestJS app and emits:
+The typed-client codegen lives in the standalone `@dudousxd/nestjs-codegen` package. This repo ships `@dudousxd/nestjs-inertia-codegen-extension`, the extension you register so the generated `api.ts` gains the Inertia `router` import and a typed `navigate()` helper. The codegen statically analyses the NestJS app and emits:
 
 - `pages.d.ts` module augmentation for typed `@Inertia()` and page props.
 - `routes.ts` typed route map + `route()` helper for URL resolution.
-- `api.ts` `queryOptions()`, `mutationOptions()`, `queryKey()`, and `infiniteQueryOptions()` for every route. Response types use `ReturnType<import(...)>`. Page props use `Parameters<typeof import(...).default>[0]`.
+- `api.ts` `queryOptions()`, `mutationOptions()`, `queryKey()`, and `infiniteQueryOptions()` for every route. Response types are wrapped in `Jsonify<...>` by default so they reflect the JSON wire shape (`Date` → `string`); opt out with `serialization: 'superjson'`. Page props use `Parameters<typeof import(...).default>[0]`.
 
-Also provides `nestjs-inertia doctor` for setup diagnostics and `nestjs-inertia doctor --fix` for auto-repair.
+Setup diagnostics are provided by `nestjs-inertia doctor` (from `@dudousxd/nestjs-inertia`) with `--fix` for auto-repair.
 
 ### client (`@dudousxd/nestjs-inertia-client`)
 

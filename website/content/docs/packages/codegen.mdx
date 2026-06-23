@@ -99,6 +99,6 @@ The core codegen emits into `codegen.outDir`:
 | `routes.ts` | Typed route map + `route()` helper for URL resolution |
 | `api.ts` | The typed client; with this extension, also the Inertia `router` import + `navigate()` |
 
-Response types use `Awaited<ReturnType<import(...)>>`. Page props use `Parameters<typeof import(...).default>[0]`.
+Response types are inferred from `Awaited<ReturnType<import(...)>>` and wrapped in `Jsonify<...>` by default so they match the JSON wire shape (`Date` → `string`); set `serialization: 'superjson'` to emit the raw types instead. Page props use `Parameters<typeof import(...).default>[0]`. See [Serialized response types](/docs/guides/codegen#serialized-response-types).
 
 See the [Codegen guide](/docs/guides/codegen) for full configuration and the [Typed Client guide](/docs/guides/typed-client) for the generated client API.

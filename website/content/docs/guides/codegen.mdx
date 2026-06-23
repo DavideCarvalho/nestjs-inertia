@@ -76,6 +76,7 @@ export default defineConfig({
 | `contracts.glob` | `src/**/*.controller.ts` | Glob for controller files watched in watch mode |
 | `contracts.debounceMs` | `500` | Debounce before re-running on file change |
 | `codegen.outDir` | `.nestjs-inertia` | Directory for generated files |
+| `serialization` | `'json'` | Response-type wire shape: `'json'` wraps responses in `Jsonify<...>`; `'superjson'` emits raw types (see [Serialized response types](#serialized-response-types)) |
 | `extensions` | `[]` | Build-time extensions, e.g. `nestjsInertiaCodegen()` for the Inertia `navigate()` helper |
 
 The same `extensions` array works when registering the codegen on the Nest module via `NestjsCodegenModule.forRoot({ extensions: [nestjsInertiaCodegen()] })` (`@dudousxd/nestjs-codegen/nest`). Keep one source of truth and import it into both.
@@ -155,8 +156,9 @@ route('users.show', { id: '42' })
 
 ## `api.ts`
 
-```ts
+```ts title=".nestjs-inertia/api.ts"
 import { queryOptions as _queryOptions, mutationOptions as _mutationOptions } from '@tanstack/react-query';
+import type { Jsonify } from '@dudousxd/nestjs-inertia-client';
 
 export interface ApiRouter {
   users: {
@@ -165,7 +167,7 @@ export interface ApiRouter {
       url: "/api/users";
       query: { active?: boolean };
       body: never;
-      response: Awaited<ReturnType<import('../src/users.controller').UsersController['list']>>;
+      response: Jsonify<Awaited<ReturnType<import('../src/users.controller').UsersController['list']>>>;
     };
     show: {
       method: "GET";
@@ -173,7 +175,7 @@ export interface ApiRouter {
       params: { id: string };
       query: never;
       body: never;
-      response: Awaited<ReturnType<import('../src/users.controller').UsersController['show']>>;
+      response: Jsonify<Awaited<ReturnType<import('../src/users.controller').UsersController['show']>>>;
     };
   };
 }
@@ -192,7 +194,76 @@ export const api = {
 };
 ```
 
-Response types use `Awaited<ReturnType<import(...)>>`. They stay in sync with your controller automatically. No annotations needed.
+Response types stay in sync with your controller automatically — no annotations needed. The raw `Awaited<ReturnType<import(...)>>` is wrapped in `Jsonify<...>` so the generated type matches what actually arrives on the client after JSON serialization (e.g. a controller returning `{ createdAt: Date }` produces `{ createdAt: string }`). See [Serialized response types](#serialized-response-types) below.
+
+---
+
+## Serialized response types
+
+By default the codegen wraps every emitted `response` type in `Jsonify<...>`, a type-only helper exported from `@dudousxd/nestjs-inertia-client`. `Jsonify<T>` models the value you actually receive on the client — the result of `JSON.parse(JSON.stringify(value))` — rather than the in-process server type.
+
+This matters because the JSON wire shape differs from your controller's return type:
+
+| Server type | Wire type (`Jsonify`) | Why |
+|-------------|----------------------|-----|
+| `Date` | `string` | `Date.prototype.toJSON()` emits an ISO string |
+| any `{ toJSON(): R }` holder (Luxon, Moment, …) | `Jsonify<R>` | `JSON.stringify` serializes only the `toJSON()` return |
+| `bigint` | `never` | `JSON.stringify` throws on `bigint` — there is no wire value |
+| method / function-valued property | dropped | functions are omitted by `JSON.stringify` |
+| `Map` / `Set` | `{}` (empty object) | JSON drops their entries |
+| `any` / `unknown` property | kept as-is | no useful transform — passes straight through |
+| optional `x?: T` | stays optional | an absent key is exactly JSON's "missing property" |
+
+So a controller like this:
+
+```ts title="src/orders.controller.ts"
+import { Controller, Get, Param } from '@nestjs/common';
+
+class OrderDto {
+  id: string;
+  total: number;
+  placedAt: Date;       // ← Date on the server
+}
+
+@Controller('/api/orders')
+export class OrdersController {
+  @Get(':id')
+  show(@Param('id') id: string): Promise<OrderDto> {
+    return this.ordersService.findOne(id);
+  }
+}
+```
+
+generates a `response` of `Jsonify<OrderDto>`, i.e. `{ id: string; total: number; placedAt: string }`. On the client `data.placedAt` is correctly typed as `string`, so `new Date(data.placedAt)` is the right way to revive it.
+
+<Callout type="info">
+  `Jsonify` is a hand-rolled, type-only utility with no runtime footprint and no external dependency. It only changes types — the codegen does not inject any deserialization code. If you need real `Date`/`Map`/`Set` instances back on the client, revive the payload yourself (or use the superjson opt-out below).
+</Callout>
+
+### Opting out with superjson
+
+If your fetcher revives payloads with [superjson](https://github.com/blitz-js/superjson) (so `Date`, `Map`, and `Set` are restored at runtime), set `serialization: 'superjson'` in the codegen config. The codegen then emits the **raw** controller return type unchanged — no `Jsonify<...>` wrapping — because the values are reconstructed before you read them.
+
+```ts title="nestjs-codegen.config.ts"
+import { defineConfig } from '@dudousxd/nestjs-codegen';
+import { nestjsInertiaCodegen } from '@dudousxd/nestjs-inertia-codegen-extension';
+
+export default defineConfig({
+  pages: { glob: 'inertia/pages/**/*.tsx' },
+  app: { moduleEntry: './src/app.module.ts' },
+  serialization: 'superjson',   // emit raw types — your fetcher revives the payload
+  extensions: [nestjsInertiaCodegen()],
+});
+```
+
+| `serialization` | Default | Generated `response` | Use when |
+|-----------------|---------|----------------------|----------|
+| `'json'` | ✓ | `Jsonify<...>` (e.g. `Date` → `string`) | Plain JSON responses (the common case) |
+| `'superjson'` | | raw controller return type | Your client revives payloads with superjson |
+
+<Callout type="warn">
+  `serialization: 'superjson'` only affects the **generated types**. It does not add a runtime superjson hook to the fetcher — you are responsible for wiring superjson deserialization in your own `fetcher` (see [Fetcher setup](/docs/guides/typed-client#fetcher-setup)). Pick `'superjson'` only if your payloads are genuinely revived; otherwise the types will claim `Date` where the runtime value is still a `string`.
+</Callout>
 
 ---
 
@@ -302,7 +373,8 @@ The codegen resolves `PostDto` from `./dto/post.dto` and emits the correct type 
 | Behavior | Detail |
 |----------|--------|
 | Utility types preserved | `Record<K, V>`, `Omit<T, K>`, and `Pick<T, K>` are emitted with their generic arguments |
-| `Date` properties | Emitted as `string` (standard REST convention) |
+| `Date` properties | Emitted as `string` via `Jsonify<...>` — the JSON wire shape (see [Serialized response types](#serialized-response-types)) |
+| `bigint` properties | Emitted as `never` under `Jsonify` — `JSON.stringify` throws on `bigint`, so there is no wire value |
 | Server-only types | `StreamableFile`, `Observable` are mapped to `unknown` |
 | Recursive depth | Class resolution is limited to depth 3 to prevent infinite loops on circular references |
 | `@Query('key')` | Individual string query params are ignored (only DTO-style `@Query()` is extracted) |
