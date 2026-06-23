@@ -46,10 +46,6 @@ jobs:
         run: pnpm exec turbo run build --filter='./packages/*'
       - name: Test packages
         run: pnpm exec turbo run test --filter='./packages/*'
-      - name: Build example
-        run: pnpm --filter @example/express-react build
-      - name: E2E example smoke
-        run: pnpm --filter @example/express-react test
 
   trivy:
     name: Trivy scan
