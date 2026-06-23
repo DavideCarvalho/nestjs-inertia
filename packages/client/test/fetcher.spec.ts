@@ -71,51 +71,6 @@ describe('createFetcher', () => {
     expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
   });
 
-  it('deserialize hook transforms the parsed JSON body', async () => {
-    const f = mockFetch(
-      new Response(JSON.stringify({ value: 1 }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-    const deserialize = vi.fn((raw: unknown) => ({
-      ...(raw as Record<string, unknown>),
-      revived: true,
-    }));
-    const fetcher = createFetcher({ fetch: f, deserialize });
-    const result = await fetcher.get('/thing');
-    expect(deserialize).toHaveBeenCalledOnce();
-    expect(deserialize.mock.calls[0]![0]).toEqual({ value: 1 });
-    expect(result).toEqual({ value: 1, revived: true });
-  });
-
-  it('absent deserialize hook returns the body unchanged (identity)', async () => {
-    const payload = { value: 42 };
-    const f = mockFetch(
-      new Response(JSON.stringify(payload), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-    const fetcher = createFetcher({ fetch: f });
-    const result = await fetcher.get('/thing');
-    expect(result).toEqual(payload);
-  });
-
-  it('deserialize hook is NOT applied to non-JSON (text) responses', async () => {
-    const f = mockFetch(
-      new Response('plain text', {
-        status: 200,
-        headers: { 'content-type': 'text/plain' },
-      }),
-    );
-    const deserialize = vi.fn((raw: unknown) => raw);
-    const fetcher = createFetcher({ fetch: f, deserialize });
-    const result = await fetcher.get('/text');
-    expect(deserialize).not.toHaveBeenCalled();
-    expect(result).toBe('plain text');
-  });
-
   it('onError callback fires on error', async () => {
     const f = mockFetch(new Response(null, { status: 500, statusText: 'Internal Server Error' }));
     const onError = vi.fn();

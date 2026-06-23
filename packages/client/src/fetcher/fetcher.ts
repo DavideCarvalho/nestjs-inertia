@@ -11,14 +11,6 @@ export interface FetcherOptions {
   fetch?: typeof fetch;
   /** Invoked with the error before it is re-thrown. */
   onError?: (err: ApiHttpError) => void;
-  /**
-   * Transforms the parsed JSON response body before it is returned. Applied
-   * only to `application/json` responses (not the text fallback or SSE).
-   * Serialization-agnostic seam: the `/superjson` subpath supplies
-   * `superjson.deserialize` here to revive `Date`/`Map`/`Set` etc. Default
-   * identity, so plain-JSON consumers are unaffected.
-   */
-  deserialize?: (raw: unknown) => unknown;
 }
 
 export interface Fetcher {
@@ -92,10 +84,7 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     if (res.status === 204) return undefined as T;
 
     const ct = res.headers.get('content-type') ?? '';
-    if (ct.includes('application/json')) {
-      const raw = (await res.json()) as unknown;
-      return (opts.deserialize ? opts.deserialize(raw) : raw) as T;
-    }
+    if (ct.includes('application/json')) return (await res.json()) as T;
     return (await res.text()) as unknown as T;
   }
 
