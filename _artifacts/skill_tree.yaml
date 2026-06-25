@@ -1,0 +1,33 @@
+# Flat skill tree — each entry type `core` (each package holds <5 skills, no router).
+structure: flat
+skills:
+  - name: inertia-module-setup
+    package: "@dudousxd/nestjs-inertia"
+    package_dir: packages/core
+    path: packages/core/skills/inertia-module-setup/SKILL.md
+    type: core
+  - name: inertia-prop-markers
+    package: "@dudousxd/nestjs-inertia"
+    package_dir: packages/core
+    path: packages/core/skills/inertia-prop-markers/SKILL.md
+    type: core
+  - name: inertia-forms-validation
+    package: "@dudousxd/nestjs-inertia"
+    package_dir: packages/core
+    path: packages/core/skills/inertia-forms-validation/SKILL.md
+    type: core
+  - name: inertia-typed-client
+    package: "@dudousxd/nestjs-inertia-client"
+    package_dir: packages/client
+    path: packages/client/skills/inertia-typed-client/SKILL.md
+    type: core
+  - name: inertia-typed-link
+    package: "@dudousxd/nestjs-inertia-client"
+    package_dir: packages/client
+    path: packages/client/skills/inertia-typed-link/SKILL.md
+    type: core
+  - name: inertia-vite-setup
+    package: "@dudousxd/nestjs-inertia-vite"
+    package_dir: packages/vite
+    path: packages/vite/skills/inertia-vite-setup/SKILL.md
+    type: core

@@ -1,0 +1,77 @@
+# Domain map for nestjs-inertia (autonomous discovery — no maintainer interview)
+# Generated for TanStack Intent agent-skill scaffolding.
+library: nestjs-inertia
+description: >-
+  Inertia.js v3 adapter for NestJS. TypeScript-first, multi-app via forFeature,
+  Express + Fastify, full Inertia protocol (partial reloads, deferred/merge/once/
+  scroll props, history encryption), CSRF, FlashStore-backed validation error bags,
+  a Tuyau-style typed HTTP client + codegen, and Vite dev/build helpers.
+
+monorepo: true
+package_manager: pnpm
+public_packages:
+  - name: "@dudousxd/nestjs-inertia"
+    dir: packages/core
+    version: 1.8.0
+    role: primary
+    summary: Core protocol + InertiaModule, InertiaService (req.inertia.render), @Inertia / @UseInertia decorators, Inertia.* prop markers, FlashStore + validation filter, CSRF, SSR, shell/template engines.
+  - name: "@dudousxd/nestjs-inertia-client"
+    dir: packages/client
+    version: 2.2.0
+    role: primary
+    summary: Tuyau-style typed client — defineContract, @As / @ApplyContract route naming + runtime validation, createFetcher, and typed <Link>/useForm/route-provider for React/Vue/Svelte that consume the generated api.ts + routes.
+  - name: "@dudousxd/nestjs-inertia-vite"
+    dir: packages/vite
+    version: 1.5.0
+    role: primary
+    summary: setupInertiaVite middleware-mode dev/prod static serving + nestInertia() Vite plugin (single framework flag, codegen HMR, manifest build).
+  - name: "@dudousxd/nestjs-inertia-testing"
+    dir: packages/testing
+    version: 1.6.0
+    role: secondary
+    summary: expectInertia/assertInertia matchers, fake req/res, InertiaTestingModule. Not covered by skills (test-only helper, narrow surface).
+  - name: "@dudousxd/nestjs-inertia-codegen-extension"
+    dir: packages/codegen-extension
+    version: 0.2.0
+    role: secondary
+    summary: nestjs-codegen extension adding router import + navigate() to api.ts. Depends on external @dudousxd/nestjs-codegen; tiny surface. Not covered by skills.
+
+primary_packages_for_skills:
+  - packages/core
+  - packages/client
+  - packages/vite
+
+domains:
+  - id: module-setup
+    package: packages/core
+    summary: Wiring InertiaModule (forRoot / forRootAsync / forFeature), rootView shell, controllers, @Inertia decorator vs imperative req.inertia.render, multi-app scopes via @UseInertia.
+    key_symbols: [InertiaModule.forRoot, InertiaModule.forRootAsync, InertiaModule.forFeature, InertiaService, "@Inertia", UseInertia, InertiaModuleOptions]
+  - id: prop-markers
+    package: packages/core
+    summary: Shared props + lazy/deferred/merge/once/scroll prop resolution semantics across full and partial reloads.
+    key_symbols: [Inertia.always, Inertia.optional, Inertia.defer, Inertia.merge, Inertia.once, Inertia.scroll, "InertiaService.share"]
+  - id: forms-validation
+    package: packages/core
+    summary: FlashStore adapter contract + InertiaValidationFilter auto error-bag flash + 303 redirect-back, flash() general data, inertiaValidationExceptionFactory.
+    key_symbols: [FlashStore, InertiaValidationFilter, inertiaValidationExceptionFactory, "InertiaService.flash", "InertiaService.location", InertiaModuleOptions.validation]
+  - id: typed-client
+    package: packages/client
+    summary: Server-side contract naming/validation + browser-side typed fetch. defineContract, @As, @ApplyContract, ContractValidationPipe, createFetcher, generated api.ts queryOptions/mutationOptions/queryKey.
+    key_symbols: [defineContract, As, ApplyContract, ContractValidationPipe, createFetcher, setGlobalHeaders, ApiHttpError]
+  - id: typed-link
+    package: packages/client
+    summary: React route provider + typed <Link>/useForm wired to generated route() resolver.
+    key_symbols: [InertiaRouteProvider, useInertiaRoutes, Link, useForm, useTypedReload]
+  - id: vite-setup
+    package: packages/vite
+    summary: Dev middleware-mode Vite + prod static serving (setupInertiaVite) and the nestInertia() build plugin.
+    key_symbols: [setupInertiaVite, nestInertia, NestInertiaPluginOptions, InvalidViteConfigException]
+
+# What a maintainer interview would have surfaced but could not be confirmed autonomously.
+gaps:
+  - Relative priority/severity of AI-agent failure modes is inferred from source guards and JSDoc, not confirmed by a maintainer.
+  - GitHub issues were not mined (no network/gh access verified in this run); real-world failure modes beyond those guarded in source are unknown.
+  - The core README documents InertiaAuthGuard and InertiaNotFoundFilter under "Opt-in utilities", but neither symbol is exported from packages/core/src/index.ts nor present in core src. Treated as not-shipped and excluded from skills.
+  - The generated codegen output (api.ts, routes.ts, forms.ts, pages.d.ts) lives in a downstream consumer's .nestjs-inertia/ dir produced by the external @dudousxd/nestjs-codegen + the codegen-extension; exact generated symbol shapes are documented from READMEs/JSDoc, not from a generated fixture in this repo.
+  - examples/* directories are empty in this checkout (only build artifacts gitignored), so no end-to-end controller/page fixtures were available; controller snippets are grounded in core README + source instead.
+  - No confirmation of intended production defaults for SSR streaming, history encryption, or diagnostics beyond the documented option defaults.

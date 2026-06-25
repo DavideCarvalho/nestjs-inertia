@@ -25,7 +25,7 @@
       }
     }
   },
-  "files": ["dist/", "README.md", "CHANGELOG.md"],
+  "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
   "dependencies": {
     "@dudousxd/nestjs-diagnostics": "^0.2.0"
   },
@@ -112,5 +112,14 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["nestjs", "inertia", "inertia.js", "ssr", "react", "vue", "svelte"]
+  "keywords": [
+    "nestjs",
+    "inertia",
+    "inertia.js",
+    "ssr",
+    "react",
+    "vue",
+    "svelte",
+    "tanstack-intent"
+  ]
 }
