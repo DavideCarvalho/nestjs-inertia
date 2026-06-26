@@ -85,7 +85,8 @@
     "src/svelte/Deferred.svelte",
     "src/svelte/WhenVisible.svelte",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "skills"
   ],
   "scripts": {
     "build": "tsup && cp src/svelte/Link.svelte src/svelte/Deferred.svelte src/svelte/WhenVisible.svelte dist/svelte/",
@@ -157,5 +158,6 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "keywords": ["tanstack-intent"]
 }

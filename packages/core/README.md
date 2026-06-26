@@ -218,21 +218,13 @@ InertiaModule.forRoot({
 ## Opt-in utilities
 
 ```ts
-import {
-  InertiaAuthGuard,
-  InertiaNotFoundFilter,
-  ErrorBagInterceptor,
-} from '@dudousxd/nestjs-inertia';
-
-// Auth guard — applies per controller / handler
-@UseGuards(new InertiaAuthGuard({ signInUrl: '/signin', allowList: ['/signin/*'] }))
-
-// Not-found filter — register globally
-app.useGlobalFilters(new InertiaNotFoundFilter({ apiPrefix: '/api', component: 'NotFound' }));
+import { ErrorBagInterceptor } from '@dudousxd/nestjs-inertia';
 
 // Error bag interceptor — opt-in per route
 @UseInterceptors(ErrorBagInterceptor)
 ```
+
+> Auth-redirect guards and not-found filters are not shipped exports — build your own following the [auth-redirect](https://github.com/dudousxd/nestjs-inertia) and not-found recipes.
 
 ## FlashStore (errors)
 
