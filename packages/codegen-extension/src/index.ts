@@ -1,4 +1,23 @@
-import type { CodegenExtension } from '@dudousxd/nestjs-codegen/extension';
+import type { CodegenExtension, EmittedFile } from '@dudousxd/nestjs-codegen/extension';
+import { buildPageExcludesFile } from './page-excludes.js';
+import { type SharedPropsSource, buildSharedFile } from './shared-props.js';
+
+export type { SharedPropsSource } from './shared-props.js';
+
+/**
+ * Options for {@link nestjsInertiaCodegen}. Both are opt-in and additive to the always-on
+ * `apiHeader` contribution — calling `nestjsInertiaCodegen()` with no arguments emits no
+ * files, exactly as before this option object was introduced.
+ */
+export type NestjsInertiaCodegenOptions = {
+  /** Emit `shared.ts` (the `InertiaSharedProps` type), sourced from an explicit module + export. */
+  shared?: SharedPropsSource;
+  /**
+   * Emit `page-excludes.ts` — every `@Inertia` page route (path + method), for feeding
+   * `setGlobalPrefix('api', { exclude })`. Throws if enabled but zero pages are discovered.
+   */
+  pageExcludes?: boolean;
+};
 
 const NAVIGATE_OPTIONS = `export type NavigateOptions = {
   method?: string;
@@ -31,8 +50,15 @@ export function navigate<K extends RouteName>(
  *
  * (Inertia page discovery — `pages.d.ts`/`components.json` — is still handled by the core
  * `pages` config; this extension owns the `api.ts` Inertia surface.)
+ *
+ * Optionally emits extra files via `emitFiles`, each independently opt-in:
+ * - `shared`: `shared.ts` — the `InertiaSharedProps` type, sourced from an explicit module.
+ * - `pageExcludes: true`: `page-excludes.ts` — every `@Inertia` page route, for
+ *   `setGlobalPrefix('api', { exclude })`.
+ *
+ * With no options (or both omitted), no files are emitted — only `apiHeader` runs.
  */
-export function nestjsInertiaCodegen(): CodegenExtension {
+export function nestjsInertiaCodegen(options: NestjsInertiaCodegenOptions = {}): CodegenExtension {
   const ext: CodegenExtension = {
     name: 'nestjs-inertia',
     apiHeader() {
@@ -42,6 +68,18 @@ export function nestjsInertiaCodegen(): CodegenExtension {
       };
     },
   };
+
+  if (options.shared || options.pageExcludes) {
+    const sharedSource = options.shared;
+    const pageExcludesEnabled = options.pageExcludes;
+    ext.emitFiles = (ctx) => {
+      const files: EmittedFile[] = [];
+      if (sharedSource) files.push(buildSharedFile(sharedSource, ctx));
+      if (pageExcludesEnabled) files.push(buildPageExcludesFile(ctx));
+      return files;
+    };
+  }
+
   return ext;
 }
 
