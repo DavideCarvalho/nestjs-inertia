@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Inertia.js adapter for NestJS — core protocol and module.",
   "license": "MIT",
   "repository": {
