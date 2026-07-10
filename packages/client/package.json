@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-client",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Tuyau-style typed HTTP client for @dudousxd/nestjs-inertia, built on TanStack Query v5 core.",
   "license": "MIT",
   "repository": {

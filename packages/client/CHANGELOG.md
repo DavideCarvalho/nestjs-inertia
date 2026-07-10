@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-client
 
+## 2.2.1
+
+### Patch Changes
+
+- [#37](https://github.com/DavideCarvalho/nestjs-inertia/pull/37) [`605c1f7`](https://github.com/DavideCarvalho/nestjs-inertia/commit/605c1f78189664556001e3504614cebd9327e107) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - Ship TanStack Intent agent skills (SKILL.md) inside the package.
+
 ## 2.2.0
 
 ### Minor Changes

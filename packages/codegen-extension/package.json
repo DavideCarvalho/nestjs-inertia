@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-codegen-extension",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "nestjs-codegen extension for @dudousxd/nestjs-inertia — adds the Inertia navigate() helper to the generated api.ts, plus opt-in shared.ts and page-excludes.ts emission.",
   "repository": {
     "type": "git",
