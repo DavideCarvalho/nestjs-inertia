@@ -1,7 +1,7 @@
 {
   "name": "@dudousxd/nestjs-inertia-codegen-extension",
   "version": "0.2.0",
-  "description": "nestjs-codegen extension for @dudousxd/nestjs-inertia — adds the Inertia navigate() helper to the generated api.ts.",
+  "description": "nestjs-codegen extension for @dudousxd/nestjs-inertia — adds the Inertia navigate() helper to the generated api.ts, plus opt-in shared.ts and page-excludes.ts emission.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DavideCarvalho/nestjs-inertia.git",
@@ -27,11 +27,15 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@dudousxd/nestjs-codegen": ">=0.1.0",
+    "@dudousxd/nestjs-codegen": ">=0.2.1",
     "@inertiajs/react": ">=1.0.0"
   },
+  "dependencies": {
+    "ts-morph": "28.0.0"
+  },
   "devDependencies": {
-    "@dudousxd/nestjs-codegen": "0.2.1",
+    "@dudousxd/nestjs-codegen": "0.13.2",
+    "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
     "vitest": "^4.1.0"
   },
