@@ -25,7 +25,7 @@ Install the suite, plus your framework's Inertia adapter and Vite plugin (React 
 
 ```bash
 pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-pnpm add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
+pnpm add -D @dudousxd/nestjs-inertia-cli @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
 pnpm add @inertiajs/react@^3.0.0 react react-dom
 pnpm add -D @types/react @types/react-dom @vitejs/plugin-react
 ```
@@ -33,13 +33,13 @@ pnpm add -D @types/react @types/react-dom @vitejs/plugin-react
 </Step>
 <Step>
 
-Run `init` — it detects your frontend framework and template engine, scaffolds the HTML shell, Vite config, entry point, a sample page, and auto-patches your `app.module.ts` and `main.ts`:
+Run `init` — it detects your frontend framework, scaffolds the HTML shell, Vite config + entry point, and the shared codegen config, then prints the exact snippets to paste — `InertiaModule.forRoot({ rootView, codegen: { enabled: false } })` in `app.module.ts` and `setupInertiaVite(app, {...})` in `main.ts`:
 
 ```bash
 pnpm exec nestjs-inertia init
 ```
 
-Every create and patch is idempotent, so it's safe to re-run. If `init` can't parse your bootstrap files, it prints the exact snippets to add by hand — `InertiaModule.forRoot({ rootView })` in `app.module.ts` and `setupInertiaVite(app, {...})` in `main.ts`.
+Every create is idempotent, so it's safe to re-run — existing files are never overwritten without `--force`, and `--dry-run` previews the writes. Later, `nestjs-inertia doctor` diagnoses your setup.
 
 </Step>
 <Step>

@@ -1,0 +1,17 @@
+{
+  // Intentionally CJS-only (mirrors nestjs-durable's CLI). This is a bin executable + a tiny
+  // programmatic API for tests, not a library consumers `import` in app code — it runs via
+  // `npx nestjs-inertia`. Dual-publishing a bin adds multi-entry build complexity and
+  // shebang/resolution risk for no consumer benefit, so it stays on a plain `tsc` CJS build.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "dist", "node_modules"]
+}

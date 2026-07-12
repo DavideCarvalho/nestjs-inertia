@@ -6,7 +6,7 @@ description: Add Inertia.js to an existing NestJS project in minutes -- install 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-The fastest way to get Inertia.js running in NestJS is two steps: install the packages, then run `nestjs-inertia init`. The init command scaffolds all files and auto-patches your existing `app.module.ts` and `main.ts`. Most projects are done in under three minutes.
+The fastest way to get Inertia.js running in NestJS is two steps: install the packages, then run `nestjs-inertia init` (from `@dudousxd/nestjs-inertia-cli`). The init command scaffolds the config files and prints the exact `app.module.ts` and `main.ts` wiring to paste. Most projects are done in under three minutes.
 
 ---
 
@@ -27,19 +27,19 @@ Install the five packages that make up the suite:
   <Tab value="pnpm">
     ```bash
     pnpm add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-    pnpm add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
+    pnpm add -D @dudousxd/nestjs-inertia-cli @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
     ```
   </Tab>
   <Tab value="npm">
     ```bash
     npm install @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-    npm install --save-dev @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
+    npm install --save-dev @dudousxd/nestjs-inertia-cli @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
     ```
   </Tab>
   <Tab value="yarn">
     ```bash
     yarn add @dudousxd/nestjs-inertia @dudousxd/nestjs-inertia-vite @dudousxd/nestjs-inertia-client
-    yarn add -D @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
+    yarn add -D @dudousxd/nestjs-inertia-cli @dudousxd/nestjs-codegen @dudousxd/nestjs-inertia-codegen-extension @dudousxd/nestjs-inertia-testing
     ```
   </Tab>
 </Tabs>
@@ -93,63 +93,52 @@ Then install your framework's Inertia adapter and Vite plugin:
   </Tab>
 </Tabs>
 
-This command detects your frontend framework from `package.json` (or asks interactively), detects your template engine (Handlebars, EJS, Pug, Liquid, or plain HTML), and scaffolds everything in one shot.
+This command detects your frontend framework from `package.json` (pass `--framework react|vue|svelte` to override) and scaffolds the config files in one shot.
 
 ### Files created by init
 
 | File | What it is |
 |---|---|
-| `nestjs-codegen.config.ts` | Codegen config (with `nestjsInertiaCodegen()` registered) and a framework-specific page glob |
-| `nestjs-inertia.d.ts` | TypeScript module augmentation for generated types |
-| `inertia/index.html` (or `.hbs`/`.ejs`/`.pug`) | HTML shell with the Inertia page script tag |
-| `vite.config.ts` | Vite config with the correct framework plugin |
+| `nestjs-codegen.config.ts` | Shared codegen config (with `nestjsInertiaCodegen()` registered) exported as ONE object -- import it into `NestjsCodegenModule.forRoot` too, so the CLI and module entrypoints never drift |
+| `nestjs-inertia.d.ts` | Stub for handwritten registry augmentations (codegen writes the generated ones into `.nestjs-inertia/pages.d.ts`) |
+| `inertia/index.html` | HTML shell with the `@inertia` / `@inertiaHead` / `@vite` directives |
 | `inertia/app.tsx` (or `.ts`) | Frontend entry point bootstrapping `createInertiaApp` |
-| `inertia/pages/Home.tsx` (or `.vue`/`.svelte`) | Sample page component |
-| `src/home.controller.ts` | Sample NestJS controller with `@Inertia('Home')` |
+| `vite.config.ts` | Vite config with the framework plugin + `nestInertia` plugin + `@`/`~`/`~codegen` aliases |
+| `.gitignore` | Created or appended with `.nestjs-inertia/` |
 
-### Files patched by init
+`init` then prints the manual wiring as next steps: the `InertiaModule.forRoot(...)` registration snippet (with `codegen: { enabled: false }`), the `setupInertiaVite` bootstrap for `main.ts`, and the `codegen` / `build:client` scripts to add to `package.json` -- see Step 3 below.
 
-| File | Patch |
-|---|---|
-| `src/app.module.ts` | Adds `InertiaModule.forRoot(...)` to `imports` and `HomeController` to `controllers` |
-| `src/main.ts` | Inserts `setupInertiaVite(app, {...})` after `NestFactory.create` |
-| `.gitignore` | Appends `.nestjs-inertia/` |
-| `package.json` | Adds `build:client` and `build:ssr` scripts |
-
-Every create and patch is idempotent. Re-running `init` on an existing project skips files that already exist and skips patches already applied.
+Every create is idempotent: re-running `init` skips files that already exist (pass `--force` to overwrite), and `--dry-run` previews what would be written without touching anything.
 
 <Callout type="info">
-  If `vite.config.ts` exists but doesn't reference the `nestInertia` plugin, a warning is printed instead of overwriting your config.
+  If `vite.config.ts` already exists it is left untouched. Run `nestjs-inertia doctor` afterwards to verify it references the `nestInertia` plugin.
 </Callout>
-
-**Done.** Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Step 3 -- Manual setup (if auto-patching fails)
+## Step 3 -- Wire the module and Vite
 
-If `init` cannot find or parse your `app.module.ts` or `main.ts` (non-standard structure), it prints a warning with the exact snippet to add manually.
+`init` prints these exact snippets; paste them into your app.
 
-**`src/app.module.ts`** -- register `InertiaModule` and `HomeController`:
+**`src/app.module.ts`** -- register `InertiaModule` (note `codegen: { enabled: false }` -- the module's legacy auto-watch targets the old codegen package; the `nestjs-codegen` CLI replaces it, see the [Codegen guide](/docs/guides/codegen#auto-watch)):
 
 ```ts
 import { resolve } from 'node:path';
 import { InertiaModule } from '@dudousxd/nestjs-inertia';
-import { HomeController } from './home.controller.js';
 
 @Module({
   imports: [
     InertiaModule.forRoot({
       rootView: resolve(__dirname, '../inertia/index.html'),
+      codegen: { enabled: false },
     }),
   ],
-  controllers: [HomeController],
 })
 export class AppModule {}
 ```
 
 <Callout type="info" title="Why resolve(__dirname)?">
-  The compiled code runs from `dist/src/`, not the project root. Using `resolve(__dirname, '..')` ensures the path resolves correctly both locally and in Docker (where only `dist/` is shipped). The `init` command also patches `nest-cli.json` to copy the shell template into `dist/` during build.
+  The compiled code runs from `dist/src/`, not the project root. Using `resolve(__dirname, '..')` ensures the path resolves correctly both locally and in Docker (where only `dist/` is shipped). Add an asset entry for `inertia/` in `nest-cli.json` (`compilerOptions.assets`) so `nest build` copies the shell template into `dist/`.
 </Callout>
 
 **`src/main.ts`** -- wire Vite after `NestFactory.create`:
@@ -167,6 +156,8 @@ await setupInertiaVite(app, {
 
 await app.listen(3000);
 ```
+
+**Done.** Run `nest start --watch` and open [http://localhost:3000](http://localhost:3000). Verify the setup any time with `nestjs-inertia doctor`.
 
 ---
 
@@ -301,13 +292,13 @@ your-project/
 For CI or Docker builds, run codegen explicitly before TypeScript compilation:
 
 ```bash
-pnpm exec nestjs-inertia codegen
+pnpm exec nestjs-codegen
 pnpm exec tsc --noEmit
 pnpm run build
 ```
 
 <Callout type="warn" title="Docker deployments">
-  If your Dockerfile only copies `dist/` to the runtime image, the shell template (e.g. `inertia/index.html`) won't be available. The `init` command patches `nest-cli.json` to copy it into `dist/` during `nest build`, and generates `rootView` with `resolve(__dirname, ...)` so the path resolves correctly from the compiled output. Run `nestjs-inertia doctor` to verify your setup.
+  If your Dockerfile only copies `dist/` to the runtime image, the shell template (e.g. `inertia/index.html`) won't be available. Add an asset entry for `inertia/` in `nest-cli.json` so `nest build` copies it into `dist/`, and write `rootView` with `resolve(__dirname, ...)` so the path resolves correctly from the compiled output. Run `nestjs-inertia doctor` to verify your setup.
 </Callout>
 
 See the [Codegen guide](/docs/guides/codegen) for full configuration and generated file reference.
@@ -483,7 +474,7 @@ See the [Testing guide](/docs/guides/testing) for the full API, `TestingModule` 
 
 ## Production build
 
-The `init` command adds `build:client` and `build:ssr` scripts to `package.json`. The full production build sequence:
+The `init` command prints the `build:client` script to add to `package.json` (add a `build:ssr` variant with `vite build --ssr` if you enable SSR). The full production build sequence:
 
 ```bash
 pnpm run build:client   # vite build -- emits client bundle + manifest
@@ -501,14 +492,14 @@ In production `setupInertiaVite` switches from dev-server middleware to static-f
 ```
 my-nestjs-app/
 ├── src/
-│   ├── main.ts                   ← NestJS bootstrap + setupInertiaVite (patched by init)
-│   ├── app.module.ts             ← InertiaModule.forRoot(...) (patched by init)
-│   └── home.controller.ts        ← @Inertia('Home') handler (created by init)
+│   ├── main.ts                   ← NestJS bootstrap + setupInertiaVite (snippet printed by init)
+│   ├── app.module.ts             ← InertiaModule.forRoot(...) (snippet printed by init)
+│   └── home.controller.ts        ← your @Inertia('Home') handler
 ├── inertia/
 │   ├── app.tsx                   ← createInertiaApp entry (created by init)
 │   ├── index.html                ← HTML shell with Inertia page script (created by init)
 │   └── pages/
-│       └── Home.tsx              ← sample page (created by init)
+│       └── Home.tsx              ← your page components
 ├── .nestjs-inertia/              ← generated (gitignored)
 │   ├── pages.d.ts
 │   ├── routes.ts

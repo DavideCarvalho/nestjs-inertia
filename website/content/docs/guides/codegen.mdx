@@ -532,17 +532,13 @@ Reruns whenever a controller or page file changes. When both the auto-watcher an
 
 ## Doctor command
 
-The `nestjs-inertia doctor` command (from `@dudousxd/nestjs-inertia`) checks tsconfig paths, codegen output, package versions, Inertia v3, `.gitignore`, and Vite config.
+The `nestjs-inertia doctor` command (from [`@dudousxd/nestjs-inertia-cli`](/docs/getting-started)) diagnoses the known setup pitfalls: `InertiaModule` registration, the legacy auto-watch left enabled (`codegen: { enabled: false }` missing), CLI/module codegen config drift, root view shell + Vite entry + `nestInertia` plugin, the Vite client manifest after a build, `@dudousxd/nestjs-inertia >= 1.4.4` (streaming fix), the flat registry `.d.ts` shape, peer version coherence, and `.gitignore`.
 
 ```bash
 pnpm exec nestjs-inertia doctor
 ```
 
-To auto-fix issues:
-
-```bash
-pnpm exec nestjs-inertia doctor --fix
-```
+Each check prints pass/warn/fail with a one-line fix pointer to the relevant docs page; the command exits `1` when any check fails.
 
 ---
 

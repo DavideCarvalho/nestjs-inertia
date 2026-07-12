@@ -1,0 +1,30 @@
+{
+  "name": "@dudousxd/nestjs-inertia-cli",
+  "version": "0.0.0",
+  "description": "Onboarding CLI for @dudousxd/nestjs-inertia — scaffold a project with `init`, diagnose setup pitfalls with `doctor`.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DavideCarvalho/nestjs-inertia.git",
+    "directory": "packages/cli"
+  },
+  "author": "Davi Carvalho <davi@goflip.ai>",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nestjs-inertia": "dist/bin.js"
+  },
+  "files": ["dist", "README.md", "CHANGELOG.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.0"
+  }
+}
