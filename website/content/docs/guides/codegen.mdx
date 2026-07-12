@@ -480,15 +480,15 @@ type CreateBody   = Path.Body<'POST', '/api/users'>;
 
 ## Auto-watch
 
-When `@dudousxd/nestjs-codegen` is installed and a `nestjs-codegen.config.ts` is present, `InertiaModule` starts the codegen watcher automatically on bootstrap in dev mode. Run your usual `nest start --watch` and the generated files appear under `.nestjs-inertia/` on every controller or page save. No extra command, no extra terminal.
+`InertiaModule` can start a codegen file watcher automatically on bootstrap in dev mode, so `nest start --watch` alone regenerates files on every controller or page save — no extra command, no extra terminal.
 
 Auto-watch starts when all of these are true:
 
 | Condition | Value |
 |-----------|-------|
 | `NODE_ENV` | not `'production'` |
-| `@dudousxd/nestjs-codegen` | installed |
-| `nestjs-codegen.config.ts` | present at project root |
+| `@dudousxd/nestjs-inertia-codegen` | resolvable (dynamically imported; peer-optional) |
+| `nestjs-inertia.config.ts` | loadable at project root |
 | `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` | not set to `'1'` |
 
 Disable auto-watch in the module:
@@ -500,6 +500,10 @@ InertiaModule.forRoot({
 ```
 
 Or set `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1` in your shell.
+
+<Callout type="warn">
+  This auto-watch integration predates the `@dudousxd/nestjs-codegen` extraction and still targets the legacy `@dudousxd/nestjs-inertia-codegen` package name, not `@dudousxd/nestjs-codegen`. If you only installed `@dudousxd/nestjs-codegen` (the current, supported codegen — see [Install](#install) above), the auto-watch import will fail to resolve and log a warning; it does not block boot. Run the CLI watcher explicitly instead — see [CLI watch mode](#cli-watch-mode) below — or set `codegen: { enabled: false }` to silence the warning.
+</Callout>
 
 <Callout type="info">
   If your server bundle imports generated files (e.g. route helpers from `.nestjs-inertia/routes.ts`), add this to `nest-cli.json`:

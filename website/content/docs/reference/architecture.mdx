@@ -3,6 +3,8 @@ title: Architecture
 description: Package responsibilities, dependency graph, and request lifecycle for nestjs-inertia.
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout';
+
 Five focused packages that together implement the [Inertia.js](https://inertiajs.com/) protocol for NestJS.
 
 ## Package map
@@ -44,6 +46,10 @@ Five focused packages that together implement the [Inertia.js](https://inertiajs
                                                   └──────────────────────────┘
 ```
 
+<Callout type="info">
+  The `nestjs-inertia-codegen` box above is this repo's `@dudousxd/nestjs-inertia-codegen-extension` package. It does not run the CLI or emit files itself — it registers into the external [`@dudousxd/nestjs-codegen`](https://github.com/DavideCarvalho/nestjs-codegen) engine (which owns discovery, `pages.d.ts`/`routes.ts`/`api.ts` emission, the CLI, and `--watch`) and contributes the Inertia `router` import + typed `navigate()` helper to the generated `api.ts`. See [Codegen package](/docs/packages/codegen).
+</Callout>
+
 ## Package responsibilities
 
 ### core (`@dudousxd/nestjs-inertia`)
@@ -56,7 +62,7 @@ Five focused packages that together implement the [Inertia.js](https://inertiajs
 - `CsrfCookieInterceptor` / `CsrfGuard` for CSRF protection.
 - `RedirectInterceptor` converts 302 to 303 for PUT/PATCH/DELETE per the Inertia protocol.
 - `MethodSpoofMiddleware` enables `_method` field support for HTML forms.
-- Auto-starts codegen watcher in development when `@dudousxd/nestjs-codegen` is installed.
+- Can auto-start a codegen watcher in development (`codegen: { enabled }`) — see [Auto-watch](/docs/guides/codegen#auto-watch) for the exact conditions.
 
 ### vite (`@dudousxd/nestjs-inertia-vite`)
 

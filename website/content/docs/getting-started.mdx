@@ -285,7 +285,7 @@ No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
 
 ## Codegen
 
-Codegen runs automatically. When `@dudousxd/nestjs-codegen` is installed and a `nestjs-codegen.config.ts` is present, the watcher starts on `nest start --watch` and regenerates types on every controller/page change. Disabled automatically in production.
+Run `pnpm nestjs-codegen --watch` alongside `nest start --watch` to regenerate types on every controller/page change. `InertiaModule` can also auto-start a watcher on bootstrap in dev mode — see [Auto-watch](/docs/guides/codegen#auto-watch) for the exact conditions and a caveat about the package it currently targets. Either way, codegen is disabled automatically in production.
 
 On startup the watcher emits files into `.nestjs-inertia/` at the project root:
 

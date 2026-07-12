@@ -6,6 +6,7 @@ sidebar:
 ---
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## Install core + Vite
 
@@ -122,3 +123,7 @@ Install only what you need.
 ## Engine requirements
 
 All packages require **Node.js >= 20**. NestJS 10 and 11 are both supported.
+
+<Callout type="warn" title="@dudousxd/nestjs-inertia >= 1.4.4 for streaming responses">
+  `InertiaMiddleware` runs on every request matched by its route registration — not just Inertia renders — and patches the response object to suppress writes after headers are sent. Versions before **1.4.4** gated `res.end()` on `res.headersSent`, which swallowed the final `end()` call on streaming responses (SSE, NDJSON, file downloads) that flush headers before streaming the body. The connection would then hang until the client/proxy idle timeout (`ERR_HTTP2_PROTOCOL_ERROR` behind an ALB). If your app serves any streaming HTTP responses alongside Inertia pages, pin `@dudousxd/nestjs-inertia` to `>= 1.4.4`.
+</Callout>
