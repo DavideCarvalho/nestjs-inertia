@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Onboarding CLI for @dudousxd/nestjs-inertia — scaffold a project with `init`, diagnose setup pitfalls with `doctor`.",
   "license": "MIT",
   "repository": {
