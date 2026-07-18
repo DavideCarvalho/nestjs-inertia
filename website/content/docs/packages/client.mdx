@@ -1,5 +1,6 @@
 ---
 title: "@dudousxd/nestjs-inertia-client"
+icon: AppWindow
 description: Typed HTTP client, route naming, <Link> components, and SSR hydration.
 ---
 
@@ -30,10 +31,12 @@ End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus
 | Subpath | Contents |
 |---------|----------|
 | `@dudousxd/nestjs-inertia-client` | `@As`, `createFetcher`, `invalidate`, `buildUrl`, `defineContract`, `ApplyContract` |
-| `@dudousxd/nestjs-inertia-client/react` | `<Link>`, `InertiaRouteProvider`, `useInertiaRoutes()` |
-| `@dudousxd/nestjs-inertia-client/vue` | `<Link>`, `provideInertiaRoutes()`, `useInertiaRoutes()`, `INERTIA_ROUTES_KEY` |
-| `@dudousxd/nestjs-inertia-client/svelte` | `<Link>`, `provideInertiaRoutes()`, `useInertiaRoutes()` |
+| `@dudousxd/nestjs-inertia-client/react` | `<Link>`, `InertiaRouteProvider`, `useInertiaRoutes()`, `useForm`, `useTypedReload`, `useTypedPoll`, `prefetchRoute`, `<Deferred>`, `<WhenVisible>` |
+| `@dudousxd/nestjs-inertia-client/vue` | `<Link>`, `provideInertiaRoutes()`, `useInertiaRoutes()`, `INERTIA_ROUTES_KEY`, `useForm`, `useTypedReload`, `useTypedPoll`, `prefetchRoute`, `<Deferred>`, `<WhenVisible>` |
+| `@dudousxd/nestjs-inertia-client/svelte` | `<Link>`, `provideInertiaRoutes()`, `useInertiaRoutes()`, `useForm`, `useTypedReload`, `useTypedPoll`, `prefetchRoute`, `<Deferred>`, `<WhenVisible>` |
 | `@dudousxd/nestjs-inertia-client/ssr` | `hydrateClientFromInertia(page)`, `seedInitialQueries` |
+
+Every framework subpath exposes the same typed surface — only the import specifier changes.
 
 ## Key exports
 
@@ -46,8 +49,16 @@ End-to-end typed HTTP client that consumes the `api.ts` emitted by codegen, plus
 | `InertiaRouteProvider` (React) | Context provider; enables `<Link>` route resolution |
 | `provideInertiaRoutes()` (Vue/Svelte) | Provide the route resolver to child `<Link>` components |
 | `useInertiaRoutes()` | Hook to access the route resolver in any component |
+| `useForm(data)` | Typed wrapper over the official `useForm`; `data`/`errors` keyed by `TForm` ([Forms & Validation](/docs/guides/forms)) |
+| `useTypedReload()` | Typed partial reload with prop-name autocomplete |
+| `useTypedPoll(interval, opts?)` | Typed interval polling via Inertia's native `usePoll` |
+| `prefetchRoute(resolve, route, opts?)` | Imperatively prefetch a typed route via `router.prefetch` |
+| `<Deferred>` | Typed wrapper over `<Deferred>`; renders a fallback until a deferred prop arrives |
+| `<WhenVisible>` | Typed wrapper over `<WhenVisible>`; loads props when the element scrolls into view |
 | `hydrateClientFromInertia(page)` | SSR: initialize TanStack Query from Inertia initial-page data |
 
-See [Typed Client guide](/docs/guides/typed-client) for HTTP client usage.
+See [Typed Client guide](/docs/guides/typed-client) for the HTTP client, `useTypedPoll`, `prefetchRoute`, `<Deferred>`, and `<WhenVisible>`.
+
+See [Forms & Validation](/docs/guides/forms) for `useForm` and the server-side validation round-trip.
 
 See [Typed Link guide](/docs/guides/typed-link) for `<Link>` component usage across React, Vue, and Svelte.

@@ -1,9 +1,11 @@
 ---
 title: "@dudousxd/nestjs-inertia (core)"
+icon: Package
 description: Core NestJS module, @Inertia decorator, InertiaService, and version negotiation.
 ---
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
 
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
@@ -40,10 +42,14 @@ Implements the [Inertia.js](https://inertiajs.com/) protocol as a NestJS module.
 | `Inertia.optional(fn)` | Prop marker; resolved only when explicitly requested |
 | `Inertia.defer(fn, group?)` | Prop marker; deferred to a separate request |
 | `Inertia.merge(fn, opts?)` | Prop marker; appended/prepended on reload |
-| `Inertia.once(fn)` | Prop marker; resolved once, then cached |
+| `Inertia.once(fn, opts?)` | Prop marker; resolved once, then cached client-side |
+| `Inertia.scroll(fn, opts?)` | Prop marker; infinite-scroll pagination — inner `data` merged across visits with an announced cursor |
+| `InertiaValidationFilter` | Exception filter; flashes a field-keyed error bag and 303-redirects back on validation failure ([Forms & Validation](/docs/guides/forms)) |
+| `inertiaValidationExceptionFactory` | `ValidationPipe` exception factory that preserves nested field paths |
 | `ErrorBagInterceptor` | Namespaces `errors` by `X-Inertia-Error-Bag` header |
 | `CsrfCookieInterceptor` | Sets `XSRF-TOKEN` cookie and validates `X-XSRF-TOKEN` |
 | `CsrfGuard` | Guard-based CSRF validation |
+| `generateCsrfToken` / `verifyCsrfToken` / `rotateCsrfToken` | Standalone HMAC CSRF token functions (see [CSRF](#csrf)) |
 | `RedirectInterceptor` | Converts 302 to 303 for PUT/PATCH/DELETE per Inertia spec |
 | `MethodSpoofMiddleware` | `_method` field support for HTML form method spoofing |
 
@@ -59,3 +65,75 @@ InertiaModule.forRoot({
 ```
 
 See the [Getting Started](/docs/getting-started) guide for a full bootstrap example.
+
+## `InertiaService` runtime methods
+
+Inject `InertiaService` to drive a response programmatically. Beyond `render()`, it exposes the full set of Inertia protocol operations. The mutators (`share`, `encryptHistory`, `clearHistory`) return `this`, so they chain.
+
+| Method | Effect |
+|--------|--------|
+| `share(input)` | Merge extra props into the page's shared props for *this* response (object or a resolver function). Chainable. |
+| `flash(data)` / `flash(key, value)` | Flash non-error data for the **next** request (Laravel/Rails-style). Persisted via the configured `flashStore` and surfaced as the `flash` shared prop on the following render, then cleared. No-ops when no `flashStore` is set. |
+| `location(url)` | Perform an Inertia redirect: for Inertia XHR it sends **409** with `X-Inertia-Location`; for a plain browser visit it sends **302** `Location`. Only relative or same-origin absolute URLs are accepted (open-redirect safe). |
+| `encryptHistory(value = true)` | Ask the client to encrypt this page's history entry (protects props cached in `history.state`). Chainable. |
+| `clearHistory()` | Tell the client to clear its encrypted history cache — call it after logout/session changes. Chainable. |
+
+```ts title="account.controller.ts"
+@Controller('account')
+export class AccountController {
+  constructor(private readonly inertia: InertiaService) {}
+
+  @Post('logout')
+  async logout() {
+    await this.inertia.flash('status', 'signed-out');
+    // wipe any encrypted history, then bounce to /login (409 for XHR, 302 for a full visit)
+    this.inertia.clearHistory().location('/login');
+  }
+
+  @Get('secret')
+  async secret() {
+    // encrypt this entry's history and add a per-response shared prop
+    this.inertia
+      .encryptHistory()
+      .share({ banner: 'Confidential' });
+    await this.inertia.render('account/secret', { balance: 4200 });
+  }
+}
+```
+
+<Callout type="info">
+`flash()` and the validation error bag both ride on the configured `flashStore`. Wire one up (any store implementing `writeFlash` / `write`) to enable both — see [Forms & Validation](/docs/guides/forms).
+</Callout>
+
+## CSRF
+
+`CsrfGuard` and `CsrfCookieInterceptor` are the drop-in pair (issue an `XSRF-TOKEN` cookie, validate the `X-XSRF-TOKEN` header). Under them sits a **standalone, DI-free HMAC token API** you can call directly — for custom middleware, a login handler, or tests:
+
+| Export | Signature | Purpose |
+|--------|-----------|---------|
+| `generateCsrfToken` | `(secret, context?) => string` | Mint a token. With a `context` (e.g. session id), it's bound into the HMAC as `raw.ctx.sig`, so the token dies when the context changes. |
+| `verifyCsrfToken` | `(token, secret, context?) => boolean` | Constant-time verify. Returns `false` (never throws) on any malformed/mismatched token. |
+| `rotateCsrfToken` | `(res, options, context?) => void` | Write a fresh token cookie onto the response — call after a session principal change to prevent fixation. |
+
+Both `CsrfGuardOptions` and `CsrfCookieOptions` accept a `secret`, optional `cookieName` (default `XSRF-TOKEN`) / `headerName` (default `X-XSRF-TOKEN`), and an optional `tokenContext: (req) => string` — supply the **same** `tokenContext` to the guard and the interceptor so issued and verified tokens agree.
+
+```ts title="auth.controller.ts"
+import { generateCsrfToken, rotateCsrfToken, verifyCsrfToken } from '@dudousxd/nestjs-inertia';
+
+// bind the token to the session so old tokens stop verifying after re-login
+const token = generateCsrfToken(secret, req.session.id);
+verifyCsrfToken(token, secret, req.session.id); // true
+
+// after issuing a new session, rotate the cookie to kill fixation
+rotateCsrfToken(res, { secret, sameSite: 'lax' }, req.session.id);
+```
+
+```ts title="app.module.ts — the guard/interceptor pair"
+const tokenContext = (req: { session?: { id?: string } }) => req.session?.id ?? '';
+
+{
+  provide: APP_GUARD,
+  useValue: new CsrfGuard({ secret: process.env.CSRF_SECRET!, tokenContext }),
+}
+// paired with a CsrfCookieInterceptor that shares the same secret + tokenContext
+```

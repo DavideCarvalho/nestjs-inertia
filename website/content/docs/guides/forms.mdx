@@ -1,0 +1,214 @@
+---
+title: Forms & Validation
+icon: ListChecks
+description: The full round-trip — the typed useForm hook on the client, class-validator DTOs on the server, and the InertiaValidationFilter that flashes a field-keyed error bag back into form.errors, byte-for-byte aligned with your field names.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
+Inertia forms are a **round-trip**: the client submits with `useForm`, the server validates with a class-validator DTO, and — when validation fails — the errors come back keyed by the exact same field names the form used, ready to render under each input. `nestjs-inertia` wires both ends so those keys line up with **no manual mapping**.
+
+<Callout type="info">
+The key idea: the server flattens class-validator errors into a flat, field-keyed bag (`items.0.qty`) that matches Inertia's `FormDataKeys<TForm>` — so `form.errors` is fully typed against your form shape, and nested paths survive intact.
+</Callout>
+
+## The client: `useForm`
+
+`useForm` is the primary form primitive, exported from each framework subpath (`/react`, `/vue`, `/svelte`). It's a thin **type** layer over the official `@inertiajs/*` hook — at runtime it delegates verbatim, so every Inertia v2 ergonomic (precognition, `transform`, `defaults`/`setDefaults`, progress) is preserved. What it adds is end-to-end typing: `data`, `errors`, `reset`, `clearErrors`, and `setError` are all keyed by the fields of `TForm`.
+
+<Tabs items={['React', 'Vue', 'Svelte']}>
+<Tab value="React">
+
+```tsx title="login.tsx"
+import { useForm } from '@dudousxd/nestjs-inertia-client/react';
+
+export function Login() {
+  const form = useForm({ email: '', password: '' });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    form.post('/login'); // errors flow back into form.errors automatically
+  };
+
+  return (
+    <form onSubmit={submit}>
+      <input value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />
+      {form.errors.email && <span className="error">{form.errors.email}</span>}
+
+      <input type="password" value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} />
+      {form.errors.password && <span className="error">{form.errors.password}</span>}
+
+      <button disabled={form.processing}>Sign in</button>
+    </form>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue title="Login.vue"
+<script setup lang="ts">
+import { useForm } from '@dudousxd/nestjs-inertia-client/vue';
+
+const form = useForm({ email: '', password: '' });
+const submit = () => form.post('/login');
+</script>
+
+<template>
+  <form @submit.prevent="submit">
+    <input v-model="form.email" />
+    <span v-if="form.errors.email" class="error">{{ form.errors.email }}</span>
+
+    <input type="password" v-model="form.password" />
+    <span v-if="form.errors.password" class="error">{{ form.errors.password }}</span>
+
+    <button :disabled="form.processing">Sign in</button>
+  </form>
+</template>
+```
+
+</Tab>
+<Tab value="Svelte">
+
+```svelte title="Login.svelte"
+<script lang="ts">
+  import { useForm } from '@dudousxd/nestjs-inertia-client/svelte';
+  const form = useForm({ email: '', password: '' });
+</script>
+
+<form on:submit|preventDefault={() => $form.post('/login')}>
+  <input bind:value={$form.email} />
+  {#if $form.errors.email}<span class="error">{$form.errors.email}</span>{/if}
+
+  <input type="password" bind:value={$form.password} />
+  {#if $form.errors.password}<span class="error">{$form.errors.password}</span>{/if}
+
+  <button disabled={$form.processing}>Sign in</button>
+</form>
+```
+
+</Tab>
+</Tabs>
+
+### Deriving the form shape from a page
+
+Pass `TForm` explicitly to get fully-typed `errors`. When [codegen](/docs/guides/codegen) has augmented `InertiaPages`, `InertiaPageProps<K>` lets you derive the form shape from a page's props instead of redeclaring field names:
+
+```ts
+import { useForm, type InertiaPageProps } from '@dudousxd/nestjs-inertia-client/react';
+
+type LoginProps = InertiaPageProps<'auth/login'>;
+const form = useForm<Pick<LoginProps, 'email' | 'password'>>({ email: '', password: '' });
+
+form.errors.email;    // string | undefined  (typed)
+form.errors.unknown;  // type error
+```
+
+## The server: DTO + validation filter
+
+On the server, three pieces turn a class-validator failure into that field-keyed bag.
+
+<Steps>
+<Step>
+
+### Enable the validation filter
+
+It's **opt-in** (additive / non-breaking). Turn it on and point it at a `flashStore` (the same store that backs [`InertiaService.flash()`](/docs/packages/core#inertiaservice-runtime-methods)):
+
+```ts title="app.module.ts"
+InertiaModule.forRoot({
+  rootView,
+  flashStore,               // required — the error bag rides on it
+  validation: {
+    enabled: true,          // default false
+    fallbackRedirect: '/',  // where to bounce when no Referer is present
+    mergeMessages: 'first', // 'first' | 'join' when a field has multiple messages
+  },
+});
+```
+
+Then register the filter (globally via `APP_FILTER`, or per-controller):
+
+```ts
+{ provide: APP_FILTER, useClass: InertiaValidationFilter }
+```
+
+</Step>
+<Step>
+
+### Use the blessed exception factory
+
+Wire `inertiaValidationExceptionFactory` into your `ValidationPipe`. It maps class-validator's `ValidationError[]` into a structured `{ __inertiaErrors }` payload that survives **nested paths** (`items.0.qty`) losslessly — which the generic `message: string[]` shape cannot:
+
+```ts title="main.ts"
+import { ValidationPipe } from '@nestjs/common';
+import { inertiaValidationExceptionFactory } from '@dudousxd/nestjs-inertia';
+
+app.useGlobalPipes(
+  new ValidationPipe({ exceptionFactory: inertiaValidationExceptionFactory }),
+);
+```
+
+</Step>
+<Step>
+
+### Validate as usual
+
+Your controller stays vanilla NestJS — a DTO with class-validator decorators:
+
+```ts title="auth.controller.ts"
+class LoginDto {
+  @IsEmail()  email!: string;
+  @MinLength(8)  password!: string;
+}
+
+@Inertia('auth/login')
+@Post('login')
+login(@Body() dto: LoginDto) {
+  // if validation fails, control never reaches here —
+  // the filter flashes { email, password } errors and 303-redirects back
+}
+```
+
+</Step>
+</Steps>
+
+### What the filter does
+
+`InertiaValidationFilter` catches `BadRequestException`, but only acts when **all** of these hold — otherwise it rethrows, so API clients keep getting a normal JSON 400:
+
+- `validation.enabled` is `true`;
+- the request carries the `X-Inertia` header and is **non-GET**;
+- the exception is a *recognized* validation failure.
+
+When it acts, it extracts a field-keyed bag, scopes it under the `X-Inertia-Error-Bag` header if present, writes it to the `flashStore`, and **303-redirects** to a safe same-origin target (the `X-Inertia-Referer`/`Referer`, else `fallbackRedirect`). On the follow-up GET, `InertiaService.render()` reads the flashed bag back out and surfaces it as `props.errors` — which is exactly what `useForm` reads into `form.errors`.
+
+### The extraction helpers
+
+Two lower-level functions do the mapping, exported for reuse and testing:
+
+| Export | What it does |
+|--------|--------------|
+| `flattenValidationErrors(errors, prefix?)` | Recursively flattens class-validator `ValidationError[]` into a flat `{ 'items.0.qty': 'message' }` map — joining `property` with the running prefix and taking the first `constraints` message. Powers `inertiaValidationExceptionFactory`. |
+| `extractFieldErrors(exception, opts?)` | The reverse: reads a thrown exception and returns the field-keyed bag, or `null` if it isn't a recognized validation error (so the caller can rethrow). Recognizes the `{ __inertiaErrors }` payload, `ContractValidationPipe` Zod issues, a raw `ZodError`, and — best-effort — a flat class-validator `message: string[]`. |
+
+<Callout type="warn">
+For the flat `message: string[]` fallback, `extractFieldErrors` only attributes a message to a field when it matches class-validator's default `"<property> <constraint>"` shape. Custom or prose messages it can't confidently attribute go to the form-level `_` bucket rather than being guessed onto the wrong field. For lossless per-field keys (including nested paths), always wire `inertiaValidationExceptionFactory` — it hits the dedicated `__inertiaErrors` branch.
+</Callout>
+
+## The full loop
+
+```
+useForm.post('/login')  ──►  ValidationPipe (inertiaValidationExceptionFactory)
+        ▲                              │  fails → { __inertiaErrors: { email, password } }
+        │                              ▼
+   form.errors.email     ◄──  InertiaValidationFilter
+   (typed, per-field)          · flashStore.write(bag)
+                               · 303 redirect back
+                               · render() reads bag → props.errors
+```
+
+Because both ends agree on the field keys, there is no glue code between "the server rejected `password`" and "show the error under the password input" — the type system guarantees the alignment.

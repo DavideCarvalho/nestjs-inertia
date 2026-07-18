@@ -1,4 +1,11 @@
 {
   "title": "Packages",
-  "pages": ["core", "vite", "codegen", "client", "testing"]
+  "icon": "Boxes",
+  "pages": [
+    "core",
+    "vite",
+    "codegen",
+    "client",
+    "testing"
+  ]
 }

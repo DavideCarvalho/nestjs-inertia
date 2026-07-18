@@ -1,5 +1,6 @@
 ---
 title: Codegen
+icon: Cog
 description: Static analysis of your NestJS controllers that emits typed pages, routes, and a full API client surface. Zero runtime cost.
 sidebar:
   order: 2
@@ -80,6 +81,54 @@ export default defineConfig({
 | `extensions` | `[]` | Build-time extensions, e.g. `nestjsInertiaCodegen()` for the Inertia `navigate()` helper |
 
 The same `extensions` array works when registering the codegen on the Nest module via `NestjsCodegenModule.forRoot({ extensions: [nestjsInertiaCodegen()] })` (`@dudousxd/nestjs-codegen/nest`). Keep one source of truth and import it into both.
+
+---
+
+## Extension options
+
+`nestjsInertiaCodegen(options?)` always contributes the `navigate()` helper to `api.ts`. Two **opt-in, additive** options make it emit extra files — called with no arguments, it emits nothing beyond that helper:
+
+```ts
+extensions: [
+  nestjsInertiaCodegen({
+    // Emit shared.ts — the `InertiaSharedProps` type
+    shared: { module: './src/shared-props.ts', export: 'getSharedProps', kind: 'function' },
+    // Emit page-excludes.ts — every @Inertia page route (path + method)
+    pageExcludes: true,
+  }),
+],
+```
+
+### `shared` — emit `shared.ts`
+
+Emits an `InertiaSharedProps` type derived from your shared-props source, so the client can type `usePage().props` against it. `SharedPropsSource` is:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `module` | `string` | Path to the module exporting the shared-props shape, relative to `cwd` |
+| `export` | `string` | The named export to read |
+| `kind` | `'function' \| 'type'` | `'function'`: the export is a factory (e.g. the `share()` callback) and its **return type** is used. `'type'`: the export **is** the shape (a `type` alias or `interface`). |
+
+```ts
+// kind: 'function' — reads ReturnType of the share factory
+shared: { module: './src/shared-props.ts', export: 'getSharedProps', kind: 'function' }
+// kind: 'type' — the export is already the shape
+shared: { module: './src/types.ts', export: 'SharedProps', kind: 'type' }
+```
+
+### `pageExcludes: true` — emit `page-excludes.ts`
+
+Emits every `@Inertia` page route (its path and HTTP method) as an array ready to feed [`setGlobalPrefix`](/docs/recipes/global-prefix)'s `exclude`, so your API prefix skips the Inertia page routes:
+
+```ts
+import { pageExcludes } from './.nestjs-inertia/page-excludes.js';
+
+app.setGlobalPrefix('api', { exclude: pageExcludes });
+```
+
+<Callout type="warn">
+`pageExcludes: true` **throws** if code generation discovers zero `@Inertia` pages — a fail-fast guard against silently emitting an empty exclude list (which would route your pages under `/api`). It resolves each decorator to its import origin via AST inspection, so re-exports and `import * as X` namespaces are handled correctly.
+</Callout>
 
 ---
 

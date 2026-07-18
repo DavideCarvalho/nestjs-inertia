@@ -1,5 +1,6 @@
 ---
 title: "@dudousxd/nestjs-inertia-codegen-extension"
+icon: Puzzle
 description: The Inertia extension for @dudousxd/nestjs-codegen — adds a typed navigate() helper to the generated api.ts.
 ---
 
@@ -88,6 +89,24 @@ navigate('users.list', { preserveState: true });     // with Inertia visit optio
 ```
 
 Without the extension, `api.ts` is a plain typed-fetch client and `@inertiajs/react`'s `router` is never imported.
+
+## Optional emitted files
+
+`nestjsInertiaCodegen(options?)` takes two opt-in options (`NestjsInertiaCodegenOptions`) that emit extra files — with no options, only the `api.ts` `navigate()` contribution runs:
+
+| Option | Emits | Purpose |
+|--------|-------|---------|
+| `shared` | `shared.ts` | The `InertiaSharedProps` type, sourced from an explicit `{ module, export, kind }` (`SharedPropsSource`) |
+| `pageExcludes: true` | `page-excludes.ts` | Every `@Inertia` page route (path + method), for [`setGlobalPrefix('api', { exclude })`](/docs/recipes/global-prefix). Throws if zero pages are discovered. |
+
+```ts
+nestjsInertiaCodegen({
+  shared: { module: './src/shared-props.ts', export: 'getSharedProps', kind: 'function' },
+  pageExcludes: true,
+});
+```
+
+See [Extension options](/docs/guides/codegen#extension-options) for the full field reference.
 
 ## Generated files
 

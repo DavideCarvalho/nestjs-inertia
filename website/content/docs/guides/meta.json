@@ -1,4 +1,13 @@
 {
   "title": "Guides",
-  "pages": ["installation", "codegen", "typed-client", "typed-link", "multi-app", "testing"]
+  "icon": "BookOpen",
+  "pages": [
+    "installation",
+    "codegen",
+    "typed-client",
+    "typed-link",
+    "forms",
+    "multi-app",
+    "testing"
+  ]
 }

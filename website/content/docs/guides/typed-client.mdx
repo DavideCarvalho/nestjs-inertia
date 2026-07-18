@@ -1,11 +1,13 @@
 ---
 title: Typed Client
+icon: Braces
 description: Auto-generated type-safe API client with queryOptions, mutationOptions, and queryKey for every controller endpoint. Zero configuration.
 sidebar:
   order: 3
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 ```tsx
 import { useQuery } from '@tanstack/react-query';
@@ -314,3 +316,121 @@ InertiaModule.forRoot({
 ```
 
 `usePage().props` now includes shared props with full type safety.
+
+---
+
+## `useTypedPoll()`
+
+Poll the current page on an interval, keyed by prop names. Unlike the TanStack-Query prefetch used by `<Link prefetch>`, this routes through Inertia v2's native `usePoll` (`router.poll`), so polled responses flow back through the normal page-prop merge pipeline (including `merge` / `matchOn`). It returns the native `{ start, stop }` controls.
+
+```tsx
+import { useTypedPoll } from '@dudousxd/nestjs-inertia-client/react';
+
+function Inbox() {
+  // re-fetch only `messages` every 5s
+  const { start, stop } = useTypedPoll<'Inbox'>(5000, { only: ['messages'] });
+  // …
+}
+```
+
+`useTypedPoll(interval, options?, pollOptions?)`:
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `interval` | `number` | Poll interval in ms |
+| `options.only` | `Array<keyof PageProps>` | Only reload these props |
+| `options.except` | `Array<keyof PageProps>` | Reload all props except these |
+| `pollOptions.keepAlive` | `boolean` | Keep polling while the tab is in the background |
+| `pollOptions.autoStart` | `boolean` | Start immediately (default) or wait for `start()` |
+| `pollOptions.mode` | `'overlap' \| 'cancel' \| 'rest'` | How overlapping requests are handled |
+
+---
+
+## `prefetchRoute()`
+
+Imperatively prefetch a typed route via Inertia v2's native `router.prefetch` (cached in Inertia's own prefetch cache, not TanStack Query). Pass the codegen `route` resolver — the same one given to `<InertiaRouteProvider>` — so the href resolves type-safely:
+
+```ts
+import { prefetchRoute } from '@dudousxd/nestjs-inertia-client/react';
+import { route } from './.nestjs-inertia/routes.js';
+
+prefetchRoute(route, 'users.show', { routeParams: { id }, cacheFor: '30s' });
+```
+
+`prefetchRoute(resolve, route, options?)` — `routeParams` is **required only when the route has params** (enforced by the type), and:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `routeParams` | `RegistryRoutes[K]` | Route params (present iff the route declares them) |
+| `query` | `Record<string, unknown>` | Query-string params |
+| `cacheFor` | `number \| string \| [stale, cache]` | How long the response stays fresh/cached — ms, `'30s'`, `'1m'`, or a `[staleTime, cacheTime]` tuple |
+
+---
+
+## `<Deferred>` and `<WhenVisible>`
+
+Companions to the server's [`Inertia.defer()`](/docs/packages/core#exports) marker. Both are thin typed wrappers over the official `@inertiajs/*` components — they mirror them verbatim at runtime, adding only that `data` is keyed by the page's prop names when you supply the page key as the generic.
+
+`<Deferred>` renders a `fallback` until the deferred prop(s) arrive on the follow-up partial reload:
+
+<Tabs items={['React', 'Vue', 'Svelte']}>
+<Tab value="React">
+
+```tsx
+import { Deferred } from '@dudousxd/nestjs-inertia-client/react';
+
+<Deferred<'Dashboard'> data="stats" fallback={<Spinner />}>
+  {(page) => <Stats value={page /* typed */} />}
+</Deferred>
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { Deferred } from '@dudousxd/nestjs-inertia-client/vue';
+</script>
+
+<template>
+  <Deferred data="stats">
+    <template #fallback><Spinner /></template>
+    <Stats />
+  </Deferred>
+</template>
+```
+
+</Tab>
+<Tab value="Svelte">
+
+```svelte
+<script lang="ts">
+  import { Deferred } from '@dudousxd/nestjs-inertia-client/svelte';
+</script>
+
+<Deferred data="stats">
+  <svelte:fragment slot="fallback"><Spinner /></svelte:fragment>
+  <Stats />
+</Deferred>
+```
+
+</Tab>
+</Tabs>
+
+`<WhenVisible>` loads its `data` prop(s) only when the element scrolls into view — ideal for below-the-fold panels and infinite lists:
+
+```tsx
+import { WhenVisible } from '@dudousxd/nestjs-inertia-client/react';
+
+<WhenVisible<'Report'> data="chart" fallback={<Skeleton />} buffer={200}>
+  {({ fetching }) => (fetching ? <Skeleton /> : <Chart />)}
+</WhenVisible>
+```
+
+| `<WhenVisible>` prop | Type | Description |
+|----------------------|------|-------------|
+| `data` | prop key(s) | Prop name(s) to load when visible (keyed by the page) |
+| `buffer` | `number` | Pixels of pre-load margin before the element enters view |
+| `always` | `boolean` | Re-fetch every time it re-enters view, not just once |
+| `as` | `string` | The wrapper element tag |
+| `params` | reload options | Forwarded to the underlying partial-reload request |
