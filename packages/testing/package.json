@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-testing",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Testing helpers for @dudousxd/nestjs-inertia — expectInertia matchers, fakes, TestingModule.",
   "license": "MIT",
   "repository": {
