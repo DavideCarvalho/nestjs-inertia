@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia-vite
 
+## 1.5.2
+
+### Patch Changes
+
+- [`c39d78e`](https://github.com/DavideCarvalho/nestjs-inertia/commit/c39d78e701aa2703ca207029a17f1184a0cae72d) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - add NestJS 12 to the supported peer range
+
 ## 1.5.1
 
 ### Patch Changes
