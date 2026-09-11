@@ -19,9 +19,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -35,9 +35,9 @@ jobs:
       matrix:
         node: [20, 22]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -54,7 +54,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Trivy scan (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -68,7 +68,7 @@ jobs:
           skip-dirs: node_modules,website/dist,website/.astro,packages/*/dist,examples/*/dist
       - name: Upload to GitHub Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4.38.0
         with:
           sarif_file: trivy-results.sarif
           category: trivy
@@ -92,9 +92,9 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Grype scan
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7.4.2
         id: grype-scan
         with:
           path: .
@@ -104,7 +104,7 @@ jobs:
           output-format: sarif
       - name: Upload to GitHub Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4.38.0
         with:
           sarif_file: ${{ steps.grype-scan.outputs.sarif }}
           category: grype
@@ -118,11 +118,11 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -205,12 +205,12 @@ jobs:
           git push origin HEAD:${{ github.ref_name }}
 
       - name: Create Release Pull Request or Publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2.1.2
         with:
-          version: pnpm version-packages
-          publish: pnpm -r publish --access public --provenance --no-git-checks
-          commit: "chore: version packages"
-          title: "chore: version packages"
+          version-script: pnpm version-packages
+          publish-script: pnpm -r publish --access public --provenance --no-git-checks
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
