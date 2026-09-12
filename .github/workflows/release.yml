@@ -128,6 +128,20 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      # npm learned OIDC in 11.5.1 and the Node pinned above ships 10.x, so without this the
+      # publish fails as `E404 - PUT https://registry.npmjs.org/<pkg>`: npm answers 404 rather
+      # than 403 for an unauthorized package, which reads as "no such package" rather than
+      # "not authenticated". Upgraded here rather than by moving the Node version, so the
+      # toolchain the packages are built and tested against does not change.
+      #
+      # Pinned to 11.x, NOT @latest: npm 12 changed `npm info <pkg> --json` to return an array
+      # where 11 returned a packument object, and changesets reads `.versions` off it — so on
+      # npm 12 every package looks unpublished and it republishes live versions.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: |
+          npm install -g 'npm@^11.5.1'
+          npm --version
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run build --filter='./packages/*'
       # A Renovate patch/minor bump automerges on its own and brings no changeset with it, so
