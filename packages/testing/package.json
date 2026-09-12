@@ -12,11 +12,7 @@
   "bugs": {
     "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
   },
-  "keywords": [
-    "nestjs",
-    "inertia",
-    "testing"
-  ],
+  "keywords": ["nestjs", "inertia", "testing"],
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -54,17 +50,8 @@
       }
     }
   },
-  "sideEffects": [
-    "./dist/jest.js",
-    "./dist/jest.cjs",
-    "./dist/vitest.js",
-    "./dist/vitest.cjs"
-  ],
-  "files": [
-    "dist/",
-    "README.md",
-    "CHANGELOG.md"
-  ],
+  "sideEffects": ["./dist/jest.js", "./dist/jest.cjs", "./dist/vitest.js", "./dist/vitest.cjs"],
+  "files": ["dist/", "README.md", "CHANGELOG.md"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

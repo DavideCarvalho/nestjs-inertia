@@ -12,9 +12,7 @@
   "bugs": {
     "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
   },
-  "keywords": [
-    "tanstack-intent"
-  ],
+  "keywords": ["tanstack-intent"],
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -85,9 +83,7 @@
       }
     }
   },
-  "sideEffects": [
-    "**/*.svelte"
-  ],
+  "sideEffects": ["**/*.svelte"],
   "files": [
     "dist",
     "src/svelte/Link.svelte",

@@ -12,9 +12,7 @@
   "bugs": {
     "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
   },
-  "keywords": [
-    "tanstack-intent"
-  ],
+  "keywords": ["tanstack-intent"],
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,12 +41,7 @@
     }
   },
   "sideEffects": false,
-  "files": [
-    "dist/",
-    "README.md",
-    "CHANGELOG.md",
-    "skills"
-  ],
+  "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

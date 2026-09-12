@@ -39,12 +39,7 @@
       }
     }
   },
-  "files": [
-    "dist/",
-    "README.md",
-    "CHANGELOG.md",
-    "skills"
-  ],
+  "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
   "dependencies": {
     "@dudousxd/nestjs-diagnostics": "^0.2.0"
   },
