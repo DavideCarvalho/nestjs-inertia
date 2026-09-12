@@ -37,7 +37,7 @@
     "@dudousxd/nestjs-codegen": "0.13.2",
     "@types/node": "^20.19.41",
     "typescript": "^5.4.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=20"
