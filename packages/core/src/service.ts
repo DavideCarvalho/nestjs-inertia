@@ -138,7 +138,7 @@ async function resolveMarker(
   ctx: NestedResolveContext,
 ): Promise<unknown | typeof OMIT> {
   const kind = getMarkerKind(marker);
-  // Full dot-path (as it would appear in X-Inertia-Partial-Data / -Reset-Once)
+  // Full dot-path (as it would appear in X-Inertia-Partial-Data / -Except-Once-Props)
   const fullPath = `${ctx.topKey}.${relPath}`;
 
   if (kind === 'always') {
