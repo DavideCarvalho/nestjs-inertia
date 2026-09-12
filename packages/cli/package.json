@@ -8,6 +8,15 @@
     "url": "git+https://github.com/DavideCarvalho/nestjs-inertia.git",
     "directory": "packages/cli"
   },
+  "homepage": "https://davidecarvalho.github.io/aviary/docs/inertia",
+  "bugs": {
+    "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
+  },
+  "keywords": [
+    "nestjs",
+    "inertia",
+    "cli"
+  ],
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -15,7 +24,11 @@
   "bin": {
     "nestjs-inertia": "dist/bin.js"
   },
-  "files": ["dist", "README.md", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",

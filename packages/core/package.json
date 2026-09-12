@@ -8,6 +8,20 @@
     "url": "git+https://github.com/DavideCarvalho/nestjs-inertia.git",
     "directory": "packages/core"
   },
+  "homepage": "https://davidecarvalho.github.io/aviary/docs/inertia",
+  "bugs": {
+    "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
+  },
+  "keywords": [
+    "nestjs",
+    "inertia",
+    "inertia.js",
+    "ssr",
+    "react",
+    "vue",
+    "svelte",
+    "tanstack-intent"
+  ],
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -25,7 +39,12 @@
       }
     }
   },
-  "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md",
+    "skills"
+  ],
   "dependencies": {
     "@dudousxd/nestjs-diagnostics": "^0.2.0"
   },
@@ -111,15 +130,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "keywords": [
-    "nestjs",
-    "inertia",
-    "inertia.js",
-    "ssr",
-    "react",
-    "vue",
-    "svelte",
-    "tanstack-intent"
-  ]
+  }
 }

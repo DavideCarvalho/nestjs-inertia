@@ -8,6 +8,13 @@
     "url": "git+https://github.com/DavideCarvalho/nestjs-inertia.git",
     "directory": "packages/client"
   },
+  "homepage": "https://davidecarvalho.github.io/aviary/docs/inertia",
+  "bugs": {
+    "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
+  },
+  "keywords": [
+    "tanstack-intent"
+  ],
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -78,7 +85,9 @@
       }
     }
   },
-  "sideEffects": ["**/*.svelte"],
+  "sideEffects": [
+    "**/*.svelte"
+  ],
   "files": [
     "dist",
     "src/svelte/Link.svelte",
@@ -158,6 +167,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "keywords": ["tanstack-intent"]
+  }
 }

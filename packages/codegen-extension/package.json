@@ -7,6 +7,16 @@
     "url": "git+https://github.com/DavideCarvalho/nestjs-inertia.git",
     "directory": "packages/codegen-extension"
   },
+  "homepage": "https://davidecarvalho.github.io/aviary/docs/inertia",
+  "bugs": {
+    "url": "https://github.com/DavideCarvalho/nestjs-inertia/issues"
+  },
+  "keywords": [
+    "nestjs",
+    "inertia",
+    "codegen",
+    "extension"
+  ],
   "license": "MIT",
   "author": "Davi Carvalho <davi@goflip.ai>",
   "type": "module",
@@ -20,7 +30,9 @@
     }
   },
   "sideEffects": false,
-  "files": ["dist/"],
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -41,6 +53,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "keywords": ["nestjs", "inertia", "codegen", "extension"]
+  }
 }
