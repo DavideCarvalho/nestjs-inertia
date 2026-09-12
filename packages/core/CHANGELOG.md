@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.8.3
+
+### Patch Changes
+
+- [`07cc080`](https://github.com/DavideCarvalho/nestjs-inertia/commit/07cc080a9578ca119b16604ae24eef26d43b5d50) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - Point the nested-marker dot-path comment at `X-Inertia-Except-Once-Props`, the header the server actually reads for once props, instead of the `X-Inertia-Reset-Once` header that is no longer parsed.
+
 ## 1.8.2
 
 ### Patch Changes
