@@ -115,7 +115,7 @@
     "express": "^4.19.2",
     "fastify": "^5.8.5",
     "handlebars": "^4.7.8",
-    "liquidjs": "^10.16.0",
+    "liquidjs": "^10.27.0",
     "pug": "^3.0.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
