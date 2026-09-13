@@ -67,7 +67,7 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@inertiajs/react':
-        specifier: ^3.0.0
+        specifier: ^3.2.0
         version: 3.2.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@inertiajs/svelte':
         specifier: ^3.2.0

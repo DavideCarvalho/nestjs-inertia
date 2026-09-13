@@ -136,7 +136,7 @@
   },
   "devDependencies": {
     "@dudousxd/nestjs-inertia": "workspace:*",
-    "@inertiajs/react": "^3.0.0",
+    "@inertiajs/react": "^3.2.0",
     "@nestjs/common": "^12.0.1",
     "@tanstack/query-core": "^5.51.0",
     "@testing-library/jest-dom": "^6.9.1",
