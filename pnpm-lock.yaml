@@ -213,7 +213,7 @@ importers:
         specifier: ^4.22.2
         version: 4.22.2
       fastify:
-        specifier: ^5.12.3
+        specifier: ^5.12.4
         version: 5.12.4
       handlebars:
         specifier: ^4.7.8
