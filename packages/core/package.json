@@ -112,7 +112,7 @@
     "@types/supertest": "^6.0.2",
     "cookie-parser": "^1.4.6",
     "ejs": "^3.1.10",
-    "express": "^4.19.2",
+    "express": "^4.22.2",
     "fastify": "^5.12.3",
     "handlebars": "^4.7.8",
     "liquidjs": "^10.16.0",
