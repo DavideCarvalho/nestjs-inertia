@@ -219,7 +219,7 @@ importers:
         specifier: ^4.7.8
         version: 4.7.9
       liquidjs:
-        specifier: ^10.16.0
+        specifier: ^10.27.0
         version: 10.27.0
       pug:
         specifier: ^3.0.3
