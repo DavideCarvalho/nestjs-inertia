@@ -41,7 +41,7 @@
   },
   "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
   "dependencies": {
-    "@dudousxd/nestjs-diagnostics": "^0.2.0"
+    "@dudousxd/nestjs-diagnostics": "0.2.0"
   },
   "scripts": {
     "build": "tsup",
@@ -98,30 +98,30 @@
     }
   },
   "devDependencies": {
-    "@fastify/cookie": "^9.3.1",
-    "@nestjs/common": "^12.0.1",
-    "@nestjs/core": "^12.0.1",
-    "@nestjs/platform-express": "^12.0.1",
-    "@nestjs/platform-fastify": "^12.0.1",
-    "@nestjs/testing": "^12.0.1",
-    "@types/cookie-parser": "^1.4.7",
-    "@types/ejs": "^3.1.5",
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.19.41",
-    "@types/pug": "^2.0.10",
-    "@types/supertest": "^6.0.2",
-    "cookie-parser": "^1.4.6",
-    "ejs": "^3.1.10",
-    "express": "^4.22.2",
-    "fastify": "^5.12.4",
-    "handlebars": "^4.7.8",
-    "liquidjs": "^10.27.0",
-    "pug": "^3.0.3",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "supertest": "^7.0.0",
-    "typescript": "^5.4.0",
-    "vitest": "^4.1.8"
+    "@fastify/cookie": "9.4.0",
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
+    "@nestjs/platform-express": "12.0.1",
+    "@nestjs/platform-fastify": "12.0.1",
+    "@nestjs/testing": "12.0.1",
+    "@types/cookie-parser": "1.4.10",
+    "@types/ejs": "3.1.5",
+    "@types/express": "4.17.25",
+    "@types/node": "20.19.41",
+    "@types/pug": "2.0.10",
+    "@types/supertest": "6.0.3",
+    "cookie-parser": "1.4.7",
+    "ejs": "3.1.10",
+    "express": "4.22.2",
+    "fastify": "5.12.4",
+    "handlebars": "4.7.9",
+    "liquidjs": "10.27.0",
+    "pug": "3.0.4",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "supertest": "7.2.2",
+    "typescript": "5.9.3",
+    "vitest": "4.1.8"
   },
   "engines": {
     "node": ">=20"
