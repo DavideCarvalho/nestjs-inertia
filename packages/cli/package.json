@@ -28,8 +28,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^20.19.41",
-    "typescript": "^5.4.0",
-    "vitest": "^4.1.8"
+    "@types/node": "20.19.41",
+    "typescript": "5.9.3",
+    "vitest": "4.1.8"
   }
 }
