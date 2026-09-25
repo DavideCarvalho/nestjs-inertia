@@ -41,7 +41,7 @@
   },
   "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
   "dependencies": {
-    "@dudousxd/nestjs-diagnostics": "^0.2.0"
+    "@dudousxd/nestjs-diagnostics": "^0.7.0"
   },
   "scripts": {
     "build": "tsup",
