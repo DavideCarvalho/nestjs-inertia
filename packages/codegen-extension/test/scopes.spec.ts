@@ -182,5 +182,7 @@ export const canManage = (p: ScopeSharedProps<'admin'>): boolean | undefined => 
           `${d.file?.fileName.slice(dir.length)}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`,
       );
     expect(diagnostics).toEqual([]);
-  });
+    // A full type-check (lib files, @inertiajs/react's types): well under a second locally, but
+    // past vitest's 5s default on a loaded CI runner.
+  }, 60_000);
 });
