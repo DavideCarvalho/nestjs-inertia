@@ -18,6 +18,7 @@ import {
   computeAssetVersion,
   loadManifest,
   manifestProvider,
+  scopeAssetVersion,
 } from './asset/version.provider.js';
 import type { Manifest } from './asset/version.provider.js';
 import { InvalidInertiaConfigException } from './errors/exceptions.js';
@@ -79,7 +80,7 @@ export class InertiaModule
           return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
         }
         if (typeof rv === 'string') {
-          return new FileBasedShellRenderer(rv);
+          return new FileBasedShellRenderer(rv, { base: opts.vite?.base });
         }
         return new DefaultShellRenderer();
       },
@@ -301,7 +302,11 @@ export class InertiaModule
           if (opts.version !== undefined) {
             return typeof opts.version === 'function' ? await opts.version() : opts.version;
           }
-          return computeAssetVersion(manifest);
+          // Each app's own version: without a manifest (development) every scope would fall
+          // back to the same package-version hash as forRoot, and even with one, two scopes can
+          // read the same manifest. An Inertia visit that crosses apps must see a mismatch
+          // (409 + full page load), never render another app's page in this app's client.
+          return scopeAssetVersion(scope, computeAssetVersion(manifest));
         },
       },
       {
@@ -314,7 +319,7 @@ export class InertiaModule
             return { render: async (ctx: ShellRenderCtx) => fn(ctx) };
           }
           if (typeof rv === 'string') {
-            return new FileBasedShellRenderer(rv);
+            return new FileBasedShellRenderer(rv, { base: opts.vite?.base });
           }
           return new DefaultShellRenderer();
         },

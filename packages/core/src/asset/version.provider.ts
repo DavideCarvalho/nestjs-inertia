@@ -127,6 +127,14 @@ export function computeAssetVersion(manifest: Manifest | null): string {
   return randomUUID().replace(/-/g, '');
 }
 
+/**
+ * The asset version of a `forFeature` scope when none is configured: the app's computed version
+ * mixed with the scope name, so no two apps share one (sha1, 32 hex, like the other versions).
+ */
+export function scopeAssetVersion(scope: string, version: string): string {
+  return createHash('sha1').update(`scope:${scope}:${version}`).digest('hex').slice(0, 32);
+}
+
 export const manifestProvider: Provider = {
   provide: INERTIA_MANIFEST,
   inject: [INERTIA_MODULE_OPTIONS],

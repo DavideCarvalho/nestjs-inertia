@@ -62,6 +62,8 @@ navigate('showDashboard.show');
 navigate('users.list', { preserveState: true, replace: true });
 ```
 
+Opt-in files: `shared` emits `shared.ts` (`InertiaSharedProps`), `scopes: { <scope>: { shared } }` adds each `forFeature` scope's shared props to it (`InertiaScopeSharedProps`, `ScopeSharedProps<S>`), and `pageExcludes: true` emits `page-excludes.ts`.
+
 Without the extension, `api.ts` is a plain typed-fetch client and `@inertiajs/react`'s `router` is never imported. The extension owns only the Inertia surface of `api.ts` — Inertia page discovery (`pages.d.ts` / `components.json`) and shared props are still handled by the core `pages` / `app` config.
 
 ## How it fits

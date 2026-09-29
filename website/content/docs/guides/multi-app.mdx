@@ -65,6 +65,61 @@ export class AdminDashboardController {
 }
 ```
 
+## Serve a scope under a path prefix (`vite.base`)
+
+A second app usually lives under its own path, say `/m`, with its own Vite build. Build it with
+Vite's `base` and give the scope the same `vite.base`:
+
+```ts title="apps/minimal/vite.config.ts"
+export default defineConfig({
+  base: '/m/', // assets are requested as /m/assets/…
+  build: { outDir: 'dist', manifest: true, rollupOptions: { input: 'inertia/app/client.tsx' } },
+});
+```
+
+```ts title="minimal.module.ts"
+InertiaModule.forFeature({
+  scope: 'minimal',
+  rootView: 'apps/minimal/inertia/index.html',
+  vite: {
+    entry: 'inertia/app/client.tsx',
+    manifestPath: 'apps/minimal/dist/.vite/manifest.json',
+    base: '/m/',
+  },
+})
+```
+
+```ts title="main.ts"
+// dist/assets/* is served at /m/assets/* (dot-directories like dist/.vite stay hidden).
+app.use('/m', express.static('apps/minimal/dist', { index: false }));
+```
+
+`@vite('inertia/app/client.tsx')` and `@asset('…')` in that scope's root view now emit
+`/m/assets/client-abc.js` instead of the root-absolute `/assets/client-abc.js`, so the build
+doesn't have to write its files into an `m/assets` directory. `base` is prefixed as given
+(normalized to start and end with `/`); a full URL works for a CDN.
+
+In development the directives also prefix the dev-server URLs (`/m/@vite/client`,
+`/m/@react-refresh`, `/m/<entry>`), which is where Vite serves them when its `base` is `/m/`
+in dev too. If your dev server runs at `/` instead (e.g. Vite's `base` is set only for
+`build`), pass the base only in production:
+`base: process.env.NODE_ENV === 'production' ? '/m/' : '/'`.
+
+## Asset versions: cross-app visits reload
+
+Every scope has its own asset version. Without a `version` option, a `forFeature` scope's
+version is its computed version (manifest hash, or the `INERTIA_ASSET_VERSION`/package.json
+fallback) combined with the scope name. So:
+
+- two apps never share a version, even in development, where there is no manifest and both
+  would otherwise fall back to the same package version, and even when they read the same
+  manifest;
+- an Inertia visit from one app to a page of another gets the version-mismatch response (409
+  with `X-Inertia-Location`), and the browser does a full page load into the other app instead
+  of trying to render its page with the wrong client.
+
+An explicit `version` is used as given.
+
 ## Default scope
 
 Controllers without `@UseInertia` use the default scope registered by `InertiaModule.forRoot()`. No decorator needed.
@@ -74,3 +129,32 @@ Controllers without `@UseInertia` use the default scope registered by `InertiaMo
 The `share` function from `forRoot()` does not run for `forFeature` scopes. The `share` function from a `forFeature` scope does not run for the default scope or other feature scopes.
 
 Each scope is a separate Inertia universe: its own root HTML shell, its own Vite manifest, its own shared props factory.
+
+## Typing several apps with the codegen
+
+Point the codegen at every app's pages with `pages.scopes` (`@dudousxd/nestjs-codegen` 0.27+), and
+type each scope's shared props with the extension's `scopes` option:
+
+```ts title="nestjs-codegen.config.ts"
+export default defineConfig({
+  pages: {
+    glob: 'inertia/pages/**/*.tsx', // default app: "Dashboard", …
+    scopes: { admin: { glob: 'admin/pages/**/*.tsx' } }, // "admin/Dashboard", …
+  },
+  extensions: [
+    nestjsInertiaCodegen({
+      shared: { module: './src/shared-props.ts', export: 'buildSharedProps', kind: 'function' },
+      scopes: {
+        admin: {
+          shared: { module: './src/admin/admin-shared-props.ts', export: 'buildAdminSharedProps', kind: 'function' },
+        },
+      },
+    }),
+  ],
+});
+```
+
+A scope's page names get the prefix `'<scope>/'`, the names its `@Inertia('admin/Dashboard')`
+handlers render. `pages.d.ts` exports `InertiaScopePages`/`InertiaScopePageName<'admin'>`, and
+`shared.ts` exports `ScopeSharedProps<'admin'>` for `usePage<ScopeSharedProps<'admin'>>()` in the
+admin app. See the [codegen guide](/docs/guides/codegen#scopes--per-app-shared-props).
