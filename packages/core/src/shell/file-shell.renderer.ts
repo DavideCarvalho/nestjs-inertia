@@ -32,8 +32,15 @@ export class FileBasedShellRenderer implements ShellRenderer {
   private adapterPromise: Promise<TemplateEngineAdapter> | null = null;
   private readonly absPath: string;
   private readonly ext: string;
+  private readonly base: string | undefined;
 
-  constructor(rootViewPath: string) {
+  /**
+   * @param rootViewPath the root view template (absolute, or relative to `process.cwd()`).
+   * @param options.base the public URL prefix of the Vite build (`vite.base`), prepended to the
+   *   asset URLs `@vite`/`@asset` emit. Default `'/'`.
+   */
+  constructor(rootViewPath: string, options: { base?: string | undefined } = {}) {
+    this.base = options.base;
     const ext = extname(rootViewPath).toLowerCase();
     if (!PLAIN_HTML.has(ext) && !TEMPLATE_EXTENSIONS.has(ext)) {
       throw new UnsupportedRootViewExtensionException(ext);
@@ -61,6 +68,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
         ssrBody,
         manifest,
         isDev,
+        base: this.base,
       });
     }
 
@@ -76,7 +84,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
     const inertiaHtml =
       ssrBody ??
       `<div id="app"></div>\n<script data-page="app" type="application/json">${pageJson}</script>`;
-    const directiveCtx = { pageJson, ssrHead, ssrBody, manifest, isDev };
+    const directiveCtx = { pageJson, ssrHead, ssrBody, manifest, isDev, base: this.base };
     const locals: Record<string, unknown> = {
       page: ctx.page,
       inertia: inertiaHtml,

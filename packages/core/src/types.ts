@@ -98,6 +98,13 @@ export interface ViteOptions {
   entry: string;
   manifestPath?: string;
   hmrPort?: number;
+  /**
+   * Public URL prefix the app's Vite build is served under — the same value as Vite's `base`
+   * (e.g. `'/m/'` for an app mounted at `/m`, or a CDN URL). `@vite` and `@asset` emit
+   * `<base><file>` (production) and `<base>@vite/client`, `<base><entry>` (development, where
+   * Vite's dev server also serves under `base`). Default `'/'`.
+   */
+  base?: string;
 }
 
 export interface SsrOptions {

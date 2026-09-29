@@ -86,7 +86,7 @@ The same `extensions` array works when registering the codegen on the Nest modul
 
 ## Extension options
 
-`nestjsInertiaCodegen(options?)` always contributes the `navigate()` helper to `api.ts`. Two **opt-in, additive** options make it emit extra files — called with no arguments, it emits nothing beyond that helper:
+`nestjsInertiaCodegen(options?)` always contributes the `navigate()` helper to `api.ts`. Three **opt-in, additive** options (`shared`, `scopes`, `pageExcludes`) make it emit extra files — called with no arguments, it emits nothing beyond that helper:
 
 ```ts
 extensions: [
@@ -115,6 +115,35 @@ shared: { module: './src/shared-props.ts', export: 'getSharedProps', kind: 'func
 // kind: 'type' — the export is already the shape
 shared: { module: './src/types.ts', export: 'SharedProps', kind: 'type' }
 ```
+
+### `scopes` — per-app shared props
+
+With [several Inertia apps](/docs/guides/multi-app), each `InertiaModule.forFeature({ scope })`
+has its own `share`, and its pages get only that. Declare each scope's source with the same
+`SharedPropsSource` shape:
+
+```ts
+nestjsInertiaCodegen({
+  shared: { module: './src/shared-props.ts', export: 'getSharedProps', kind: 'function' },
+  scopes: {
+    admin: { shared: { module: './src/admin/admin-shared-props.ts', export: 'getAdminSharedProps', kind: 'function' } },
+  },
+});
+```
+
+`shared.ts` then also exports:
+
+```ts
+export interface InertiaScopeSharedProps {
+  admin: Awaited<ReturnType<(typeof import('../src/admin/admin-shared-props'))['getAdminSharedProps']>>;
+}
+export type ScopeSharedProps<S extends keyof InertiaScopeSharedProps> = InertiaScopeSharedProps[S];
+```
+
+so the admin app types its pages with `usePage<ScopeSharedProps<'admin'>>()`. Each source is
+validated like `shared` (errors name `scopes.admin.shared`); `scopes` works without a top-level
+`shared`; `default` is reserved for the forRoot app. The pages of each app are discovered with
+the core's `pages.scopes` (`@dudousxd/nestjs-codegen` 0.27+).
 
 ### `pageExcludes: true` — emit `page-excludes.ts`
 

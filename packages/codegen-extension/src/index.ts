@@ -17,6 +17,13 @@ export type NestjsInertiaCodegenOptions = {
    * `setGlobalPrefix('api', { exclude })`. Throws if enabled but zero pages are discovered.
    */
   pageExcludes?: boolean;
+  /**
+   * Further Inertia apps, one per `InertiaModule.forFeature({ scope })`, keyed by scope name. A
+   * scope's pages get that scope's `share`, not forRoot's: `shared` names its source (same shape
+   * as the top-level `shared`), and `shared.ts` gains `InertiaScopeSharedProps` (scope → shape)
+   * and `ScopeSharedProps<S>`.
+   */
+  scopes?: Record<string, { shared?: SharedPropsSource }>;
 };
 
 const NAVIGATE_OPTIONS = `export type NavigateOptions = {
@@ -53,6 +60,8 @@ export function navigate<K extends RouteName>(
  *
  * Optionally emits extra files via `emitFiles`, each independently opt-in:
  * - `shared`: `shared.ts` — the `InertiaSharedProps` type, sourced from an explicit module.
+ * - `scopes.<scope>.shared`: `shared.ts` also types each `forFeature` scope's shared props
+ *   (`InertiaScopeSharedProps`, `ScopeSharedProps<S>`).
  * - `pageExcludes: true`: `page-excludes.ts` — every `@Inertia` page route, for
  *   `setGlobalPrefix('api', { exclude })`.
  *
@@ -69,12 +78,24 @@ export function nestjsInertiaCodegen(options: NestjsInertiaCodegenOptions = {}):
     },
   };
 
-  if (options.shared || options.pageExcludes) {
+  if (options.scopes && Object.hasOwn(options.scopes, 'default')) {
+    throw new Error(
+      'nestjs-inertia codegen: `scopes` cannot declare "default" — the default app (InertiaModule.forRoot) is typed by the top-level `shared`.',
+    );
+  }
+  const scopeShared: Record<string, SharedPropsSource> = {};
+  for (const [scope, scopeOptions] of Object.entries(options.scopes ?? {})) {
+    if (scopeOptions.shared) scopeShared[scope] = scopeOptions.shared;
+  }
+  const hasScopeShared = Object.keys(scopeShared).length > 0;
+
+  if (options.shared || options.pageExcludes || hasScopeShared) {
     const sharedSource = options.shared;
     const pageExcludesEnabled = options.pageExcludes;
     ext.emitFiles = (ctx) => {
       const files: EmittedFile[] = [];
-      if (sharedSource) files.push(buildSharedFile(sharedSource, ctx));
+      if (sharedSource || hasScopeShared)
+        files.push(buildSharedFile(sharedSource, ctx, scopeShared));
       if (pageExcludesEnabled) files.push(buildPageExcludesFile(ctx));
       return files;
     };

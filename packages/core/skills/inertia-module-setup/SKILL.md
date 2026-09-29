@@ -154,6 +154,11 @@ export class AdminController {
 }
 ```
 
+A scope mounted under a path prefix builds with Vite's `base` (e.g. `'/m/'`) and passes the
+same `vite: { base: '/m/' }`, so `@vite`/`@asset` emit `/m/assets/…`. Each `forFeature` scope's
+asset version is its own by default (scope name mixed in), so an Inertia visit across apps is
+a 409 + full page load, also in development; don't set per-scope dev versions by hand.
+
 `Source: packages/core/README.md, packages/core/src/decorator/use-inertia.decorator.ts`
 
 ## Common mistakes
