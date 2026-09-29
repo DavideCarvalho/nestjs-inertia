@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.8.4
+
+### Patch Changes
+
+- [#87](https://github.com/DavideCarvalho/nestjs-inertia/pull/87) [`318420f`](https://github.com/DavideCarvalho/nestjs-inertia/commit/318420f2d9c084ff5c7c9c296b8b9c297705449d) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - fix(validation): `InertiaValidationFilter` no longer rethrows from an async `catch()`. Nest does not await exception filters, so every `BadRequestException` the filter did not handle (non-Inertia/API requests, GET requests, non-validation 400s — and _all_ 400s when `validation.enabled` is off, since the filter is always registered) became an unhandled rejection that crashed the process and left the request hanging. Those cases now get Nest's default JSON 400 via `BaseExceptionFilter`, the Inertia redirect-back path is unchanged, and a failing `flashStore.write` is answered with Nest's default 500 instead of rejecting.
+
 ## 1.8.3
 
 ### Patch Changes
