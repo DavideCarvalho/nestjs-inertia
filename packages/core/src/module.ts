@@ -122,9 +122,11 @@ export class InertiaModule
               'validation.enabled requires a flashStore (the filter has nowhere to write the error bag).',
             );
           }
-          // The filter is @Catch(BadRequestException)-scoped and rethrows whenever
-          // it does not apply (disabled, non-Inertia, non-validation), so it is
-          // inert by default and never swallows unrelated exceptions.
+          // The filter is @Catch(BadRequestException)-scoped and delegates to
+          // Nest's BaseExceptionFilter whenever it does not apply (disabled,
+          // non-Inertia, non-validation), so it is inert by default: those 400s
+          // get the normal JSON response. It never rethrows — Nest does not
+          // await filters, so a rethrow would be an unhandled rejection.
           return new InertiaValidationFilter(opts, httpAdapterHost);
         },
       },

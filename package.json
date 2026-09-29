@@ -23,7 +23,7 @@
     "format": "biome format --write .",
     "changeset": "changeset",
     "version-packages": "changeset version && sh scripts/sync-versions.sh && biome check --write .",
-    "release": "pnpm -r build && changeset publish"
+    "release": "pnpm -r --filter './packages/*' build && changeset publish"
   },
   "pnpm": {
     "overrides": {

@@ -60,6 +60,12 @@
       "matchPackageNames": ["@changesets/cli"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "`fumadocs-core`, `fumadocs-ui` and `fumadocs-mdx` move as one set: fumadocs-mdx 15.4 declares `fumadocs-core: ^16.15.3` and its generated code imports `fumadocs-core/server`, so bumping mdx alone (#76) broke the website build — and with it the Release job, whose publish step builds every workspace. CI does not build the website, so a green PR proves nothing here; the group waits for a person, and the core 16.15 bump needs code changes (search client, llms route).",
+      "matchPackageNames": ["fumadocs-core", "fumadocs-ui", "fumadocs-mdx"],
+      "groupName": "fumadocs",
+      "automerge": false
     }
   ],
   "lockFileMaintenance": {

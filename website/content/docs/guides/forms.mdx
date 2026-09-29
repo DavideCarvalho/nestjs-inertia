@@ -178,7 +178,7 @@ login(@Body() dto: LoginDto) {
 
 ### What the filter does
 
-`InertiaValidationFilter` catches `BadRequestException`, but only acts when **all** of these hold — otherwise it rethrows, so API clients keep getting a normal JSON 400:
+`InertiaValidationFilter` catches `BadRequestException`, but only acts when **all** of these hold — otherwise it hands the exception to Nest's default `BaseExceptionFilter`, so API clients keep getting a normal JSON 400:
 
 - `validation.enabled` is `true`;
 - the request carries the `X-Inertia` header and is **non-GET**;
@@ -193,7 +193,7 @@ Two lower-level functions do the mapping, exported for reuse and testing:
 | Export | What it does |
 |--------|--------------|
 | `flattenValidationErrors(errors, prefix?)` | Recursively flattens class-validator `ValidationError[]` into a flat `{ 'items.0.qty': 'message' }` map — joining `property` with the running prefix and taking the first `constraints` message. Powers `inertiaValidationExceptionFactory`. |
-| `extractFieldErrors(exception, opts?)` | The reverse: reads a thrown exception and returns the field-keyed bag, or `null` if it isn't a recognized validation error (so the caller can rethrow). Recognizes the `{ __inertiaErrors }` payload, `ContractValidationPipe` Zod issues, a raw `ZodError`, and — best-effort — a flat class-validator `message: string[]`. |
+| `extractFieldErrors(exception, opts?)` | The reverse: reads a thrown exception and returns the field-keyed bag, or `null` if it isn't a recognized validation error (so the caller can fall back to default handling). Recognizes the `{ __inertiaErrors }` payload, `ContractValidationPipe` Zod issues, a raw `ZodError`, and — best-effort — a flat class-validator `message: string[]`. |
 
 <Callout type="warn">
 For the flat `message: string[]` fallback, `extractFieldErrors` only attributes a message to a field when it matches class-validator's default `"<property> <constraint>"` shape. Custom or prose messages it can't confidently attribute go to the form-level `_` bucket rather than being guessed onto the wrong field. For lossless per-field keys (including nested paths), always wire `inertiaValidationExceptionFactory` — it hits the dedicated `__inertiaErrors` branch.

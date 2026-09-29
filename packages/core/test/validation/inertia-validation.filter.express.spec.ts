@@ -6,8 +6,16 @@ import type { InertiaModuleOptions } from '../../src/types.js';
 import { InertiaValidationFilter } from '../../src/validation/inertia-validation.filter.js';
 
 // Express is the default platform; getType() reports anything but 'fastify'.
+// `reply`/`isHeadersSent`/`end` back Nest's BaseExceptionFilter, which the
+// filter delegates to for every case it does not handle (normal JSON 400).
+const reply = vi.fn();
 const expressHost = {
-  httpAdapter: { getType: () => 'express' },
+  httpAdapter: {
+    getType: () => 'express',
+    isHeadersSent: () => false,
+    reply,
+    end: vi.fn(),
+  },
 } as unknown as HttpAdapterHost;
 
 function fakeExpressReq(
@@ -62,10 +70,12 @@ function fakeHost(req: unknown, res: unknown): ArgumentsHost {
       getRequest: () => req,
       getResponse: () => res,
     }),
+    getArgByIndex: (i: number) => [req, res][i],
   } as unknown as ArgumentsHost;
 }
 
 function makeFilter(opts: Partial<InertiaModuleOptions> = {}, write = vi.fn()) {
+  reply.mockReset();
   const flashStore: FlashStore = { read: () => ({}), write };
   const options: InertiaModuleOptions = {
     flashStore,
@@ -141,33 +151,76 @@ describe('InertiaValidationFilter (express)', () => {
     expect(res._headers.Location).toBe('/');
   });
 
-  it('rethrows for non-Inertia requests (no write)', async () => {
+  it('delegates to the default JSON 400 (never rethrows) for non-Inertia requests (no write)', async () => {
     const { filter, write } = makeFilter();
     const req = fakeExpressReq({ headers: {} });
     const res = fakeExpressRes();
     const ex = new BadRequestException({ __inertiaErrors: { email: 'required' } });
 
-    await expect(filter.catch(ex, fakeHost(req, res))).rejects.toBe(ex);
+    expect(() => filter.catch(ex, fakeHost(req, res))).not.toThrow();
+    expect(reply).toHaveBeenCalledWith(res, ex.getResponse(), 400);
     expect(write).not.toHaveBeenCalled();
   });
 
-  it('rethrows for GET requests', async () => {
+  it('delegates to the default JSON 400 (never rethrows) for GET requests', async () => {
     const { filter, write } = makeFilter();
     const req = fakeExpressReq({ method: 'GET', headers: { 'x-inertia': 'true' } });
     const res = fakeExpressRes();
     const ex = new BadRequestException({ __inertiaErrors: { email: 'required' } });
 
-    await expect(filter.catch(ex, fakeHost(req, res))).rejects.toBe(ex);
+    expect(() => filter.catch(ex, fakeHost(req, res))).not.toThrow();
+    expect(reply).toHaveBeenCalledWith(res, ex.getResponse(), 400);
     expect(write).not.toHaveBeenCalled();
   });
 
-  it('rethrows for unrecognized (non-validation) BadRequest', async () => {
+  it('delegates to the default JSON 400 (never rethrows) for unrecognized (non-validation) BadRequest', async () => {
     const { filter, write } = makeFilter();
     const req = fakeExpressReq({ headers: { 'x-inertia': 'true' } });
     const res = fakeExpressRes();
     const ex = new BadRequestException('plain message');
 
-    await expect(filter.catch(ex, fakeHost(req, res))).rejects.toBe(ex);
+    expect(() => filter.catch(ex, fakeHost(req, res))).not.toThrow();
+    expect(reply).toHaveBeenCalledWith(res, ex.getResponse(), 400);
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe('InertiaValidationFilter (express) — never rethrows', () => {
+  it('delegates to the default JSON 400 when validation is disabled', () => {
+    const { filter, write } = makeFilter({ validation: { enabled: false } });
+    const req = fakeExpressReq({ headers: { 'x-inertia': 'true' } });
+    const res = fakeExpressRes();
+    const ex = new BadRequestException({ __inertiaErrors: { email: 'required' } });
+
+    expect(filter.catch(ex, fakeHost(req, res))).toBeUndefined();
+    expect(reply).toHaveBeenCalledWith(res, ex.getResponse(), 400);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('answers a rejected flash write with a 500 instead of rejecting', async () => {
+    const boom = new Error('store down');
+    const { filter } = makeFilter({}, vi.fn().mockRejectedValue(boom));
+    const req = fakeExpressReq({ headers: { 'x-inertia': 'true' } });
+    const res = fakeExpressRes();
+    const ex = new BadRequestException({ __inertiaErrors: { email: 'required' } });
+
+    await expect(filter.catch(ex, fakeHost(req, res))).resolves.toBeUndefined();
+    expect(reply).toHaveBeenCalledWith(res, expect.objectContaining({ statusCode: 500 }), 500);
+    expect(res._headers.Location).toBeUndefined();
+  });
+
+  it('answers a throwing flash write with a 500 instead of throwing', () => {
+    const { filter } = makeFilter(
+      {},
+      vi.fn(() => {
+        throw new Error('store down');
+      }),
+    );
+    const req = fakeExpressReq({ headers: { 'x-inertia': 'true' } });
+    const res = fakeExpressRes();
+    const ex = new BadRequestException({ __inertiaErrors: { email: 'required' } });
+
+    expect(() => filter.catch(ex, fakeHost(req, res))).not.toThrow();
+    expect(reply).toHaveBeenCalledWith(res, expect.objectContaining({ statusCode: 500 }), 500);
   });
 });

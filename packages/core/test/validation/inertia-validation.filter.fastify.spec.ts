@@ -5,8 +5,16 @@ import type { FlashStore } from '../../src/flash/flash-store.js';
 import type { InertiaModuleOptions } from '../../src/types.js';
 import { InertiaValidationFilter } from '../../src/validation/inertia-validation.filter.js';
 
+// `reply`/`isHeadersSent`/`end` back Nest's BaseExceptionFilter, which the
+// filter delegates to for every case it does not handle (normal JSON 400).
+const reply = vi.fn();
 const fastifyHost = {
-  httpAdapter: { getType: () => 'fastify' },
+  httpAdapter: {
+    getType: () => 'fastify',
+    isHeadersSent: () => false,
+    reply,
+    end: vi.fn(),
+  },
 } as unknown as HttpAdapterHost;
 
 // Raw Fastify request: no header() method, headers dict only; carries a .raw.
@@ -60,10 +68,12 @@ function fakeHost(req: unknown, res: unknown): ArgumentsHost {
       getRequest: () => req,
       getResponse: () => res,
     }),
+    getArgByIndex: (i: number) => [req, res][i],
   } as unknown as ArgumentsHost;
 }
 
 function makeFilter(opts: Partial<InertiaModuleOptions> = {}, write = vi.fn()) {
+  reply.mockReset();
   const flashStore: FlashStore = { read: () => ({}), write };
   const options: InertiaModuleOptions = {
     flashStore,
@@ -117,13 +127,14 @@ describe('InertiaValidationFilter (fastify)', () => {
     expect(write).toHaveBeenCalledWith(req, { edit: { title: 'required' } });
   });
 
-  it('rethrows for non-Inertia requests', async () => {
+  it('delegates to the default JSON 400 (never rethrows) for non-Inertia requests', async () => {
     const { filter, write } = makeFilter();
     const req = fakeFastifyReq({ headers: {} });
     const res = fakeFastifyRes();
     const ex = new BadRequestException({ __inertiaErrors: { email: 'required' } });
 
-    await expect(filter.catch(ex, fakeHost(req, res))).rejects.toBe(ex);
+    expect(() => filter.catch(ex, fakeHost(req, res))).not.toThrow();
+    expect(reply).toHaveBeenCalledWith(res, ex.getResponse(), 400);
     expect(write).not.toHaveBeenCalled();
   });
 });

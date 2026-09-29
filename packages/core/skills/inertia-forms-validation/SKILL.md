@@ -80,7 +80,8 @@ With `validation.enabled`, on an Inertia non-GET request that throws
 
 The redirected GET reads the flash via `render()` and shares `props.errors`
 automatically — you do not pass `errors` yourself. Non-Inertia or GET requests
-are rethrown as a normal JSON 400. `Source: docs/forms.md, packages/core/src/validation/inertia-validation.filter.ts`
+get Nest's default JSON 400 (the filter delegates to `BaseExceptionFilter`; it
+never rethrows, since Nest does not await filters). `Source: docs/forms.md, packages/core/src/validation/inertia-validation.filter.ts`
 
 ### 2. Auto-surfaced errors and general flash
 
