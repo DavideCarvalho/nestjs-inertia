@@ -37,7 +37,9 @@ the filter:
    guarded).
 
 The GET it redirects to reads the flash via `service.render()` and shares
-`props.errors`. Non-Inertia or GET requests are rethrown → normal JSON 400.
+`props.errors`. Non-Inertia or GET requests (and non-validation 400s) are
+handed to Nest's default `BaseExceptionFilter` → normal JSON 400. If
+`flashStore.write` fails, the filter answers with Nest's default 500 (logged).
 
 ### Getting field-keyed errors
 

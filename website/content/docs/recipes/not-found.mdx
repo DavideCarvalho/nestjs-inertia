@@ -90,9 +90,18 @@ export class InertiaNotFoundFilter implements ExceptionFilter {
 
     // --- Inertia page request: render the configured 404 component ---
     res.status(404);
-    await req.inertia.render(this.options.component, {
-      requestedPath: path,
-    });
+    try {
+      await req.inertia.render(this.options.component, {
+        requestedPath: path,
+      });
+    } catch {
+      // Never let a filter throw or reject: Nest does not await `catch()`,
+      // so a rejection here would be an unhandled rejection (process crash)
+      // and the request would hang. Answer with the JSON shape instead.
+      if (!res.headersSent) {
+        res.status(404).json(this.errorShape(path, exception));
+      }
+    }
   }
 
   private isApiPath(path: string): boolean {
@@ -102,6 +111,10 @@ export class InertiaNotFoundFilter implements ExceptionFilter {
   }
 }
 ```
+
+### Why the `try/catch` around `render()`?
+
+Nest does **not** await exception filters: it calls `filter.catch()` and drops the returned value. If an `async catch()` rethrows or rejects, the error is never routed anywhere — it becomes an unhandled rejection (which terminates the process on Node's default `--unhandled-rejections=throw`) and the request is left hanging. Every path through a filter must write a response itself; to fall back to Nest's default handling, call `new BaseExceptionFilter(httpAdapter).catch(exception, host)` (from `@nestjs/core`) instead of `throw exception`.
 
 ### Why `@Catch(NotFoundException)` instead of `@Catch()`?
 
