@@ -92,7 +92,7 @@ importers:
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@testing-library/svelte':
         specifier: ^5.3.1
-        version: 5.3.1(svelte@5.57.1)(vite@7.3.5(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3))(vitest@4.1.8(@types/node@20.19.41)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@7.3.5(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)))
+        version: 5.3.1(svelte@5.57.1)(vite@7.3.5(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3))(vitest@4.1.8)
       '@types/node':
         specifier: ^20.19.41
         version: 20.19.41
@@ -181,10 +181,10 @@ importers:
         version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)
       '@nestjs/platform-fastify':
         specifier: ^12.0.1
-        version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))
+        version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)
       '@nestjs/testing':
         specifier: ^12.0.1
-        version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1))
+        version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)(@nestjs/platform-express@12.0.1)
       '@types/cookie-parser':
         specifier: ^1.4.7
         version: 1.4.10(@types/express@4.17.25)
@@ -201,8 +201,8 @@ importers:
         specifier: ^2.0.10
         version: 2.0.10
       '@types/supertest':
-        specifier: ^6.0.2
-        version: 6.0.3
+        specifier: ^7.0.0
+        version: 7.2.1
       cookie-parser:
         specifier: ^1.4.6
         version: 1.4.7
@@ -231,8 +231,8 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
       supertest:
-        specifier: ^7.0.0
-        version: 7.2.2
+        specifier: ^7.3.1
+        version: 7.3.1
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
@@ -256,13 +256,13 @@ importers:
         version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)
       '@nestjs/testing':
         specifier: ^12.0.1
-        version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1))
+        version: 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)(@nestjs/platform-express@12.0.1)
       '@types/node':
         specifier: ^20.19.41
         version: 20.19.41
       '@types/supertest':
-        specifier: ^6.0.2
-        version: 6.0.3
+        specifier: ^7.0.0
+        version: 7.2.1
       express:
         specifier: ^4.22.2
         version: 4.22.2
@@ -273,8 +273,8 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
       supertest:
-        specifier: ^7.0.0
-        version: 7.2.2
+        specifier: ^7.3.1
+        version: 7.3.1
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
@@ -329,13 +329,13 @@ importers:
         version: 3.1.18
       fumadocs-core:
         specifier: ^16.9.3
-        version: 16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76)
+        version: 16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)
       fumadocs-mdx:
         specifier: ^15.0.10
-        version: 15.0.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76))(mdast-util-directive@3.1.0)(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@7.3.5(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3))
+        version: 15.0.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3))(mdast-util-directive@3.1.0)(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@7.3.5(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3))
       fumadocs-ui:
         specifier: ^16.9.3
-        version: 16.9.3(@tailwindcss/oxide@4.3.0)(@types/mdx@2.0.13)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.0)
+        version: 16.9.3(@tailwindcss/oxide@4.3.0)(@types/mdx@2.0.13)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.0)
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.3.0)
@@ -2345,8 +2345,8 @@ packages:
   '@types/superagent@8.1.10':
     resolution: {integrity: sha512-nbt4IWXABhW0jGmmpRzCFNlbmwCTzZ2gTUsNIr+X+ItdqPms+PAJZbWsNzpS2USqXjcoNLQcO6nXo60zcPQiIg==}
 
-  '@types/supertest@6.0.3':
-    resolution: {integrity: sha512-8WzXq62EXFhJ7QsH3Ocb/iKQ/Ty9ZVWnVzoTKc9tyyFRRF3a74Tk2+TLFgaFFw364Ere+npzHKEJ6ga2LzIL7w==}
+  '@types/supertest@7.2.1':
+    resolution: {integrity: sha512-4CbBvoYVLHL7+yhbYrZET0vsvuyXTC05aRe7dNQkwMzm56auceoy6Yu3K50uZmwfHna1os3CMSgM/3QVkUtPTw==}
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
@@ -4917,8 +4917,8 @@ packages:
     resolution: {integrity: sha512-B+4Ik7ROgVKrQsXTV0Jwp2u+PXYLSlqtDAhYnkkD+zn3yg8s/zjA2MeGayPoY/KICrbitwneDHrjSotxKL+0XQ==}
     engines: {node: '>=14.18.0'}
 
-  supertest@7.2.2:
-    resolution: {integrity: sha512-oK8WG9diS3DlhdUkcFn4tkNIiIbBx9lI2ClF8K+b2/m8Eyv47LSawxUzZQSNKUrVb2KsqeTDCcjAAVPYaSLVTA==}
+  supertest@7.3.1:
+    resolution: {integrity: sha512-vNaNCFoCR/edDbErQZp5KLNT8R4dSPHX7rlDLoE8hWLAm/878j6ShMbe8HK/E6RwwuhlSXVelXAIg9AxR5WWPw==}
     engines: {node: '>=14.18.0'}
 
   supports-color@7.2.0:
@@ -6233,7 +6233,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/platform-fastify@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))':
+  '@nestjs/platform-fastify@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)':
     dependencies:
       '@fastify/cors': 11.3.0
       '@fastify/formbody': 9.0.0
@@ -6248,7 +6248,7 @@ snapshots:
       reusify: 1.1.0
       tslib: 2.8.1
 
-  '@nestjs/testing@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1))':
+  '@nestjs/testing@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1)(@nestjs/platform-express@12.0.1)':
     dependencies:
       '@nestjs/common': 12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -6988,7 +6988,7 @@ snapshots:
     dependencies:
       svelte: 5.57.1
 
-  '@testing-library/svelte@5.3.1(svelte@5.57.1)(vite@7.3.5(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3))(vitest@4.1.8(@types/node@20.19.41)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@7.3.5(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)))':
+  '@testing-library/svelte@5.3.1(svelte@5.57.1)(vite@7.3.5(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3))(vitest@4.1.8)':
     dependencies:
       '@testing-library/dom': 10.4.1
       '@testing-library/svelte-core': 1.0.0(svelte@5.57.1)
@@ -7167,7 +7167,7 @@ snapshots:
       '@types/node': 25.9.1
       form-data: 4.0.6
 
-  '@types/supertest@6.0.3':
+  '@types/supertest@7.2.1':
     dependencies:
       '@types/methods': 1.1.4
       '@types/superagent': 8.1.10
@@ -8270,7 +8270,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76):
+  fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3):
     dependencies:
       '@orama/orama': 3.1.18
       estree-util-value-to-estree: 3.5.0
@@ -8299,18 +8299,18 @@ snapshots:
       next: 16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      zod: 3.25.76
+      zod: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-mdx@15.0.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76))(mdast-util-directive@3.1.0)(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@7.3.5(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)):
+  fumadocs-mdx@15.0.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3))(mdast-util-directive@3.1.0)(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@7.3.5(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)):
     dependencies:
       '@mdx-js/mdx': 3.1.1
       '@standard-schema/spec': 1.1.0
       chokidar: 5.0.0
       esbuild: 0.28.1
       estree-util-value-to-estree: 3.5.0
-      fumadocs-core: 16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76)
+      fumadocs-core: 16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)
       js-yaml: 4.3.2
       mdast-util-mdx: 3.0.0
       picocolors: 1.1.1
@@ -8333,7 +8333,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-ui@16.9.3(@tailwindcss/oxide@4.3.0)(@types/mdx@2.0.13)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.0):
+  fumadocs-ui@16.9.3(@tailwindcss/oxide@4.3.0)(@types/mdx@2.0.13)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.0):
     dependencies:
       '@fumadocs/tailwind': 0.0.5(@tailwindcss/oxide@4.3.0)(tailwindcss@4.3.0)
       '@radix-ui/react-accordion': 1.2.12(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -8347,7 +8347,7 @@ snapshots:
       '@radix-ui/react-slot': 1.2.4(@types/react@19.3.0)(react@19.3.0)
       '@radix-ui/react-tabs': 1.1.13(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority: 0.7.1
-      fumadocs-core: 16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@3.25.76)
+      fumadocs-core: 16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.17.0(react@19.3.0))(next@16.3.3(@types/node@25.9.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)
       lucide-react: 1.17.0(react@19.3.0)
       motion: 12.40.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       next-themes: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -10311,7 +10311,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  supertest@7.2.2:
+  supertest@7.3.1:
     dependencies:
       cookie-signature: 1.2.2
       methods: 1.1.2
