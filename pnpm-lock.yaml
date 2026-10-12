@@ -164,8 +164,8 @@ importers:
   packages/core:
     dependencies:
       '@dudousxd/nestjs-diagnostics':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.7.0
+        version: 0.7.2(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)
     devDependencies:
       '@fastify/cookie':
         specifier: ^9.3.1
@@ -666,9 +666,20 @@ packages:
       tsx:
         optional: true
 
-  '@dudousxd/nestjs-diagnostics@0.2.0':
-    resolution: {integrity: sha512-2jGsifkiX/6k5KJEy/fStZk4qGl+xF3kx+R/2erqcA24Cj8hiHfAFBicMHCl5qnDVice2o+JPr7sXtLcvOtg4g==}
+  '@dudousxd/nestjs-diagnostics@0.7.2':
+    resolution: {integrity: sha512-PHlL8Fdb6kfFRqU3RHJtIUc5rz8u738Fjx3YyaDQaVpn5UBdNC2hhcaFyK+XO7c6luzcSlQAe76aWwRcaeuDRA==}
     engines: {node: '>=20'}
+    peerDependencies:
+      '@nestjs/common': ^10 || ^11 || ^12
+      '@nestjs/core': ^10 || ^11 || ^12
+      reflect-metadata: ^0.2
+    peerDependenciesMeta:
+      '@nestjs/common':
+        optional: true
+      '@nestjs/core':
+        optional: true
+      reflect-metadata:
+        optional: true
 
   '@dudousxd/nestjs-filter-client@1.33.0':
     resolution: {integrity: sha512-O0xTQB7FZHs31xErIKPEE3LY/Tzi2TlVJVNj7ijv2d4KOsnyjBwK8UmtYetKi3fx4dtcePQcZMK0e8VHopUINg==}
@@ -5749,7 +5760,11 @@ snapshots:
       '@nestjs/common': 12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
       tsx: 4.22.3
 
-  '@dudousxd/nestjs-diagnostics@0.2.0': {}
+  '@dudousxd/nestjs-diagnostics@0.7.2(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)':
+    optionalDependencies:
+      '@nestjs/common': 12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 12.0.1(@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      reflect-metadata: 0.2.2
 
   '@dudousxd/nestjs-filter-client@1.33.0': {}
 
