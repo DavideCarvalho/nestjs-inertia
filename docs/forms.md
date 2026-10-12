@@ -18,7 +18,7 @@ Enable the `InertiaValidationFilter` in `forRoot`. It requires a `flashStore`.
 
 ```ts
 InertiaModule.forRoot({
-  flashStore: sessionFlashStore,        // see §4 for express-session / @fastify/session
+  flashStore: sessionFlashStore,        // see "FlashStore examples" below for express-session / @fastify/session
   validation: {
     enabled: true,                      // default false (additive / non-breaking)
     fallbackRedirect: '/',              // when no Referer is present
