@@ -1,5 +1,16 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.9.1
+
+### Patch Changes
+
+- [#93](https://github.com/DavideCarvalho/nestjs-inertia/pull/93) [`2340101`](https://github.com/DavideCarvalho/nestjs-inertia/commit/23401018a1ef91a645c3d2a37a163bcf2f11d03f) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - Move `@dudousxd/nestjs-diagnostics` from `^0.2.0` to `^0.7.2`.
+
+  The 0.2.x line declares `@nestjs/core` / `@nestjs/common` peers of `^10 || ^11`, so an app on
+  NestJS 12 got a peer warning through this package even though `@dudousxd/nestjs-inertia` itself
+  already allows `>=10.0.0`. 0.7.2 declares `^10 || ^11 || ^12`. The two functions this package
+  uses, `emit` and `getChannel`, are unchanged between the two lines.
+
 ## 1.9.0
 
 ### Minor Changes
