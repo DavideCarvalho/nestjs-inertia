@@ -7,9 +7,15 @@ name: Release
 # security scans — because a push to main is the last moment anything is checked before it
 # reaches npm. ci.yml no longer runs on main for that reason: the checks happen here instead
 # of twice.
+#   push to main -> version the pending changesets in place (a "chore: version packages"
+#                   commit pushed to main) and publish them, in the same run
+#   run manually -> throwaway beta snapshot, changesets and git untouched
+#
+# No "Version Packages" PR to merge: merging a PR that carries a changeset IS the release.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -112,11 +118,11 @@ jobs:
           sarif_file: ${{ steps.grype-scan.outputs.sarif }}
           category: grype
   publish:
+    if: github.event_name == 'push'
     needs: [lint, test, trivy, grype]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@v7.0.1
@@ -145,9 +151,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run build --filter='./packages/*'
       # A Renovate patch/minor bump automerges on its own and brings no changeset with it, so
-      # the step below would find nothing to publish and the new dependency would reach npm
-      # only whenever someone next released by hand. This writes the changeset for it and
-      # versions it in place, leaving the release a plain "nothing pending, publish" run.
+      # the new dependency would reach npm only with the next hand-written changeset. This writes
+      # a patch changeset for it, which the version step below then releases like any other.
       # Majors are merged by a person, so github.actor is not renovate[bot] and none of it runs.
       - name: Release a Renovate dependency bump
         if: github.event_name == 'push' && github.actor == 'renovate[bot]'
@@ -211,18 +216,36 @@ jobs:
           console.log("Patch release queued for " + bumped.join(", "));
           NODE
           node "$RUNNER_TEMP/renovate-release.mjs"
-          if [ -z "$(git status --porcelain .changeset)" ]; then exit 0; fi
+
+      # Pending changesets -> bump the versions and changelogs, and push that as a
+      # "chore: version packages" commit straight to main. A push made with GITHUB_TOKEN does not
+      # start another workflow run, so this cannot loop. Rebased onto main first, so a commit
+      # that landed meanwhile does not reject the push.
+      - name: Version packages
+        run: |
+          pending=$(find .changeset -maxdepth 1 -name '*.md' ! -iname 'readme.md' | wc -l)
+          if [ "$pending" -eq 0 ]; then
+            echo "No pending changesets: publishing whatever is not on npm yet."
+            exit 0
+          fi
           pnpm version-packages
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m "chore: version packages"
+          git pull --rebase origin ${{ github.ref_name }}
           git push origin HEAD:${{ github.ref_name }}
+        env:
+          # `@changesets/changelog-github` looks up each changeset's PR and author while writing the
+          # changelogs, and throws without a token.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release Pull Request or Publish
+      # No changesets are left by now, so the action takes its publish path: `pnpm release` (build
+      # + `changeset publish`) publishes every package whose version is not on npm yet, then tags
+      # git and creates the GitHub releases.
+      - name: Publish to npm
         uses: changesets/action@v1.9.0
         with:
-          version: pnpm version-packages
           # `pnpm release` (pnpm -r build && changeset publish), not `pnpm -r publish`: the
           # action discovers what to tag by reading `New tag:` lines from this command's
           # stdout, and only `changeset publish` prints them. Under `pnpm -r publish` the
@@ -231,8 +254,6 @@ jobs:
           #
           # `--access public` is not lost with the flag: .changeset/config.json sets it.
           publish: pnpm release
-          commit: "chore: version packages"
-          title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Deliberately no NODE_AUTH_TOKEN, and no NPM_TOKEN either: publish auth is npm
@@ -240,4 +261,57 @@ jobs:
           # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into ~/.npmrc regardless, so
           # wiring an unset secret here would leave an EMPTY credential that npm sends instead
           # of falling through to the OIDC exchange. Absent is not the same as empty.
+          NPM_CONFIG_PROVENANCE: true
+
+  snapshot:
+    name: Publish beta snapshot to npm
+    if: github.event_name == 'workflow_dispatch'
+    needs: [lint, test, trivy, grype]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # mints the OIDC credential npm exchanges for a publish token
+    steps:
+      # Cuts a THROWAWAY prerelease of every package with a pending changeset, published under the
+      # `beta` dist-tag as `0.0.0-beta-<timestamp>`. It does NOT consume the changesets, bump source
+      # versions, or tag git, so the eventual real release (the next push to main) is untouched
+      # and still produces clean semver.
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      # npm learned OIDC in 11.5.1 and the Node pinned above ships 10.x, so without this the
+      # publish fails as `E404 - PUT https://registry.npmjs.org/<pkg>`: npm answers 404 rather
+      # than 403 for an unauthorized package, which reads as "no such package" rather than
+      # "not authenticated". Upgraded here rather than by moving the Node version, so the
+      # toolchain the packages are built and tested against does not change.
+      #
+      # Pinned to 11.x, NOT @latest: npm 12 changed `npm info <pkg> --json` to return an array
+      # where 11 returned a packument object, and changesets reads `.versions` off it — so on
+      # npm 12 every package looks unpublished and it republishes live versions.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: |
+          npm install -g 'npm@^11.5.1'
+          npm --version
+
+      - run: pnpm install --frozen-lockfile
+
+      # Stamp every pending-changeset package (and any out-of-range dependent) to
+      # `0.0.0-beta-<datetime>` in the runner only, never committed.
+      - name: Version as beta snapshot
+        run: pnpm changeset version --snapshot beta
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build all packages
+        run: pnpm -r --filter './packages/*' build
+
+      # `@latest` is untouched: these land under the `beta` dist-tag with no git tag.
+      - name: Publish beta snapshot
+        run: pnpm changeset publish --tag beta --no-git-tag
+        env:
+          # No NODE_AUTH_TOKEN here either: publish auth is OIDC trusted publishing.
           NPM_CONFIG_PROVENANCE: true
