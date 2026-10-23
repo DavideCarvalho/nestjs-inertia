@@ -223,14 +223,18 @@ jobs:
       # that landed meanwhile does not reject the push.
       - name: Version packages
         run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Start from the branch tip, not the triggering commit: a run that queued behind another
+          # release would otherwise re-version the changesets that run already versioned, bump to
+          # the same numbers again, and conflict on the rebase below.
+          git pull --rebase origin ${{ github.ref_name }}
           pending=$(find .changeset -maxdepth 1 -name '*.md' ! -iname 'readme.md' | wc -l)
           if [ "$pending" -eq 0 ]; then
             echo "No pending changesets: publishing whatever is not on npm yet."
             exit 0
           fi
           pnpm version-packages
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m "chore: version packages"
           git pull --rebase origin ${{ github.ref_name }}
@@ -302,7 +306,9 @@ jobs:
       # Stamp every pending-changeset package (and any out-of-range dependent) to
       # `0.0.0-beta-<datetime>` in the runner only, never committed.
       - name: Version as beta snapshot
-        run: pnpm changeset version --snapshot beta
+        run: |
+          pnpm changeset version --snapshot beta
+          sh scripts/sync-versions.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
