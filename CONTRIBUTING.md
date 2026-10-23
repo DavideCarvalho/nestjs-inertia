@@ -94,7 +94,7 @@ This repo uses [Changesets](https://github.com/changesets/changesets) for versio
 2. Run `pnpm changeset` and follow the prompts to describe what changed and which packages are affected.
 3. Commit the generated `.changeset/*.md` file alongside your code changes.
 
-When a release PR is merged, the CI release workflow applies the version bumps and publishes automatically (once the publish step is enabled).
+When a PR carrying a changeset is merged, the release workflow versions it in place (a `chore: version packages` commit pushed to `main`) and publishes to npm in the same run. There is no release PR to merge; a manual run of the workflow publishes a throwaway beta snapshot under the `beta` dist-tag.
 
 Do **not** manually edit `CHANGELOG.md` or bump versions in `package.json` files — Changesets handles this.
 
@@ -117,7 +117,7 @@ CI runs `biome ci .` — your PR will fail if Biome reports errors.
 4. Add a changeset if your change affects a public package: `pnpm changeset`.
 5. Open a PR against `main`. Fill in the PR template.
 6. At least one maintainer review is required before merging.
-7. Squash-merge is preferred for feature/fix branches; merge commits are used for release PRs.
+7. Squash-merge is preferred.
 
 ## Reporting bugs
 
