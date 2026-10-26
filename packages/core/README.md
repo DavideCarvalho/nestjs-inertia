@@ -148,7 +148,7 @@ InertiaModule.forRoot({
 });
 ```
 
-Each engine sees locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`. Use the engine's own escape rules (e.g., `{{{inertia}}}` triple-stache in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug). The `@inertia`/`@vite`/`@asset` directives are also processed on the engine's output, so you can mix and match.
+Each engine sees locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`. Use the engine's own escape rules (e.g., `{{{inertia}}}` triple-stache in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug). `@inertia`/`@inertiaHead`/`@vite`/`@viteRefresh`/`@asset` directives written in the root view file itself can be mixed with engine syntax; directives in partials/includes, and any text the engine interpolates (props, SSR markup), are not expanded.
 
 ## CSRF
 

@@ -190,6 +190,8 @@ The shell file created by `init` uses three special directives:
 
 You write the `<head>` with your app's meta tags, fonts, and favicon. The lib handles everything else.
 
+Directives are expanded in a single pass, so text they insert (page props, SSR markup) is never treated as a directive. For `@asset`, `@viteRefresh` and Handlebars / EJS / Pug / Liquid root views, see [Root views and template engines](/docs/packages/core#root-views-and-template-engines).
+
 ---
 
 ## `InertiaModule.forRoot()` options

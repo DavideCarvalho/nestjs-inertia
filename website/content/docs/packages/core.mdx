@@ -66,6 +66,36 @@ InertiaModule.forRoot({
 
 See the [Getting Started](/docs/getting-started) guide for a full bootstrap example.
 
+## Page props on the wire
+
+Page props are serialized with `JSON.stringify`, so every value arrives in the shape `JSON.stringify` gives it: a `Date` becomes an ISO string, a class with a `toJSON` (Decimal, Luxon, ORM entities) sends its `toJSON()` result, and `Map` / `Set` become `{}` as they would in any JSON response.
+
+Markers can sit at any depth, as long as every container on the way to them is an **array or a plain object** (prototype `Object.prototype` or `null`). Any other object (a `Date`, a DTO or entity instance, a `Map`) is treated as a leaf: the resolver does not look inside it, so a marker placed in a class instance is sent unresolved. Spread the instance into a plain object when it needs a nested marker:
+
+```ts
+// Resolved: `feed` sits in a plain object
+return { user: { ...dto, feed: Inertia.defer(() => this.feed()) } };
+
+// Not resolved: `feed` sits inside a class instance
+return { user: Object.assign(new UserDto(), { feed: Inertia.defer(() => this.feed()) }) };
+```
+
+The same container rule applies elsewhere in the render path:
+
+- **Dot-path partial reloads** (`only: ['user.name']`) narrow plain objects and arrays. When the requested path runs into a class instance, that instance is sent whole.
+- **`undefined` → `null`**: `undefined` values in plain objects, arrays and class instances without a `toJSON` are sent as `null`. Objects with a `toJSON` are left for their `toJSON` to serialize.
+- **Cost**: a prop with no marker inside it, and no dot-path filter on it, is sent as returned, without being copied. When a prop does hold markers, only the containers on the path to them are rebuilt.
+
+Function props and marker factories run one at a time, in key order, so factories that share a request-scoped resource (for example a MikroORM `EntityManager`) never run concurrently. To run independent work in parallel, do it inside one factory with `Promise.all`.
+
+## Root views and template engines
+
+`rootView` accepts an `.html` file (rendered by the built-in directive parser) or a `.hbs` / `.ejs` / `.pug` / `.liquid` template when the matching engine package (`handlebars`, `ejs`, `pug`, `liquidjs`) is installed. Engine templates receive the locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`; `vite(entry)` and `asset(path)` are functions returning the same markup as the directives. Output them with the engine's unescaped syntax (`{{{inertia}}}` in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug).
+
+Directives (`@inertia`, `@inertiaHead`, `@vite('…')`, `@viteRefresh`, `@asset('…')`) are expanded in a single pass over the root view. Text that a directive or the engine inserts — the page JSON, SSR head and body, interpolated locals — is never parsed for directives, so a prop whose text contains `@vite('x')` or `@inertia` is sent verbatim.
+
+In an engine template, directives written literally in the root view file can be mixed with engine syntax, including inside Pug attribute values. Directives in partials or included files are not expanded; use the `vite()` / `asset()` / `inertia` locals there.
+
 ## `InertiaService` runtime methods
 
 Inject `InertiaService` to drive a response programmatically. Beyond `render()`, it exposes the full set of Inertia protocol operations. The mutators (`share`, `encryptHistory`, `clearHistory`) return `this`, so they chain.
