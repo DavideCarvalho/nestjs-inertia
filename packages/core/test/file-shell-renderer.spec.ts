@@ -288,3 +288,115 @@ describe('FileBasedShellRenderer — directives in partials and includes', () =>
     expectExpanded(await renderRoot('inertia/root.liquid'));
   });
 });
+
+describe('FileBasedShellRenderer — page text printed by the engine stays literal', () => {
+  const origEnv = process.env.NODE_ENV;
+  afterEach(() => {
+    process.env.NODE_ENV = origEnv;
+  });
+
+  const title = "@inertia @inertiaHead @vite('x') @asset('app.tsx') @viteRefresh";
+
+  function makeViews(files: Record<string, string>): void {
+    const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-page-text-'));
+    mkdirSync(join(dir, 'inertia'));
+    for (const [name, content] of Object.entries(files)) {
+      writeFileSync(join(dir, 'inertia', name), content);
+    }
+    process.chdir(dir);
+  }
+
+  async function renderRoot(rootView: string) {
+    process.env.NODE_ENV = 'production';
+    return new FileBasedShellRenderer(rootView).render({
+      page: { component: 'H', props: { title, tags: ['a@b'] }, url: '/u/@me', version: 'v1' },
+      ssr: { head: ['<meta name="x">'], body: '<div id="app">SSR</div>' },
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } },
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+  }
+
+  function expectLiteral(html: string) {
+    const quote = "(?:'|&#39;|&#x27;)";
+    expect(html).toMatch(
+      new RegExp(
+        `<title>@inertia @inertiaHead @vite\\(${quote}x${quote}\\) @asset\\(${quote}app\\.tsx${quote}\\) @viteRefresh</title>`,
+      ),
+    );
+    expect(html).toContain('<p>/u/@me a@b</p>');
+    expect(html).toContain('<script type="module" src="/assets/app-x.js"></script>');
+    expect(html.match(/<meta name="x">/g)).toHaveLength(1);
+    expect(html.match(/data-server-rendered/g)).toHaveLength(1);
+    expect(html).not.toContain('nestjsinertia');
+  }
+
+  it('Handlebars', async () => {
+    const { default: Handlebars } = await import('handlebars');
+    Handlebars.registerPartial('pageText', "@vite('app.tsx')@inertiaHead");
+    try {
+      makeViews({
+        'root.hbs':
+          '<head><title>{{page.props.title}}</title>{{> pageText}}</head><body><p>{{page.url}} {{page.props.tags.[0]}}</p>@inertia</body>',
+      });
+      expectLiteral(await renderRoot('inertia/root.hbs'));
+    } finally {
+      Handlebars.unregisterPartial('pageText');
+    }
+  });
+
+  it('EJS', async () => {
+    makeViews({
+      'root.ejs':
+        "<head><title><%= page.props.title %></title><%- include('head') %></head><body><p><%= page.url %> <%= page.props.tags[0] %></p>@inertia</body>",
+      'head.ejs': "@vite('app.tsx')@inertiaHead",
+    });
+    expectLiteral(await renderRoot('inertia/root.ejs'));
+  });
+
+  it('Pug', async () => {
+    makeViews({
+      'root.pug':
+        'html\n  head\n    title= page.props.title\n    include head.pug\n  body\n    p #{page.url} #{page.props.tags[0]}\n    | @inertia\n',
+      'head.pug': "| @vite('app.tsx')@inertiaHead\n",
+    });
+    expectLiteral(await renderRoot('inertia/root.pug'));
+  });
+
+  it('Liquid', async () => {
+    makeViews({
+      'root.liquid':
+        "<head><title>{{ page.props.title }}</title>{% include 'inertia/head.liquid' %}</head><body><p>{{ page.url }} {{ page.props.tags[0] }}</p>@inertia</body>",
+      'head.liquid': "@vite('app.tsx')@inertiaHead",
+    });
+    expectLiteral(await renderRoot('inertia/root.liquid'));
+  });
+});
+
+describe('FileBasedShellRenderer — the masked page view is built only when read', () => {
+  it.each([
+    ['hbs', '<body>{{{inertia}}}</body>'],
+    ['ejs', '<body><%- inertia %></body>'],
+    ['pug', 'body!= inertia\n'],
+    ['liquid', '<body>{{ inertia }}</body>'],
+  ])('%s template that never reads page', async (ext, source) => {
+    let reads = 0;
+    const props = {};
+    Object.defineProperty(props, 'title', {
+      enumerable: true,
+      get() {
+        reads++;
+        return '@inertia';
+      },
+    });
+    const html = await new FileBasedShellRenderer(makeRoot(source, ext)).render({
+      page: { component: 'H', props, url: '/', version: 'v1' },
+      ssr: null,
+      manifest: null,
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+    expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    expect(reads).toBe(1);
+  });
+});

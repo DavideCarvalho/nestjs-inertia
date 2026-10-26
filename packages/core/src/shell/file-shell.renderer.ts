@@ -30,10 +30,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
   private cachedTemplate: string | null = null;
   private engineRenderer: ((locals: Record<string, unknown>) => string | Promise<string>) | null =
     null;
-  /**
-   * Stand-ins for the page markup and SSR head in engine output. Alphanumeric so no
-   * engine escapes them; the random nonce keeps rendered data from forging one.
-   */
+  /** Per-renderer stand-ins used on the template-engine path (see {@link createPlaceholders}). */
   private readonly enginePlaceholders = createPlaceholders();
   private adapterPromise: Promise<TemplateEngineAdapter> | null = null;
   private readonly absPath: string;
@@ -92,8 +89,15 @@ export class FileBasedShellRenderer implements ShellRenderer {
       `<div id="app"></div>\n<script data-page="app" type="application/json">${pageJson}</script>`;
     const directiveCtx = { pageJson, ssrHead, ssrBody, manifest, isDev, base: this.base };
     const placeholders = this.enginePlaceholders;
+    let maskedPage: unknown;
     const locals: Record<string, unknown> = {
-      page: ctx.page,
+      // The engine sees page strings with `@` masked, so text it prints from them can
+      // never form a directive; the mask is undone after the directive pass. Built on
+      // first access, so templates that never read `page` don't pay for the copy.
+      get page() {
+        if (maskedPage === undefined) maskedPage = maskAt(ctx.page, placeholders.at);
+        return maskedPage;
+      },
       inertia: placeholders.body,
       inertiaHead: placeholders.head,
       vite: (entry: string) => {
@@ -108,17 +112,19 @@ export class FileBasedShellRenderer implements ShellRenderer {
     };
 
     // Directives anywhere in the engine output (root view, partials, includes) expand
-    // to placeholders; the page markup and SSR head are substituted last, so page data
-    // and SSR markup are never scanned for directives.
+    // to placeholders; the masked `@`s, page markup and SSR head are substituted last,
+    // so page data and SSR markup are never scanned for directives.
     const output = await this.engineRenderer(locals);
     const expanded = processDirectives(output, {
       ...directiveCtx,
       ssrHead: placeholders.head,
       ssrBody: placeholders.body,
     });
-    return expanded.replace(placeholders.pattern, (match) =>
-      match === placeholders.head ? ssrHead : inertiaHtml,
-    );
+    return expanded.replace(placeholders.pattern, (match) => {
+      const key = match.toLowerCase();
+      if (key === placeholders.at) return '@';
+      return key === placeholders.head ? ssrHead : inertiaHtml;
+    });
   }
 
   /**
@@ -136,9 +142,27 @@ export class FileBasedShellRenderer implements ShellRenderer {
   }
 }
 
-function createPlaceholders(): { head: string; body: string; pattern: RegExp } {
+/**
+ * Stand-ins for `@` in page strings and for the page markup and SSR head in engine
+ * output. Lowercase alphanumeric, so no engine escapes them, matched case-insensitively
+ * so case filters don't strand one; the random nonce keeps rendered data from forging one.
+ */
+function createPlaceholders(): { at: string; head: string; body: string; pattern: RegExp } {
   const nonce = randomBytes(8).toString('hex');
+  const at = `nestjsinertia${nonce}at`;
   const head = `nestjsinertia${nonce}head`;
   const body = `nestjsinertia${nonce}body`;
-  return { head, body, pattern: new RegExp(`${head}|${body}`, 'g') };
+  return { at, head, body, pattern: new RegExp(`${at}|${head}|${body}`, 'gi') };
+}
+
+/** Copy of `value` with every `@` in its strings replaced by `at`, through arrays and plain objects. */
+function maskAt(value: unknown, at: string): unknown {
+  if (typeof value === 'string') return value.includes('@') ? value.replaceAll('@', at) : value;
+  if (Array.isArray(value)) return value.map((item) => maskAt(item, at));
+  if (typeof value !== 'object' || value === null) return value;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
+  const out: Record<string, unknown> = {};
+  for (const k in value) out[k] = maskAt((value as Record<string, unknown>)[k], at);
+  return out;
 }

@@ -148,7 +148,7 @@ InertiaModule.forRoot({
 });
 ```
 
-Each engine sees locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`. Use the engine's own escape rules (e.g., `{{{inertia}}}` triple-stache in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug). The `@inertia`/`@inertiaHead`/`@vite`/`@viteRefresh`/`@asset` directives are also expanded in the engine's output, root view and partials/includes alike, so you can mix and match. The page JSON and SSR markup are inserted after that pass, so their contents are never treated as directives.
+Each engine sees locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`. Use the engine's own escape rules (e.g., `{{{inertia}}}` triple-stache in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug). The `@inertia`/`@inertiaHead`/`@vite`/`@viteRefresh`/`@asset` directives are also expanded in the engine's output, root view and partials/includes alike, so you can mix and match. The page JSON, the SSR markup and any text printed from `page` are restored after that pass, so page data is never treated as a directive.
 
 ## CSRF
 
