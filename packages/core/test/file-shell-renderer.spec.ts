@@ -149,12 +149,23 @@ describe('FileBasedShellRenderer — template engines and directives in page dat
     }
   });
 
-  it('leaves directive text interpolated by the engine untouched', async () => {
+  it('leaves directives inside the SSR head and body alone', async () => {
     const renderer = new FileBasedShellRenderer(
-      makeRoot('<title>{{page.props.title}}</title><body>{{{inertia}}}</body>', 'hbs'),
+      makeRoot('<head>{{{inertiaHead}}}</head><body>{{{inertia}}}</body>', 'hbs'),
     );
-    const html = await render(renderer, { title: '@inertiaHead @viteRefresh' });
-    expect(html).toContain('<title>@inertiaHead @viteRefresh</title>');
+    const html = await renderer.render({
+      page: { component: 'H', props: {}, url: '/', version: 'v1' },
+      ssr: {
+        head: ['<title>@inertia @viteRefresh</title>'],
+        body: '<div id="app">@vite(\'missing.tsx\') @inertiaHead</div>',
+      },
+      manifest: {},
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+    expect(html).toBe(
+      '<head><title>@inertia @viteRefresh</title></head><body><div id="app" data-server-rendered="true">@vite(\'missing.tsx\') @inertiaHead</div></body>',
+    );
   });
 
   it('still expands directives written into the template next to engine syntax', async () => {
@@ -193,5 +204,87 @@ describe('FileBasedShellRenderer — template engines and directives in page dat
     } finally {
       process.env.NODE_ENV = origEnv;
     }
+  });
+});
+
+describe('FileBasedShellRenderer — directives in partials and includes', () => {
+  const origEnv = process.env.NODE_ENV;
+  afterEach(() => {
+    process.env.NODE_ENV = origEnv;
+  });
+
+  function makeViews(files: Record<string, string>): string {
+    const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-partials-'));
+    mkdirSync(join(dir, 'inertia'));
+    for (const [name, content] of Object.entries(files)) {
+      writeFileSync(join(dir, 'inertia', name), content);
+    }
+    process.chdir(dir);
+    return dir;
+  }
+
+  async function renderRoot(rootView: string) {
+    process.env.NODE_ENV = 'production';
+    const renderer = new FileBasedShellRenderer(rootView);
+    return renderer.render({
+      page: {
+        component: 'H',
+        props: { note: "@vite('missing.tsx') @inertia" },
+        url: '/',
+        version: 'v1',
+      },
+      ssr: null,
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } },
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+  }
+
+  function expectExpanded(html: string) {
+    expect(html).toContain('<script type="module" src="/assets/app-x.js"></script>');
+    expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    expect(html).toContain("@vite('missing.tsx') @inertia");
+    expect(html).not.toContain('nestjsinertia');
+  }
+
+  it('expands directives in a Handlebars partial', async () => {
+    const { default: Handlebars } = await import('handlebars');
+    Handlebars.registerPartial('appHead', "@vite('app.tsx')");
+    Handlebars.registerPartial('appBody', '@inertia');
+    try {
+      makeViews({ 'root.hbs': '<head>{{> appHead}}</head><body>{{> appBody}}</body>' });
+      expectExpanded(await renderRoot('inertia/root.hbs'));
+    } finally {
+      Handlebars.unregisterPartial('appHead');
+      Handlebars.unregisterPartial('appBody');
+    }
+  });
+
+  it('expands directives in an EJS include', async () => {
+    makeViews({
+      'root.ejs': "<head><%- include('head') %></head><body><%- include('body') %></body>",
+      'head.ejs': "@vite('app.tsx')",
+      'body.ejs': '@inertia',
+    });
+    expectExpanded(await renderRoot('inertia/root.ejs'));
+  });
+
+  it('expands directives in a Pug include', async () => {
+    makeViews({
+      'root.pug': 'html\n  head\n    include head.pug\n  body\n    include body.pug\n',
+      'head.pug': "| @vite('app.tsx')\n",
+      'body.pug': '| @inertia\n',
+    });
+    expectExpanded(await renderRoot('inertia/root.pug'));
+  });
+
+  it('expands directives in a Liquid include', async () => {
+    makeViews({
+      'root.liquid':
+        "<head>{% include 'inertia/head.liquid' %}</head><body>{% include 'inertia/body.liquid' %}</body>",
+      'head.liquid': "@vite('app.tsx')",
+      'body.liquid': '@inertia',
+    });
+    expectExpanded(await renderRoot('inertia/root.liquid'));
   });
 });

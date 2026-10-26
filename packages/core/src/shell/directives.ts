@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import type { Manifest } from '../asset/version.provider.js';
 
 export interface DirectiveContext {
@@ -83,34 +82,4 @@ function renderAsset(path: string, ctx: DirectiveContext, base: string): string 
   if (ctx.isDev) return `${base}${path}`;
   const entry = ctx.manifest?.[path];
   return entry ? `${base}${entry.file}` : `${base}${path}`;
-}
-
-/**
- * A template-engine source with its directives swapped for opaque placeholders, so the
- * engine renders around them and {@link DirectiveTemplate.restore} substitutes them
- * afterwards. Only the placeholders are replaced: text the engine interpolated (page
- * props, SSR markup) is never parsed for directives.
- */
-export interface DirectiveTemplate {
-  source: string;
-  restore(output: string, ctx: DirectiveContext): string;
-}
-
-export function extractDirectives(template: string): DirectiveTemplate {
-  const directives: string[] = [];
-  // Alphanumeric so no engine escapes it; the random nonce keeps rendered data from forging one.
-  const nonce = randomBytes(8).toString('hex');
-  const source = template.replace(DIRECTIVE_RE, (full: string) => {
-    directives.push(full);
-    return `nestjsinertia${nonce}d${directives.length - 1}x`;
-  });
-  if (directives.length === 0) return { source, restore: (output) => output };
-  const placeholder = new RegExp(`nestjsinertia${nonce}d(\\d+)x`, 'g');
-  return {
-    source,
-    restore: (output, ctx) =>
-      output.replace(placeholder, (_full, index: string) =>
-        processDirectives(directives[Number(index)] as string, ctx),
-      ),
-  };
 }

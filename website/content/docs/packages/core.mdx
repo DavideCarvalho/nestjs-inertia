@@ -92,9 +92,9 @@ Function props and marker factories run one at a time, in key order, so factorie
 
 `rootView` accepts an `.html` file (rendered by the built-in directive parser) or a `.hbs` / `.ejs` / `.pug` / `.liquid` template when the matching engine package (`handlebars`, `ejs`, `pug`, `liquidjs`) is installed. Engine templates receive the locals `{ page, inertia, inertiaHead, vite, viteRefresh, asset }`; `vite(entry)` and `asset(path)` are functions returning the same markup as the directives. Output them with the engine's unescaped syntax (`{{{inertia}}}` in Handlebars, `<%- inertia %>` in EJS, `!= inertia` in Pug).
 
-Directives (`@inertia`, `@inertiaHead`, `@vite('…')`, `@viteRefresh`, `@asset('…')`) are expanded in a single pass over the root view. Text that a directive or the engine inserts — the page JSON, SSR head and body, interpolated locals — is never parsed for directives, so a prop whose text contains `@vite('x')` or `@inertia` is sent verbatim.
+Directives (`@inertia`, `@inertiaHead`, `@vite('…')`, `@viteRefresh`, `@asset('…')`) are expanded in a single pass. Text a directive inserts (the page JSON, SSR head and body) is never parsed for directives, so a prop whose text contains `@vite('x')` or `@inertia` is sent verbatim.
 
-In an engine template, directives written literally in the root view file can be mixed with engine syntax, including inside Pug attribute values. Directives in partials or included files are not expanded; use the `vite()` / `asset()` / `inertia` locals there.
+In an engine template, directives can be mixed with engine syntax anywhere in the rendered output: the root view, its partials and includes, and Pug attribute values. The engine renders first, with stand-ins for the page JSON and SSR head and body; directives are then expanded over the engine output, and the page JSON and SSR markup are substituted last, so their contents are never scanned. Text you print from the `page` local yourself (for example `{{page.props.title}}`) is part of the engine output and is scanned like the rest of the template.
 
 ## `InertiaService` runtime methods
 

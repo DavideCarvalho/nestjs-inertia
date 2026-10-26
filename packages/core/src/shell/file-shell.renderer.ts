@@ -1,9 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, isAbsolute, resolve } from 'node:path';
 import type { Manifest } from '../asset/version.provider.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
 import type { ShellRenderCtx } from '../types.js';
-import { type DirectiveTemplate, extractDirectives, processDirectives } from './directives.js';
+import { processDirectives } from './directives.js';
 import { markServerRendered } from './mark-server-rendered.js';
 import { serializePageData } from './serialize-page.js';
 import {
@@ -29,7 +30,11 @@ export class FileBasedShellRenderer implements ShellRenderer {
   private cachedTemplate: string | null = null;
   private engineRenderer: ((locals: Record<string, unknown>) => string | Promise<string>) | null =
     null;
-  private engineDirectives: DirectiveTemplate | null = null;
+  /**
+   * Stand-ins for the page markup and SSR head in engine output. Alphanumeric so no
+   * engine escapes them; the random nonce keeps rendered data from forging one.
+   */
+  private readonly enginePlaceholders = createPlaceholders();
   private adapterPromise: Promise<TemplateEngineAdapter> | null = null;
   private readonly absPath: string;
   private readonly ext: string;
@@ -77,23 +82,20 @@ export class FileBasedShellRenderer implements ShellRenderer {
     if (this.adapterPromise === null) {
       this.adapterPromise = resolveTemplateEngine(this.ext);
     }
-    if (this.engineRenderer === null || this.engineDirectives === null) {
+    if (this.engineRenderer === null) {
       const adapter = await this.adapterPromise;
-      // Directives written straight into the template (mixed with engine syntax) are
-      // swapped for placeholders before compiling and restored in the engine output.
-      const directives = extractDirectives(this.cachedTemplate);
-      this.engineRenderer = adapter.compile(directives.source, this.absPath);
-      this.engineDirectives = directives;
+      this.engineRenderer = adapter.compile(this.cachedTemplate, this.absPath);
     }
 
     const inertiaHtml =
       ssrBody ??
       `<div id="app"></div>\n<script data-page="app" type="application/json">${pageJson}</script>`;
     const directiveCtx = { pageJson, ssrHead, ssrBody, manifest, isDev, base: this.base };
+    const placeholders = this.enginePlaceholders;
     const locals: Record<string, unknown> = {
       page: ctx.page,
-      inertia: inertiaHtml,
-      inertiaHead: ssrHead,
+      inertia: placeholders.body,
+      inertiaHead: placeholders.head,
       vite: (entry: string) => {
         if (!/^[\w\-./]+$/.test(entry)) throw new Error(`Invalid vite entry: ${entry}`);
         return processDirectives(`@vite('${entry}')`, directiveCtx);
@@ -105,8 +107,18 @@ export class FileBasedShellRenderer implements ShellRenderer {
       },
     };
 
+    // Directives anywhere in the engine output (root view, partials, includes) expand
+    // to placeholders; the page markup and SSR head are substituted last, so page data
+    // and SSR markup are never scanned for directives.
     const output = await this.engineRenderer(locals);
-    return this.engineDirectives.restore(output, directiveCtx);
+    const expanded = processDirectives(output, {
+      ...directiveCtx,
+      ssrHead: placeholders.head,
+      ssrBody: placeholders.body,
+    });
+    return expanded.replace(placeholders.pattern, (match) =>
+      match === placeholders.head ? ssrHead : inertiaHtml,
+    );
   }
 
   /**
@@ -122,4 +134,11 @@ export class FileBasedShellRenderer implements ShellRenderer {
     });
     return splitOnSentinel(full);
   }
+}
+
+function createPlaceholders(): { head: string; body: string; pattern: RegExp } {
+  const nonce = randomBytes(8).toString('hex');
+  const head = `nestjsinertia${nonce}head`;
+  const body = `nestjsinertia${nonce}body`;
+  return { head, body, pattern: new RegExp(`${head}|${body}`, 'g') };
 }
