@@ -14,7 +14,11 @@ export interface InertiaResponse {
   status(code: number): InertiaResponse;
   setHeader(name: string, value: string): InertiaResponse;
   getHeader(name: string): string | string[] | number | undefined;
-  json(body: unknown): void;
+  /**
+   * Send `body` as JSON. `serialized`, when given, is `JSON.stringify(body)` already
+   * computed by the caller; an adapter may send it as is instead of serializing again.
+   */
+  json(body: unknown, serialized?: string): void;
   html(body: string): void;
   end(): void;
   /**

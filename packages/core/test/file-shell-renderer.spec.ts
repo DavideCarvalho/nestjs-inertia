@@ -115,3 +115,83 @@ describe('FileBasedShellRenderer', () => {
     }
   });
 });
+
+describe('FileBasedShellRenderer — template engines and directives in page data', () => {
+  const render = (renderer: FileBasedShellRenderer, props: Record<string, unknown>) =>
+    renderer.render({
+      page: { component: 'H', props, url: '/', version: 'v1' },
+      ssr: null,
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } },
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+
+  it('embeds the page JSON once when a prop contains @inertia', async () => {
+    const renderer = new FileBasedShellRenderer(makeRoot('<body>{{{inertia}}}</body>', 'hbs'));
+    const html = await render(renderer, { note: 'ping @inertia team' });
+    expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    expect(html.match(/<\/script>/g)).toHaveLength(1);
+    expect(html).toContain('ping @inertia team');
+  });
+
+  it('does not run a manifest lookup for @vite(...) inside props', async () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const renderer = new FileBasedShellRenderer(
+        makeRoot('<head>{{{vite "app.tsx"}}}</head><body>{{{inertia}}}</body>', 'hbs'),
+      );
+      const html = await render(renderer, { note: "@vite('missing.tsx') @asset('app.tsx')" });
+      expect(html).toContain('/assets/app-x.js');
+      expect(html).toContain("@vite('missing.tsx') @asset('app.tsx')");
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  });
+
+  it('leaves directive text interpolated by the engine untouched', async () => {
+    const renderer = new FileBasedShellRenderer(
+      makeRoot('<title>{{page.props.title}}</title><body>{{{inertia}}}</body>', 'hbs'),
+    );
+    const html = await render(renderer, { title: '@inertiaHead @viteRefresh' });
+    expect(html).toContain('<title>@inertiaHead @viteRefresh</title>');
+  });
+
+  it('still expands directives written into the template next to engine syntax', async () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const renderer = new FileBasedShellRenderer(
+        makeRoot(
+          "<head>@vite('app.tsx')<link href=\"@asset('app.tsx')\"></head><body>{{#if page}}@inertia{{/if}}</body>",
+          'hbs',
+        ),
+      );
+      const html = await render(renderer, { note: '@inertia' });
+      expect(html).toContain('<script type="module" src="/assets/app-x.js"></script>');
+      expect(html).toContain('<link href="/assets/app-x.js">');
+      expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+      expect(html).not.toContain('nestjsinertia');
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  });
+
+  it('expands directives in pug attribute values and text', async () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const renderer = new FileBasedShellRenderer(
+        makeRoot(
+          'html\n  head\n    link(href="@asset(\'app.tsx\')")\n  body\n    | @inertia\n',
+          'pug',
+        ),
+      );
+      const html = await render(renderer, { note: '@inertia' });
+      expect(html).toContain('<link href="/assets/app-x.js"/>');
+      expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  });
+});

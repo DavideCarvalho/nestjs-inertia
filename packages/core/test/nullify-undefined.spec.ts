@@ -34,3 +34,28 @@ describe('nullifyUndefined', () => {
     expect(nullifyUndefined({})).toEqual({});
   });
 });
+
+describe('nullifyUndefined — objects with toJSON', () => {
+  class Entity {
+    id = 1;
+    nickname: string | undefined = undefined;
+    toJSON() {
+      return { id: this.id };
+    }
+  }
+
+  it('leaves objects with toJSON untouched so their serialization survives', () => {
+    const owner = new Entity();
+    const out = nullifyUndefined({ owner, list: [owner] });
+    expect(out.owner).toBe(owner);
+    expect((out.list as unknown[])[0]).toBe(owner);
+    expect(JSON.stringify(out)).toBe('{"owner":{"id":1},"list":[{"id":1}]}');
+  });
+
+  it('still maps undefined to null inside class instances without toJSON', () => {
+    class Dto {
+      name: string | undefined = undefined;
+    }
+    expect(JSON.stringify(nullifyUndefined({ dto: new Dto() }))).toBe('{"dto":{"name":null}}');
+  });
+});

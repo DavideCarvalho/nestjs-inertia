@@ -332,3 +332,105 @@ describe('nested markers — once() mirrors top-level semantics', () => {
     expect(page.onceProps).toEqual({ 'user.token': { prop: 'user.token', expiresAt: null } });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Values the resolver leaves for JSON.stringify
+// ---------------------------------------------------------------------------
+describe('nested props — non-plain values serialize natively', () => {
+  class Money {
+    constructor(private readonly cents: number) {}
+    toJSON() {
+      return (this.cents / 100).toFixed(2);
+    }
+  }
+  class Entity {
+    id = 1;
+    secret = 'hidden';
+    nickname: string | undefined = undefined;
+    toJSON() {
+      return { id: this.id };
+    }
+  }
+
+  const values = () => ({
+    createdAt: new Date(0),
+    price: new Money(150),
+    owner: new Entity(),
+    tags: new Set(['a']),
+    index: new Map([['k', 1]]),
+    nested: { at: new Date(86_400_000), list: [new Money(5), { when: new Date(0) }] },
+  });
+
+  async function renderXhr(props: Record<string, unknown>, headers: Record<string, string> = {}) {
+    const req = fakeRequest({ headers: { 'x-inertia': 'true', ...headers } });
+    const res = fakeResponse();
+    await new InertiaService(req, res, deps()).render('Page', props);
+    return res._captured.body as { props: Record<string, unknown> };
+  }
+
+  it('keeps Date, toJSON classes, Map and Set intact inside a plain prop', async () => {
+    const body = await renderXhr({ report: values() });
+    expect(JSON.parse(JSON.stringify(body.props.report))).toEqual(
+      JSON.parse(JSON.stringify(values())),
+    );
+    expect(JSON.stringify(body.props.report)).toContain('"createdAt":"1970-01-01T00:00:00.000Z"');
+    expect(JSON.stringify(body.props.report)).toContain('"price":"1.50"');
+    expect(JSON.stringify(body.props.report)).toContain('"owner":{"id":1}');
+  });
+
+  it('keeps Date and toJSON classes intact as top-level props', async () => {
+    const body = await renderXhr({ createdAt: new Date(0), owner: () => new Entity() });
+    expect(JSON.stringify(body.props)).toContain('"createdAt":"1970-01-01T00:00:00.000Z"');
+    expect(JSON.stringify(body.props)).toContain('"owner":{"id":1}');
+  });
+
+  it('keeps Date and toJSON classes intact next to a nested marker', async () => {
+    const body = await renderXhr({
+      report: { ...values(), total: Inertia.always(() => 3) },
+    });
+    const report = JSON.parse(JSON.stringify(body.props.report));
+    expect(report.total).toBe(3);
+    expect(report.createdAt).toBe('1970-01-01T00:00:00.000Z');
+    expect(report.price).toBe('1.50');
+    expect(report.owner).toEqual({ id: 1 });
+    expect(report.nested.list).toEqual(['0.05', { when: '1970-01-01T00:00:00.000Z' }]);
+  });
+
+  it('keeps a Date leaf on a dot-path partial reload', async () => {
+    const body = await renderXhr(
+      { report: { createdAt: new Date(0), other: 1 } },
+      { 'x-inertia-partial-component': 'Page', 'x-inertia-partial-data': 'report.createdAt' },
+    );
+    expect(JSON.stringify(body.props.report)).toBe('{"createdAt":"1970-01-01T00:00:00.000Z"}');
+  });
+
+  it('sends a marker-free prop as is, without rebuilding it', async () => {
+    const rows = Array.from({ length: 3 }, (_, i) => ({ id: i }));
+    const prop = { data: rows, meta: { page: 1 } };
+    const body = await renderXhr({ users: prop });
+    expect(body.props.users).toBe(prop);
+  });
+
+  it('does not read properties of serializable class instances while resolving', async () => {
+    let reads = 0;
+    class Heavy {
+      toJSON() {
+        return 'heavy';
+      }
+    }
+    const heavy = new Heavy();
+    Object.defineProperty(heavy, 'field', {
+      enumerable: true,
+      get() {
+        reads++;
+        return 1;
+      },
+    });
+    await renderXhr(
+      { excluded: { heavy }, wanted: 1 },
+      { 'x-inertia-partial-component': 'Page', 'x-inertia-partial-data': 'wanted' },
+    );
+    await renderXhr({ included: { heavy } });
+    expect(reads).toBe(0);
+  });
+});

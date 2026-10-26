@@ -3,7 +3,7 @@ import { extname, isAbsolute, resolve } from 'node:path';
 import type { Manifest } from '../asset/version.provider.js';
 import { UnsupportedRootViewExtensionException } from '../errors/exceptions.js';
 import type { ShellRenderCtx } from '../types.js';
-import { processDirectives } from './directives.js';
+import { type DirectiveTemplate, extractDirectives, processDirectives } from './directives.js';
 import { markServerRendered } from './mark-server-rendered.js';
 import { serializePageData } from './serialize-page.js';
 import {
@@ -29,6 +29,7 @@ export class FileBasedShellRenderer implements ShellRenderer {
   private cachedTemplate: string | null = null;
   private engineRenderer: ((locals: Record<string, unknown>) => string | Promise<string>) | null =
     null;
+  private engineDirectives: DirectiveTemplate | null = null;
   private adapterPromise: Promise<TemplateEngineAdapter> | null = null;
   private readonly absPath: string;
   private readonly ext: string;
@@ -76,9 +77,13 @@ export class FileBasedShellRenderer implements ShellRenderer {
     if (this.adapterPromise === null) {
       this.adapterPromise = resolveTemplateEngine(this.ext);
     }
-    if (this.engineRenderer === null) {
+    if (this.engineRenderer === null || this.engineDirectives === null) {
       const adapter = await this.adapterPromise;
-      this.engineRenderer = adapter.compile(this.cachedTemplate, this.absPath);
+      // Directives written straight into the template (mixed with engine syntax) are
+      // swapped for placeholders before compiling and restored in the engine output.
+      const directives = extractDirectives(this.cachedTemplate);
+      this.engineRenderer = adapter.compile(directives.source, this.absPath);
+      this.engineDirectives = directives;
     }
 
     const inertiaHtml =
@@ -100,10 +105,8 @@ export class FileBasedShellRenderer implements ShellRenderer {
       },
     };
 
-    let output = await this.engineRenderer(locals);
-    // Run directive parser on output too — supports devs who mix template syntax with @inertia
-    output = processDirectives(output, directiveCtx);
-    return output;
+    const output = await this.engineRenderer(locals);
+    return this.engineDirectives.restore(output, directiveCtx);
   }
 
   /**

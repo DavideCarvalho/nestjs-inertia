@@ -8,6 +8,9 @@ import type { Props } from '../types.js';
  * nested object/array that itself changed). When nothing changes, the original
  * object/array reference is returned unchanged. Output semantics are identical
  * to a full deep-clone that maps every `undefined` to `null`.
+ *
+ * Objects with a `toJSON` method (Date, Decimal, Luxon, ORM entities) are left
+ * untouched: `JSON.stringify` serializes them through `toJSON`, which a copy loses.
  */
 export function nullifyUndefined(props: Props): Props {
   let out: Props | null = null;
@@ -17,7 +20,7 @@ export function nullifyUndefined(props: Props): Props {
     if (v === undefined) {
       replacement = null;
       changed = true;
-    } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+    } else if (typeof v === 'object' && v !== null && !Array.isArray(v) && !hasToJSON(v)) {
       replacement = nullifyUndefined(v as Props);
       changed = replacement !== v;
     } else if (Array.isArray(v)) {
@@ -47,7 +50,7 @@ function nullifyArray(arr: unknown[]): unknown[] {
     if (item === undefined) {
       replacement = null;
       changed = true;
-    } else if (typeof item === 'object' && item !== null) {
+    } else if (typeof item === 'object' && item !== null && !hasToJSON(item)) {
       replacement = nullifyUndefined(item as Props);
       changed = replacement !== item;
     } else {
@@ -62,4 +65,8 @@ function nullifyArray(arr: unknown[]): unknown[] {
     }
   }
   return out ?? arr;
+}
+
+function hasToJSON(value: object): boolean {
+  return typeof (value as { toJSON?: unknown }).toJSON === 'function';
 }
