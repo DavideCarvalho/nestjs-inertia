@@ -34,48 +34,52 @@ window.$RefreshSig$ = () => (type) => type
 window.__vite_plugin_react_preamble_installed__ = true
 </script>`;
 
+/**
+ * Every directive, in one alternation so the template is scanned in a single pass and
+ * substituted output (page JSON, SSR head/body, asset tags) is never scanned again.
+ * `@inertiaHead` precedes `@inertia` so the latter never consumes the former.
+ */
+const DIRECTIVE_RE =
+  /@inertiaHead\b|@inertia(?![a-zA-Z(])|@viteRefresh\b|@vite\(\s*['"]([^'"]+)['"]\s*\)|@asset\(\s*['"]([^'"]+)['"]\s*\)/g;
+
 export function processDirectives(template: string, ctx: DirectiveContext): string {
-  let out = template;
   const base = normalizeAssetBase(ctx.base);
+  return template.replace(
+    DIRECTIVE_RE,
+    (full: string, viteEntry: string | undefined, assetPath: string | undefined) => {
+      if (viteEntry !== undefined) return renderVite(viteEntry, ctx, base);
+      if (assetPath !== undefined) return renderAsset(assetPath, ctx, base);
+      if (full === '@inertiaHead') return ctx.ssrHead;
+      if (full === '@viteRefresh') return ctx.isDev ? viteRefreshPreamble(base) : '';
+      if (ctx.ssrBody) return ctx.ssrBody;
+      return `<div id="app"></div>\n<script data-page="app" type="application/json">${ctx.pageJson}</script>`;
+    },
+  );
+}
 
-  // @inertiaHead FIRST (more specific — prevents @inertia from consuming the 'H')
-  out = out.replace(/@inertiaHead\b/g, () => ctx.ssrHead);
+/** `@vite('entry')` — in dev: HMR client + React Refresh preamble + entry script. */
+function renderVite(entry: string, ctx: DirectiveContext, base: string): string {
+  if (ctx.isDev) {
+    return [
+      `<script type="module" src="${base}@vite/client"></script>`,
+      viteRefreshPreamble(base),
+      `<script type="module" src="${base}${entry}"></script>`,
+    ].join('\n');
+  }
+  const entryRecord = ctx.manifest?.[entry];
+  if (!entryRecord) {
+    throw new Error(`[nestjs-inertia] manifest entry not found for "${entry}"`);
+  }
+  const scriptTag = `<script type="module" src="${base}${entryRecord.file}"></script>`;
+  const cssTags = (entryRecord.css ?? [])
+    .map((href) => `<link rel="stylesheet" href="${base}${href}" />`)
+    .join('\n');
+  return [scriptTag, cssTags].filter(Boolean).join('\n');
+}
 
-  // @inertia (no args) — lookahead ensures we don't match inside @inertiaHead (already consumed)
-  out = out.replace(/@inertia(?![a-zA-Z(])/g, () => {
-    if (ctx.ssrBody) return ctx.ssrBody;
-    return `<div id="app"></div>\n<script data-page="app" type="application/json">${ctx.pageJson}</script>`;
-  });
-
-  // @viteRefresh (no args)
-  out = out.replace(/@viteRefresh\b/g, () => (ctx.isDev ? viteRefreshPreamble(base) : ''));
-
-  // @vite('entry') — in dev: HMR client + React Refresh preamble + entry script
-  out = out.replace(/@vite\(\s*['"]([^'"]+)['"]\s*\)/g, (_full, entry: string) => {
-    if (ctx.isDev) {
-      return [
-        `<script type="module" src="${base}@vite/client"></script>`,
-        viteRefreshPreamble(base),
-        `<script type="module" src="${base}${entry}"></script>`,
-      ].join('\n');
-    }
-    const entryRecord = ctx.manifest?.[entry];
-    if (!entryRecord) {
-      throw new Error(`[nestjs-inertia] manifest entry not found for "${entry}"`);
-    }
-    const scriptTag = `<script type="module" src="${base}${entryRecord.file}"></script>`;
-    const cssTags = (entryRecord.css ?? [])
-      .map((href) => `<link rel="stylesheet" href="${base}${href}" />`)
-      .join('\n');
-    return [scriptTag, cssTags].filter(Boolean).join('\n');
-  });
-
-  // @asset('path')
-  out = out.replace(/@asset\(\s*['"]([^'"]+)['"]\s*\)/g, (_full, path: string) => {
-    if (ctx.isDev) return `${base}${path}`;
-    const entry = ctx.manifest?.[path];
-    return entry ? `${base}${entry.file}` : `${base}${path}`;
-  });
-
-  return out;
+/** `@asset('path')` — the hashed build file in production, the source path in dev. */
+function renderAsset(path: string, ctx: DirectiveContext, base: string): string {
+  if (ctx.isDev) return `${base}${path}`;
+  const entry = ctx.manifest?.[path];
+  return entry ? `${base}${entry.file}` : `${base}${path}`;
 }

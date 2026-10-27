@@ -1,7 +1,12 @@
 import diagnostics_channel from 'node:diagnostics_channel';
 import { type DiagnosticEvent, channelName } from '@dudousxd/nestjs-diagnostics';
+import { Controller, Get, Req } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import type { Request } from 'express';
+import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { InertiaRenderDiagnostic } from '../src/diagnostics.js';
+import { InertiaModule } from '../src/index.js';
 import { Inertia } from '../src/markers.js';
 import { InertiaService } from '../src/service.js';
 import { fakeRequest } from './helpers/fake-request.js';
@@ -177,5 +182,46 @@ describe('diagnostics — zero-cost when off', () => {
     const { svc } = makeService(req, fakeResponse(), { diagnostics: false });
     await svc.render('Home', { a: 1 });
     expect(events).toHaveLength(0);
+  });
+});
+
+describe('diagnostics — XHR page serialized once', () => {
+  let serializations = 0;
+  class Counted {
+    toJSON() {
+      serializations++;
+      return 'counted';
+    }
+  }
+
+  @Controller()
+  class CountedController {
+    @Get('/counted')
+    async show(@Req() req: Request): Promise<void> {
+      await req.inertia.render('Counted', { value: new Counted(), text: 'héllo' });
+    }
+  }
+
+  it('measures pageBytes on the same string Express sends', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [InertiaModule.forRoot({ version: 'v1' })],
+      controllers: [CountedController],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    await app.init();
+    try {
+      const events = captureEvents();
+      serializations = 0;
+      const res = await request(app.getHttpServer()).get('/counted').set('X-Inertia', 'true');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
+      expect(res.headers['x-inertia']).toBe('true');
+      expect(res.body).toMatchObject({ component: 'Counted', props: { value: 'counted' } });
+      expect(serializations).toBe(1);
+      expect(events).toHaveLength(1);
+      expect(events[0]?.pageBytes).toBe(Buffer.byteLength(res.text, 'utf8'));
+    } finally {
+      await app.close();
+    }
   });
 });

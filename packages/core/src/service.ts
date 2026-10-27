@@ -27,18 +27,78 @@ const OMIT = Symbol('inertia.omit');
  */
 const EMPTY_KEYS: string[] = [];
 
+/**
+ * True for the containers the nested marker resolver descends into: arrays and plain
+ * objects (prototype `Object.prototype` or `null`). Everything else (Date, Map, class
+ * instances with a `toJSON`, ORM entities) is a leaf, left for `JSON.stringify` to
+ * serialize natively.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 /** Returns true if the value contains any `always()` markers at any nesting depth. */
 function containsAlwaysMarker(value: unknown): boolean {
   if (isMarker(value)) {
     return getMarkerKind(value as Marker) === 'always';
   }
   if (Array.isArray(value)) {
-    return value.some(containsAlwaysMarker);
+    for (const item of value) if (containsAlwaysMarker(item)) return true;
+    return false;
   }
-  if (typeof value === 'object' && value !== null) {
-    return Object.values(value as Record<string, unknown>).some(containsAlwaysMarker);
+  if (isPlainObject(value)) {
+    for (const k in value) if (containsAlwaysMarker(value[k])) return true;
   }
   return false;
+}
+
+/**
+ * Adds to `holders` every array / plain object under `value` that has a marker
+ * somewhere beneath it. Returns true when `value` is, or holds, a marker.
+ */
+function collectMarkerHolders(value: unknown, holders: Set<unknown>): boolean {
+  if (isMarker(value)) return true;
+  let found = false;
+  if (Array.isArray(value)) {
+    for (const item of value) if (collectMarkerHolders(item, holders)) found = true;
+  } else if (isPlainObject(value)) {
+    for (const k in value) if (collectMarkerHolders(value[k], holders)) found = true;
+  }
+  if (found) holders.add(value);
+  return found;
+}
+
+/**
+ * Applies the partial-reload sub-path filter to a marker-free value: leaves are kept
+ * only when their path is listed or is a prefix of a listed path. With no filter the
+ * value is returned as is.
+ */
+function filterBySubKeep(
+  value: unknown,
+  relPath: string,
+  subKeep: string[] | null,
+): unknown | typeof OMIT {
+  if (subKeep === null) return value;
+  if (Array.isArray(value)) {
+    const out: unknown[] = [];
+    for (const item of value) {
+      const filtered = filterBySubKeep(item, relPath, subKeep);
+      if (filtered !== OMIT) out.push(filtered);
+    }
+    return out;
+  }
+  if (isPlainObject(value)) {
+    const out: Record<string, unknown> = {};
+    for (const k in value) {
+      const filtered = filterBySubKeep(value[k], `${relPath}.${k}`, subKeep);
+      if (filtered !== OMIT) out[k] = filtered;
+    }
+    return out;
+  }
+  const included = subKeep.some((k) => k === relPath || k.startsWith(`${relPath}.`));
+  return included ? value : OMIT;
 }
 
 /**
@@ -56,6 +116,8 @@ interface NestedResolveContext {
    * e.g. if top-level keep=["user.avatar"], subKeep=["avatar"] for the "user" object.
    */
   subKeep: string[] | null;
+  /** Containers holding a marker somewhere beneath them (see {@link collectMarkerHolders}). */
+  markerHolders: Set<unknown>;
   /** True when this is a full reload (no X-Inertia-Partial-Data). */
   isFullReload: boolean;
   /** Once cache keys the client already holds fresh (X-Inertia-Except-Once-Props). */
@@ -70,24 +132,32 @@ interface NestedResolveContext {
   reportRescue: (path: string, err: unknown) => void;
 }
 
+/** True when a child needs the async resolver: a marker, or a container holding one. */
+function needsResolve(value: unknown, ctx: NestedResolveContext): boolean {
+  return isMarker(value) || ctx.markerHolders.has(value);
+}
+
 /**
- * Recursively resolve a nested plain object, walking all keys and resolving markers
- * at any depth with the same semantics as the top-level resolver.
+ * Recursively resolve a nested plain object, resolving markers at any depth with the
+ * same semantics as the top-level resolver. Markers resolve one at a time, in key order.
  */
 async function resolveNestedObjectValue(
   obj: Record<string, unknown>,
   ctx: NestedResolveContext,
 ): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    const resolved = await resolveNestedValueInner(v, k, ctx);
+  for (const k in obj) {
+    const v = obj[k];
+    const resolved = needsResolve(v, ctx)
+      ? await resolveNestedValueInner(v, k, ctx)
+      : filterBySubKeep(v, k, ctx.subKeep);
     if (resolved !== OMIT) out[k] = resolved;
   }
   return out;
 }
 
 /**
- * Inner recursive resolver. Works on arbitrary values (markers, objects, arrays, scalars).
+ * Inner recursive resolver for a marker or a container known to hold one.
  *
  * @param value   Value to resolve
  * @param relPath Path relative to ctx.topKey (e.g. "profile.avatar" for user.profile.avatar)
@@ -105,31 +175,25 @@ async function resolveNestedValueInner(
   if (Array.isArray(value)) {
     const out: unknown[] = [];
     for (const item of value) {
-      const resolved = await resolveNestedValueInner(item, relPath, ctx);
+      const resolved = needsResolve(item, ctx)
+        ? await resolveNestedValueInner(item, relPath, ctx)
+        : filterBySubKeep(item, relPath, ctx.subKeep);
       if (resolved !== OMIT) out.push(resolved);
     }
     return out;
   }
 
-  if (typeof value === 'object' && value !== null) {
-    const obj = value as Record<string, unknown>;
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      const childPath = `${relPath}.${k}`;
-      const resolved = await resolveNestedValueInner(v, childPath, ctx);
-      if (resolved !== OMIT) out[k] = resolved;
-    }
-    return out;
+  const obj = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const k in obj) {
+    const v = obj[k];
+    const childPath = `${relPath}.${k}`;
+    const resolved = needsResolve(v, ctx)
+      ? await resolveNestedValueInner(v, childPath, ctx)
+      : filterBySubKeep(v, childPath, ctx.subKeep);
+    if (resolved !== OMIT) out[k] = resolved;
   }
-
-  // Scalar value: apply sub-path filter if active
-  if (ctx.subKeep !== null) {
-    // Include scalars only if their relPath is explicitly listed OR is a prefix of a listed path
-    const included = ctx.subKeep.some((k) => k === relPath || k.startsWith(`${relPath}.`));
-    if (!included) return OMIT;
-  }
-
-  return value;
+  return out;
 }
 
 async function resolveMarker(
@@ -674,18 +738,23 @@ export class InertiaService {
         }
       }
 
-      if (typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)) {
-        // Walk nested object for markers
-        resolved = await resolveNestedObjectValue(resolved as Record<string, unknown>, {
-          topKey: key,
-          subKeep: nestedKeep,
-          isFullReload: keep === null,
-          exceptOnceKeys,
-          deferredProps,
-          onceProps,
-          rescuedProps,
-          reportRescue,
-        });
+      if (isPlainObject(resolved)) {
+        // Walk the object only when it holds a marker or a sub-path filter applies.
+        const markerHolders = new Set<unknown>();
+        collectMarkerHolders(resolved, markerHolders);
+        if (markerHolders.size > 0 || nestedKeep !== null) {
+          resolved = await resolveNestedObjectValue(resolved, {
+            topKey: key,
+            subKeep: nestedKeep,
+            markerHolders,
+            isFullReload: keep === null,
+            exceptOnceKeys,
+            deferredProps,
+            onceProps,
+            rescuedProps,
+            reportRescue,
+          });
+        }
       }
 
       finalProps[key] = resolved;
@@ -721,11 +790,13 @@ export class InertiaService {
 
     const isInertia = !!this.req.header('X-Inertia');
 
-    // Publish one diagnostic per response (XHR path). `pageBytes` reuses the same
-    // serialization `.json(page)` needs; `resolvedProps` is passed BY REFERENCE so
-    // telescope's redactBounded clips/masks it (never pre-stringified here).
+    // Publish one diagnostic per response (XHR path). The page is serialized once:
+    // `pageBytes` is measured on the same string the response sends. `resolvedProps`
+    // is passed BY REFERENCE so telescope's redactBounded clips/masks it.
     if (isInertia) {
+      this.res.setHeader('X-Inertia', 'true').setHeader('Vary', 'X-Inertia');
       if (diagOn) {
+        const serialized = JSON.stringify(page);
         publishInertiaRender(
           this.buildRenderDiagnostic(page, sharedKeys, {
             isPartial,
@@ -740,10 +811,13 @@ export class InertiaService {
             clientVersion: clientVersion ?? null,
             encryptHistory,
             ssr: false,
+            pageBytes: Buffer.byteLength(serialized, 'utf8'),
           }),
         );
+        this.res.json(page, serialized);
+        return;
       }
-      this.res.setHeader('X-Inertia', 'true').setHeader('Vary', 'X-Inertia').json(page);
+      this.res.json(page);
       return;
     }
 
@@ -926,6 +1000,8 @@ export class InertiaService {
       clientVersion: string | null;
       encryptHistory: boolean;
       ssr: boolean;
+      /** Byte length of the serialized page, when the caller already has it. */
+      pageBytes?: number;
     },
   ): InertiaRenderDiagnostic {
     return buildDiagnostic(
@@ -951,7 +1027,7 @@ export class InertiaService {
         assetVersion: this.deps.assetVersion,
         encryptHistory: meta.encryptHistory,
         clearHistory: this.clearHistoryFlag,
-        pageBytes: Buffer.byteLength(JSON.stringify(page), 'utf8'),
+        pageBytes: meta.pageBytes ?? Buffer.byteLength(JSON.stringify(page), 'utf8'),
       },
     );
   }

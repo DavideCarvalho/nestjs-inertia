@@ -115,3 +115,288 @@ describe('FileBasedShellRenderer', () => {
     }
   });
 });
+
+describe('FileBasedShellRenderer — template engines and directives in page data', () => {
+  const render = (renderer: FileBasedShellRenderer, props: Record<string, unknown>) =>
+    renderer.render({
+      page: { component: 'H', props, url: '/', version: 'v1' },
+      ssr: null,
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } },
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+
+  it('embeds the page JSON once when a prop contains @inertia', async () => {
+    const renderer = new FileBasedShellRenderer(makeRoot('<body>{{{inertia}}}</body>', 'hbs'));
+    const html = await render(renderer, { note: 'ping @inertia team' });
+    expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    expect(html.match(/<\/script>/g)).toHaveLength(1);
+    expect(html).toContain('ping @inertia team');
+  });
+
+  it('does not run a manifest lookup for @vite(...) inside props', async () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const renderer = new FileBasedShellRenderer(
+        makeRoot('<head>{{{vite "app.tsx"}}}</head><body>{{{inertia}}}</body>', 'hbs'),
+      );
+      const html = await render(renderer, { note: "@vite('missing.tsx') @asset('app.tsx')" });
+      expect(html).toContain('/assets/app-x.js');
+      expect(html).toContain("@vite('missing.tsx') @asset('app.tsx')");
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  });
+
+  it('leaves directives inside the SSR head and body alone', async () => {
+    const renderer = new FileBasedShellRenderer(
+      makeRoot('<head>{{{inertiaHead}}}</head><body>{{{inertia}}}</body>', 'hbs'),
+    );
+    const html = await renderer.render({
+      page: { component: 'H', props: {}, url: '/', version: 'v1' },
+      ssr: {
+        head: ['<title>@inertia @viteRefresh</title>'],
+        body: '<div id="app">@vite(\'missing.tsx\') @inertiaHead</div>',
+      },
+      manifest: {},
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+    expect(html).toBe(
+      '<head><title>@inertia @viteRefresh</title></head><body><div id="app" data-server-rendered="true">@vite(\'missing.tsx\') @inertiaHead</div></body>',
+    );
+  });
+
+  it('still expands directives written into the template next to engine syntax', async () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const renderer = new FileBasedShellRenderer(
+        makeRoot(
+          "<head>@vite('app.tsx')<link href=\"@asset('app.tsx')\"></head><body>{{#if page}}@inertia{{/if}}</body>",
+          'hbs',
+        ),
+      );
+      const html = await render(renderer, { note: '@inertia' });
+      expect(html).toContain('<script type="module" src="/assets/app-x.js"></script>');
+      expect(html).toContain('<link href="/assets/app-x.js">');
+      expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+      expect(html).not.toContain('nestjsinertia');
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  });
+
+  it('expands directives in pug attribute values and text', async () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const renderer = new FileBasedShellRenderer(
+        makeRoot(
+          'html\n  head\n    link(href="@asset(\'app.tsx\')")\n  body\n    | @inertia\n',
+          'pug',
+        ),
+      );
+      const html = await render(renderer, { note: '@inertia' });
+      expect(html).toContain('<link href="/assets/app-x.js"/>');
+      expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  });
+});
+
+describe('FileBasedShellRenderer — directives in partials and includes', () => {
+  const origEnv = process.env.NODE_ENV;
+  afterEach(() => {
+    process.env.NODE_ENV = origEnv;
+  });
+
+  function makeViews(files: Record<string, string>): string {
+    const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-partials-'));
+    mkdirSync(join(dir, 'inertia'));
+    for (const [name, content] of Object.entries(files)) {
+      writeFileSync(join(dir, 'inertia', name), content);
+    }
+    process.chdir(dir);
+    return dir;
+  }
+
+  async function renderRoot(rootView: string) {
+    process.env.NODE_ENV = 'production';
+    const renderer = new FileBasedShellRenderer(rootView);
+    return renderer.render({
+      page: {
+        component: 'H',
+        props: { note: "@vite('missing.tsx') @inertia" },
+        url: '/',
+        version: 'v1',
+      },
+      ssr: null,
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } },
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+  }
+
+  function expectExpanded(html: string) {
+    expect(html).toContain('<script type="module" src="/assets/app-x.js"></script>');
+    expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    expect(html).toContain("@vite('missing.tsx') @inertia");
+    expect(html).not.toContain('nestjsinertia');
+  }
+
+  it('expands directives in a Handlebars partial', async () => {
+    const { default: Handlebars } = await import('handlebars');
+    Handlebars.registerPartial('appHead', "@vite('app.tsx')");
+    Handlebars.registerPartial('appBody', '@inertia');
+    try {
+      makeViews({ 'root.hbs': '<head>{{> appHead}}</head><body>{{> appBody}}</body>' });
+      expectExpanded(await renderRoot('inertia/root.hbs'));
+    } finally {
+      Handlebars.unregisterPartial('appHead');
+      Handlebars.unregisterPartial('appBody');
+    }
+  });
+
+  it('expands directives in an EJS include', async () => {
+    makeViews({
+      'root.ejs': "<head><%- include('head') %></head><body><%- include('body') %></body>",
+      'head.ejs': "@vite('app.tsx')",
+      'body.ejs': '@inertia',
+    });
+    expectExpanded(await renderRoot('inertia/root.ejs'));
+  });
+
+  it('expands directives in a Pug include', async () => {
+    makeViews({
+      'root.pug': 'html\n  head\n    include head.pug\n  body\n    include body.pug\n',
+      'head.pug': "| @vite('app.tsx')\n",
+      'body.pug': '| @inertia\n',
+    });
+    expectExpanded(await renderRoot('inertia/root.pug'));
+  });
+
+  it('expands directives in a Liquid include', async () => {
+    makeViews({
+      'root.liquid':
+        "<head>{% include 'inertia/head.liquid' %}</head><body>{% include 'inertia/body.liquid' %}</body>",
+      'head.liquid': "@vite('app.tsx')",
+      'body.liquid': '@inertia',
+    });
+    expectExpanded(await renderRoot('inertia/root.liquid'));
+  });
+});
+
+describe('FileBasedShellRenderer — page text printed by the engine stays literal', () => {
+  const origEnv = process.env.NODE_ENV;
+  afterEach(() => {
+    process.env.NODE_ENV = origEnv;
+  });
+
+  const title = "@inertia @inertiaHead @vite('x') @asset('app.tsx') @viteRefresh";
+
+  function makeViews(files: Record<string, string>): void {
+    const dir = mkdtempSync(join(tmpdir(), 'nestjs-inertia-page-text-'));
+    mkdirSync(join(dir, 'inertia'));
+    for (const [name, content] of Object.entries(files)) {
+      writeFileSync(join(dir, 'inertia', name), content);
+    }
+    process.chdir(dir);
+  }
+
+  async function renderRoot(rootView: string) {
+    process.env.NODE_ENV = 'production';
+    return new FileBasedShellRenderer(rootView).render({
+      page: { component: 'H', props: { title, tags: ['a@b'] }, url: '/u/@me', version: 'v1' },
+      ssr: { head: ['<meta name="x">'], body: '<div id="app">SSR</div>' },
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } },
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+  }
+
+  function expectLiteral(html: string) {
+    const quote = "(?:'|&#39;|&#x27;)";
+    expect(html).toMatch(
+      new RegExp(
+        `<title>@inertia @inertiaHead @vite\\(${quote}x${quote}\\) @asset\\(${quote}app\\.tsx${quote}\\) @viteRefresh</title>`,
+      ),
+    );
+    expect(html).toContain('<p>/u/@me a@b</p>');
+    expect(html).toContain('<script type="module" src="/assets/app-x.js"></script>');
+    expect(html.match(/<meta name="x">/g)).toHaveLength(1);
+    expect(html.match(/data-server-rendered/g)).toHaveLength(1);
+    expect(html).not.toContain('nestjsinertia');
+  }
+
+  it('Handlebars', async () => {
+    const { default: Handlebars } = await import('handlebars');
+    Handlebars.registerPartial('pageText', "@vite('app.tsx')@inertiaHead");
+    try {
+      makeViews({
+        'root.hbs':
+          '<head><title>{{page.props.title}}</title>{{> pageText}}</head><body><p>{{page.url}} {{page.props.tags.[0]}}</p>@inertia</body>',
+      });
+      expectLiteral(await renderRoot('inertia/root.hbs'));
+    } finally {
+      Handlebars.unregisterPartial('pageText');
+    }
+  });
+
+  it('EJS', async () => {
+    makeViews({
+      'root.ejs':
+        "<head><title><%= page.props.title %></title><%- include('head') %></head><body><p><%= page.url %> <%= page.props.tags[0] %></p>@inertia</body>",
+      'head.ejs': "@vite('app.tsx')@inertiaHead",
+    });
+    expectLiteral(await renderRoot('inertia/root.ejs'));
+  });
+
+  it('Pug', async () => {
+    makeViews({
+      'root.pug':
+        'html\n  head\n    title= page.props.title\n    include head.pug\n  body\n    p #{page.url} #{page.props.tags[0]}\n    | @inertia\n',
+      'head.pug': "| @vite('app.tsx')@inertiaHead\n",
+    });
+    expectLiteral(await renderRoot('inertia/root.pug'));
+  });
+
+  it('Liquid', async () => {
+    makeViews({
+      'root.liquid':
+        "<head><title>{{ page.props.title }}</title>{% include 'inertia/head.liquid' %}</head><body><p>{{ page.url }} {{ page.props.tags[0] }}</p>@inertia</body>",
+      'head.liquid': "@vite('app.tsx')@inertiaHead",
+    });
+    expectLiteral(await renderRoot('inertia/root.liquid'));
+  });
+});
+
+describe('FileBasedShellRenderer — the masked page view is built only when read', () => {
+  it.each([
+    ['hbs', '<body>{{{inertia}}}</body>'],
+    ['ejs', '<body><%- inertia %></body>'],
+    ['pug', 'body!= inertia\n'],
+    ['liquid', '<body>{{ inertia }}</body>'],
+  ])('%s template that never reads page', async (ext, source) => {
+    let reads = 0;
+    const props = {};
+    Object.defineProperty(props, 'title', {
+      enumerable: true,
+      get() {
+        reads++;
+        return '@inertia';
+      },
+    });
+    const html = await new FileBasedShellRenderer(makeRoot(source, ext)).render({
+      page: { component: 'H', props, url: '/', version: 'v1' },
+      ssr: null,
+      manifest: null,
+      assetVersion: 'v1',
+      ctx: { req: {}, res: {} },
+    });
+    expect(html.match(/<script data-page="app"/g)).toHaveLength(1);
+    expect(reads).toBe(1);
+  });
+});

@@ -22,7 +22,22 @@ type ExpressRes = {
   end(chunk?: string): void;
   type(t: string): ExpressRes;
   flush?: () => void;
+  app?: { get(setting: string): unknown };
 };
+
+/**
+ * True when the app keeps Express's default JSON settings, so `JSON.stringify(body)`
+ * is byte-identical to what `res.json(body)` would send.
+ */
+function usesDefaultJsonSettings(r: ExpressRes): boolean {
+  const app = r.app;
+  if (typeof app?.get !== 'function') return false;
+  return (
+    app.get('json replacer') === undefined &&
+    app.get('json spaces') === undefined &&
+    !app.get('json escape')
+  );
+}
 
 export const expressAdapter: RequestAdapter = {
   adaptRequest(raw): InertiaRequest {
@@ -62,8 +77,13 @@ export const expressAdapter: RequestAdapter = {
       getHeader(name) {
         return r.getHeader(name);
       },
-      json(body) {
-        r.json(body);
+      json(body, serialized) {
+        if (serialized === undefined || !usesDefaultJsonSettings(r)) {
+          r.json(body);
+          return;
+        }
+        if (!r.getHeader('Content-Type')) r.setHeader('Content-Type', 'application/json');
+        r.send(serialized);
       },
       html(body) {
         r.setHeader('Content-Type', 'text/html; charset=utf-8');

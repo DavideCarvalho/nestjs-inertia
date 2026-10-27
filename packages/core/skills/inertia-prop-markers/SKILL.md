@@ -149,3 +149,21 @@ return { rows: Inertia.merge(() => rows(), { matchOn: 'id' }) };
 Mechanism: the `X-Inertia` merge headers reference top-level keys, so a nested
 `merge()` resolves its value but carries no merge metadata by design.
 `Source: packages/core/src/service.ts (resolveMarker, kind === 'merge' nested branch comment)`
+
+### Mistake 4: nesting a marker inside a class instance
+
+```ts
+// Wrong: the resolver does not look inside class instances (DTOs, entities, Date)
+return { user: Object.assign(new UserDto(), { feed: Inertia.defer(() => feed()) }) };
+```
+
+```ts
+// Correct: nest markers in plain objects or arrays
+return { user: { ...dto, feed: Inertia.defer(() => feed()) } };
+```
+
+Mechanism: nested markers are found by descending arrays and plain objects only
+(prototype `Object.prototype` or `null`). Any other object is sent as is, so
+`Date`, `Map`, `Set` and classes with a `toJSON` serialize exactly as
+`JSON.stringify` would.
+`Source: packages/core/src/service.ts (isPlainObject, collectMarkerHolders)`

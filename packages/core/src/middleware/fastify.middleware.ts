@@ -1,4 +1,5 @@
 import { fastifyAdapter } from '../adapter/fastify.js';
+import { defineLazyInertia } from '../helpers/define-lazy-inertia.js';
 import type { InertiaServiceDeps } from '../service.js';
 import { InertiaService } from '../service.js';
 
@@ -18,12 +19,14 @@ export function registerFastifyInertia(
 
   app.decorateRequest('inertia', null);
   app.addHook('onRequest', async (req: unknown, reply: unknown) => {
-    const adaptedReq = fastifyAdapter.adaptRequest(req);
-    const adaptedRes = fastifyAdapter.adaptResponse(reply);
-    (req as unknown as { inertia: InertiaService }).inertia = new InertiaService(
-      adaptedReq,
-      adaptedRes,
-      depsFactory(),
+    defineLazyInertia(
+      req as object,
+      () =>
+        new InertiaService(
+          fastifyAdapter.adaptRequest(req),
+          fastifyAdapter.adaptResponse(reply),
+          depsFactory(),
+        ),
     );
   });
 }

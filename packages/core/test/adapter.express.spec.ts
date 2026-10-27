@@ -105,6 +105,22 @@ describe('expressAdapter', () => {
     expect(raw._calls).toContain('json:{"ok":true}');
   });
 
+  it('adaptResponse.json sends a pre-serialized body as is under default JSON settings', () => {
+    const raw = Object.assign(fakeExpressRes(), { app: { get: (_setting: string) => undefined } });
+    const res = expressAdapter.adaptResponse(raw);
+    res.json({ ok: true }, '{"ok":true}');
+    expect(raw._calls).toEqual(['send:{"ok":true}']);
+    expect(raw._headers['Content-Type']).toBe('application/json');
+  });
+
+  it('adaptResponse.json lets Express serialize when the app customizes JSON output', () => {
+    const settings: Record<string, unknown> = { 'json spaces': 2 };
+    const raw = Object.assign(fakeExpressRes(), { app: { get: (k: string) => settings[k] } });
+    const res = expressAdapter.adaptResponse(raw);
+    res.json({ ok: true }, '{"ok":true}');
+    expect(raw._calls).toEqual(['json:{"ok":true}']);
+  });
+
   it('adaptResponse.html uses .send with Content-Type text/html', () => {
     const raw = fakeExpressRes();
     const res = expressAdapter.adaptResponse(raw);

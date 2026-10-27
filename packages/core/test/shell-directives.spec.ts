@@ -129,3 +129,47 @@ describe('processDirectives', () => {
     expect(out).toContain('<script data-page="app" type="application/json">');
   });
 });
+
+describe('processDirectives — substituted content is never re-scanned', () => {
+  const prodCtx = (overrides: Partial<DirectiveContext> = {}) =>
+    baseCtx({
+      isDev: false,
+      manifest: { 'app.tsx': { file: 'assets/app-x.js' } } as Manifest,
+      ...overrides,
+    });
+
+  it('leaves @vite(...) inside the page JSON alone instead of failing the manifest lookup', () => {
+    const pageJson = JSON.stringify({ props: { note: "see @vite('missing.tsx')" } });
+    const out = processDirectives("@vite('app.tsx')@inertia", prodCtx({ pageJson }));
+    expect(out).toContain('/assets/app-x.js');
+    expect(out).toContain(pageJson);
+  });
+
+  it('leaves @asset(...) inside the page JSON unrewritten', () => {
+    const pageJson = JSON.stringify({ props: { note: "@asset('app.tsx')" } });
+    const out = processDirectives('@inertia', prodCtx({ pageJson }));
+    expect(out).toContain(pageJson);
+    expect(out).not.toContain('/assets/app-x.js');
+  });
+
+  it('leaves directives inside the SSR head and body alone', () => {
+    const out = processDirectives(
+      '<head>@inertiaHead</head><body>@inertia</body>',
+      prodCtx({
+        ssrHead: '<title>@inertia @viteRefresh</title>',
+        ssrBody: '<div id="app">@inertiaHead @asset(\'app.tsx\')</div>',
+      }),
+    );
+    expect(out).toBe(
+      '<head><title>@inertia @viteRefresh</title></head><body><div id="app">@inertiaHead @asset(\'app.tsx\')</div></body>',
+    );
+  });
+
+  it('still expands @inertiaHead before @inertia in a single pass', () => {
+    const out = processDirectives(
+      "@inertiaHead|@inertia|@viteRefresh|@asset('app.tsx')",
+      prodCtx({ ssrHead: 'HEAD', ssrBody: 'BODY' }),
+    );
+    expect(out).toBe('HEAD|BODY||/assets/app-x.js');
+  });
+});
