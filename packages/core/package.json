@@ -44,6 +44,7 @@
     "@dudousxd/nestjs-diagnostics": "^0.7.2"
   },
   "scripts": {
+    "prepack": "node ../../scripts/check-package-exports.mjs",
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",

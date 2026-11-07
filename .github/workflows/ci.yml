@@ -44,6 +44,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build packages
         run: pnpm exec turbo run build --filter='./packages/*'
+      - name: Every package.json entry exists
+        run: pnpm check:exports
       - name: Typecheck packages
         run: pnpm exec turbo run typecheck --filter='./packages/*'
       - name: Test packages

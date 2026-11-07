@@ -94,6 +94,7 @@
     "skills"
   ],
   "scripts": {
+    "prepack": "node ../../scripts/check-package-exports.mjs",
     "build": "tsup && cp src/svelte/Link.svelte src/svelte/Deferred.svelte src/svelte/WhenVisible.svelte dist/svelte/",
     "test": "vitest run",
     "test:watch": "vitest",

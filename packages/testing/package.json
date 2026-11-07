@@ -53,6 +53,7 @@
   "sideEffects": ["./dist/jest.js", "./dist/jest.cjs", "./dist/vitest.js", "./dist/vitest.cjs"],
   "files": ["dist/", "README.md", "CHANGELOG.md"],
   "scripts": {
+    "prepack": "node ../../scripts/check-package-exports.mjs",
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",

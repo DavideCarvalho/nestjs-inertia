@@ -27,7 +27,8 @@
   "sideEffects": false,
   "files": ["dist/"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "prepack": "node ../../scripts/check-package-exports.mjs",
+    "build": "tsc -p tsconfig.json --incremental false",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
