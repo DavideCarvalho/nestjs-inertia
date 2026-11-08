@@ -5,7 +5,7 @@ import { defineConfig } from 'tsup';
 // other passes and can delete files they already wrote (e.g. `index.d.cts`, seen under a loaded
 // `turbo run build`). Clean the output directory once, before any pass starts, and let no entry
 // clean. `scripts/check-package-exports.mjs` (prepack) fails the pack if an entry is still missing.
-rmSync('dist', { recursive: true, force: true });
+rmSync(new URL('./dist/', import.meta.url), { recursive: true, force: true });
 
 export default defineConfig([
   {

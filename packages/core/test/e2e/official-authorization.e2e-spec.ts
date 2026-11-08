@@ -164,7 +164,7 @@ describe('nestjs-inertia under the official @nestjs/authorization guard', () => 
   // Observation: a denial is Nest's plain JSON exception body for BOTH a full page load and
   // an Inertia XHR visit. No HTML shell, no X-Inertia header, no redirect to a login page —
   // the Inertia client shows it in its "non-Inertia response" dialog. Mapping it (e.g. 401 →
-  // redirect to login) is left to the app's own exception filter, see docs/guides/auth-redirect.
+  // redirect to login) is left to the app's own exception filter, see docs/recipes/auth-redirect.
   it('a denied page request is answered with JSON, not an Inertia page', async () => {
     const guestPage = await request(app.getHttpServer()).get('/dashboard');
     expect(guestPage.status).toBe(401);
