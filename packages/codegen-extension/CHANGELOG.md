@@ -1,5 +1,11 @@
 # @dudousxd/nestjs-inertia-codegen-extension
 
+## 0.4.1
+
+### Patch Changes
+
+- [#100](https://github.com/DavideCarvalho/nestjs-inertia/pull/100) [`098bb98`](https://github.com/DavideCarvalho/nestjs-inertia/commit/098bb98c559193267aefe38de9f96fa35e8e487d) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - Fix packages that could be published without files their `exports` point to. The two tsup passes (ESM, CJS) no longer each clean `dist/` while running at the same time; `dist/` is cleaned once before the build. `tsc` builds no longer use a `.tsbuildinfo` that can outlive `dist/` and skip emitting files. A new `check:exports` step (also `prepack`) fails the release if any `exports`/`main`/`types` path is missing.
+
 ## 0.4.0
 
 ### Minor Changes
