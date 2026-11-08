@@ -1,5 +1,11 @@
 # Changelog — @dudousxd/nestjs-inertia
 
+## 1.9.4
+
+### Patch Changes
+
+- [#102](https://github.com/DavideCarvalho/nestjs-inertia/pull/102) [`c8ede01`](https://github.com/DavideCarvalho/nestjs-inertia/commit/c8ede01917d950abfa502266823a49f27764ecbc) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - Accept `@dudousxd/nestjs-diagnostics` `>=0.7.2 <1.0.0` instead of `^0.7.2`, so an app on diagnostics 0.8 keeps one copy instead of installing 0.7 next to it.
+
 ## 1.9.3
 
 ### Patch Changes
