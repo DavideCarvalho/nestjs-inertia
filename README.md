@@ -58,7 +58,7 @@ Full documentation site: **https://davidecarvalho.github.io/nestjs-inertia/**
 |---|---|
 | [Getting Started](https://davidecarvalho.github.io/nestjs-inertia/getting-started/) | Quickstart: install five packages, run `nestjs-inertia init`, wire two lines — done in under five minutes. Includes deep-dive on forRoot options, codegen, typed Link, testing, and production build. |
 | [Guides](https://davidecarvalho.github.io/nestjs-inertia/guides/installation/) | Installation, multi-app, testing, codegen, typed client |
-| [Recipes](https://davidecarvalho.github.io/nestjs-inertia/recipes/auth-redirect/) | Copy-paste solutions: auth redirect guard, not-found filter |
+| [Recipes](https://davidecarvalho.github.io/nestjs-inertia/recipes/auth-redirect/) | Copy-paste solutions: auth redirect guard, file upload, global prefix, nestjs-filter, `@nestjs/authorization`, not-found filter |
 | [Packages](https://davidecarvalho.github.io/nestjs-inertia/packages/core/) | Per-package API reference |
 | [Architecture](https://davidecarvalho.github.io/nestjs-inertia/reference/architecture/) | Package responsibilities and request lifecycle |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, TDD discipline, commit style, Changesets flow |
