@@ -14,6 +14,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "check:exports": "node scripts/check-package-exports.mjs --all",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:watch": "turbo run test:watch",
@@ -23,7 +24,7 @@
     "format": "biome format --write .",
     "changeset": "changeset",
     "version-packages": "changeset version && sh scripts/sync-versions.sh && biome check --write .",
-    "release": "pnpm -r --filter './packages/*' build && changeset publish"
+    "release": "pnpm -r --filter './packages/*' build && pnpm check:exports && changeset publish"
   },
   "pnpm": {
     "overrides": {

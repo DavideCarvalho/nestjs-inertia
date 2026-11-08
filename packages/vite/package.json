@@ -43,6 +43,7 @@
   "sideEffects": false,
   "files": ["dist/", "README.md", "CHANGELOG.md", "skills"],
   "scripts": {
+    "prepack": "node ../../scripts/check-package-exports.mjs",
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",

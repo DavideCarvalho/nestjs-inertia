@@ -6,6 +6,7 @@
     "file-upload",
     "global-prefix",
     "nestjs-filter",
+    "official-authorization",
     "not-found"
   ]
 }

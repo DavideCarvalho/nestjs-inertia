@@ -1,0 +1,94 @@
+---
+title: "@nestjs/authorization"
+icon: KeyRound
+description: Use NestJS's first-party, deny-by-default authorization guard with Inertia pages, and send a denied visitor to the sign-in page instead of a JSON error.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+[`@nestjs/authorization`](https://docs.nestjs.com/security/authorization) registers
+`AuthorizationGuard` as a global guard by default, and that guard **denies by default**: a
+route whose handler and controller declare no `@Can(...)` and no `Can.Anyone()` is refused
+(401 for a guest, 403 for a signed-in user).
+
+## Nothing of the library's to open
+
+nestjs-inertia mounts **no controller of its own**: no dev, codegen or client endpoint. It works
+through middleware (Inertia request parsing, method spoofing), Fastify hooks, interceptors
+(rendering, the asset-version 409, redirects) and an exception filter. So there is no
+library route for the guard to refuse, and `InertiaModule` has no `decorators` option: there is
+nothing for one to apply to. The Vite dev server (`setupInertiaVite`) is plain middleware too.
+
+The guard only decides **your** page routes, with the official decorators:
+
+```ts title="src/pages.controller.ts"
+import { Can } from '@nestjs/authorization';
+import { Controller, Get } from '@nestjs/common';
+import { Inertia } from '@dudousxd/nestjs-inertia';
+import { DashboardPolicy } from './dashboard.policy';
+
+@Controller()
+export class PagesController {
+  @Get('/')
+  @Can.Anyone() // public page
+  @Inertia('Home')
+  home() {
+    return {};
+  }
+
+  @Get('/dashboard')
+  @Can(DashboardPolicy, 'view') // the policy decides
+  @Inertia('Dashboard')
+  dashboard() {
+    return {};
+  }
+}
+```
+
+<Callout type="warn">
+  A page with no `@Can()` and no `Can.Anyone()` (or `@Public()` from `@nestjs/authentication`) is
+  refused. That includes your sign-in page: mark it `Can.Anyone()`.
+</Callout>
+
+The asset-version check (stale `X-Inertia-Version` → 409 + full page load) runs at render time,
+after guards. A page the guard refuses answers 401/403 first.
+
+## What a denied page request looks like
+
+The guard throws Nest's `UnauthorizedException` / `ForbiddenException`, which reach the client
+as Nest's plain JSON body (`{"message":"Unauthorized","statusCode":401}`) for both a full page
+load and an Inertia visit. The Inertia client can't render that as a page: it shows it in its
+"invalid response" dialog.
+
+The library leaves this to you, because what a denial should do is app-specific (which URL is the
+sign-in page, whether a 403 renders an error page or redirects). An app-level exception filter
+maps it the way the [Auth Redirect](/docs/recipes/auth-redirect) recipe does: `302` for a page
+load, `409` + `X-Inertia-Location` for an Inertia visit.
+
+```ts title="src/auth-denied.filter.ts"
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+
+@Catch(UnauthorizedException)
+export class SignInRedirectFilter implements ExceptionFilter {
+  catch(_exception: UnauthorizedException, host: ArgumentsHost) {
+    const req = host.switchToHttp().getRequest<Request>();
+    const res = host.switchToHttp().getResponse<Response>();
+    const target = `/signin?return_to=${encodeURIComponent(req.originalUrl)}`;
+    if (req.headers['x-inertia']) {
+      res.status(409).setHeader('X-Inertia-Location', target).end();
+    } else {
+      res.redirect(302, target);
+    }
+  }
+}
+```
+
+Register it with `{ provide: APP_FILTER, useClass: SignInRedirectFilter }`. Requests that never
+reach a page (JSON APIs) keep their 401 if you scope the filter to your page controllers with
+`@UseFilters(SignInRedirectFilter)` instead.
