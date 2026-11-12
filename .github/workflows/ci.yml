@@ -23,7 +23,7 @@ jobs:
       - uses: pnpm/action-setup@v6.1.0
       - uses: actions/setup-node@v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec biome ci .
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22]
+        node: [24, 26]
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.1.0
@@ -46,6 +46,9 @@ jobs:
         run: pnpm exec turbo run build --filter='./packages/*'
       - name: Every package.json entry exists
         run: pnpm check:exports
+      - name: Package checks (publint + attw)
+        if: matrix.node == 24
+        run: pnpm check:package
       - name: Typecheck packages
         run: pnpm exec turbo run typecheck --filter='./packages/*'
       - name: Test packages

@@ -85,7 +85,7 @@ class SignInRedirectFilter implements ExceptionFilter {
 async function createApp(extraProviders: unknown[] = []): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
     imports: [
-      InertiaModule.forRoot({ version: 'v1', codegen: { enabled: false } }),
+      InertiaModule.forRoot({ version: 'v1' }),
       // Global APP_GUARD, deny by default.
       AuthorizationModule.forRoot(),
       PagesModule,

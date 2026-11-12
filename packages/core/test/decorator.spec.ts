@@ -32,6 +32,6 @@ describe('@Inertia decorator + Inertia namespace coexistence', () => {
     expect(typeof Inertia.defer).toBe('function');
     expect(typeof Inertia.merge).toBe('function');
     expect(typeof Inertia.once).toBe('function');
-    expect(typeof Inertia.lazy).toBe('function');
+    expect('lazy' in Inertia).toBe(false);
   });
 });

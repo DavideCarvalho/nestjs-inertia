@@ -12,7 +12,7 @@ import { NestjsCodegenModule } from '@dudousxd/nestjs-codegen/nest';
 import { codegenConfig } from '../nestjs-codegen.config';
 @Module({
   imports: [
-    InertiaModule.forRoot({ rootView: 'inertia/index.html', codegen: { enabled: false } }),
+    InertiaModule.forRoot({ rootView: 'inertia/index.html' }),
     NestjsCodegenModule.forRoot({ ...codegenConfig, extensions: [nestjsInertiaCodegen()] }),
   ],
 })
@@ -93,18 +93,10 @@ describe('runDoctorChecks', () => {
     expect(byName(results, 'apps/web/src/app.module.ts').status).toBe('pass');
   });
 
-  it('warns when the legacy auto-watch is not disabled', () => {
-    const moduleSource = HEALTHY_MODULE.replace(', codegen: { enabled: false }', '');
-    const results = runDoctorChecks(healthyTree({ 'src/app.module.ts': moduleSource }));
-    const check = byName(results, 'auto-watch disabled');
-    expect(check.status).toBe('warn');
-    expect(check.fix).toMatch(/codegen#auto-watch/);
-  });
-
   it('fails when no codegen entrypoint is configured', () => {
     const results = runDoctorChecks(
       memoryTree({
-        'src/app.module.ts': 'InertiaModule.forRoot({ codegen: { enabled: false } })',
+        'src/app.module.ts': 'InertiaModule.forRoot({})',
         ...pkg('@dudousxd/nestjs-inertia', '1.8.1'),
       }),
     );

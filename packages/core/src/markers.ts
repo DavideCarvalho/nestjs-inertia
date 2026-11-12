@@ -1,8 +1,5 @@
-import { Logger } from '@nestjs/common';
 import { createInertiaDecorator } from './decorator/inertia.decorator.js';
 import type { InertiaPages } from './types/registry.js';
-
-const markerLogger = new Logger('Inertia');
 
 const MARKER = Symbol('inertia.marker');
 
@@ -42,21 +39,6 @@ function optional<T>(fn: () => T | Promise<T>): Marker<T> {
   return make('optional', fn);
 }
 
-let _lazyWarned = false;
-/**
- * @deprecated Use `Inertia.optional()` instead. `Inertia.lazy()` is a deprecated alias
- * kept for v1/v2 backward compatibility and will be removed in a future major version.
- */
-function lazy<T>(fn: () => T | Promise<T>): Marker<T> {
-  if (!_lazyWarned) {
-    _lazyWarned = true;
-    markerLogger.warn(
-      'Inertia.lazy() is deprecated and will be removed in a future version. ' +
-        'Use Inertia.optional() instead (Inertia v3).',
-    );
-  }
-  return optional(fn);
-}
 /**
  * Deferred props: omitted from the first visit, announced under `deferredProps`,
  * then fetched by the client via an automatic partial reload.
@@ -136,7 +118,6 @@ function scroll<T>(
 type InertiaFn = ((component: PageName) => MethodDecorator) & {
   always: typeof always;
   optional: typeof optional;
-  lazy: typeof lazy;
   defer: typeof defer;
   once: typeof once;
   merge: typeof merge;
@@ -145,7 +126,6 @@ type InertiaFn = ((component: PageName) => MethodDecorator) & {
 const Inertia = Object.assign(inertiaDecorator, {
   always,
   optional,
-  lazy,
   defer,
   once,
   merge,
@@ -172,9 +152,4 @@ export function getMarkerValue<T>(marker: Marker<T>): () => T | Promise<T> {
 
 export function getMarkerMeta(marker: Marker): Record<string, unknown> {
   return marker.meta;
-}
-
-/** @internal — resets the once-per-process lazy deprecation flag (for tests only) */
-export function _resetLazyDeprecationWarning(): void {
-  _lazyWarned = false;
 }

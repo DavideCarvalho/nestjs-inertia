@@ -1,6 +1,6 @@
 {
   "name": "@dudousxd/nestjs-inertia-testing",
-  "version": "1.6.2",
+  "version": "3.0.0",
   "description": "Testing helpers for @dudousxd/nestjs-inertia — expectInertia matchers, fakes, TestingModule.",
   "license": "MIT",
   "repository": {
@@ -71,7 +71,7 @@
     "@nestjs/core": "^12.2.0",
     "@nestjs/testing": "^12.2.0",
     "@nestjs/platform-express": "^12.2.0",
-    "@types/node": "^20.19.41",
+    "@types/node": "^24.19.2",
     "@types/supertest": "^6.0.2",
     "express": "^4.22.2",
     "reflect-metadata": "^0.2.2",
@@ -81,6 +81,6 @@
     "vitest": "^4.1.8"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }
