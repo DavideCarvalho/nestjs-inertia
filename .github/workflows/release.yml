@@ -137,7 +137,7 @@ jobs:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      # npm learned OIDC in 11.5.1 and the Node pinned above ships 10.x, so without this the
+      # npm learned OIDC in 11.5.1 and the npm bundled with the pinned Node may be older, so without this the
       # publish fails as `E404 - PUT https://registry.npmjs.org/<pkg>`: npm answers 404 rather
       # than 403 for an unauthorized package, which reads as "no such package" rather than
       # "not authenticated". Upgraded here rather than by moving the Node version, so the
@@ -313,7 +313,7 @@ jobs:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      # npm learned OIDC in 11.5.1 and the Node pinned above ships 10.x, so without this the
+      # npm learned OIDC in 11.5.1 and the npm bundled with the pinned Node may be older, so without this the
       # publish fails as `E404 - PUT https://registry.npmjs.org/<pkg>`: npm answers 404 rather
       # than 403 for an unauthorized package, which reads as "no such package" rather than
       # "not authenticated". Upgraded here rather than by moving the Node version, so the
