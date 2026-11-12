@@ -1,5 +1,19 @@
 # @dudousxd/nestjs-inertia-codegen-extension
 
+## 0.5.0
+
+### Minor Changes
+
+- [#103](https://github.com/DavideCarvalho/nestjs-inertia/pull/103) [`a56d050`](https://github.com/DavideCarvalho/nestjs-inertia/commit/a56d0506d952d05dd45cf5eb8c472181dfdfbecf) Thanks [@DavideCarvalho](https://github.com/DavideCarvalho)! - **Breaking:** require Node.js 24 or newer (`engines.node` is now `>=24`, was `>=20`; `@dudousxd/nestjs-inertia-cli` declares it for the first time). CI tests on Node 24 and 26.
+
+  Also removed (see the Upgrading page in the docs):
+
+  - `@dudousxd/nestjs-inertia`: `Inertia.lazy()`, the deprecated alias of `Inertia.optional()`. Rename the calls.
+  - `@dudousxd/nestjs-inertia`: the `codegen` option of `InertiaModule.forRoot()` (and its `CodegenOptions` type and the `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` variable). It auto-started the deleted legacy `@dudousxd/nestjs-inertia-codegen` watcher. Delete `codegen: { enabled: false }` from your module; run `nestjs-codegen --watch`, or register `NestjsCodegenModule.forRoot(...)` from `@dudousxd/nestjs-codegen/nest` to watch from the app.
+  - `@dudousxd/nestjs-inertia-cli`: `doctor` no longer checks for `codegen: { enabled: false }`, and `init` no longer prints it.
+
+  > Released as **3.0.1**: `2.0.0`, `2.0.1` and `3.0.0` of these packages exist on npm from accidental publishes, so this major (Node 24+) ships one patch past them.
+
 ## 0.4.1
 
 ### Patch Changes
