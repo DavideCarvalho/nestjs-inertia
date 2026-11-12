@@ -22,7 +22,7 @@ the current recommended setup:
 - `vite.config.ts` — `nestInertia` plugin + `@` / `~` / `~codegen` aliases
 - `.gitignore` — appends `.nestjs-inertia/`
 
-It then prints the manual wiring: the `InertiaModule.forRoot({ ..., codegen: { enabled: false } })`
+It then prints the manual wiring: the `InertiaModule.forRoot({ rootView })`
 registration snippet, the `setupInertiaVite` bootstrap, and the codegen scripts.
 
 Idempotent: existing files are never overwritten without `--force`. Use `--dry-run` to preview,
@@ -33,7 +33,6 @@ Idempotent: existing files are never overwritten without `--force`. Use `--dry-r
 Checks the known pitfalls, each with a pass/warn/fail line and a docs pointer:
 
 - `InertiaModule` registered (module entry resolved from the codegen config)
-- legacy auto-watch disabled (`codegen: { enabled: false }`)
 - codegen configured, `nestjsInertiaCodegen()` registered, and no CLI/module config drift
 - root view shell + Vite entry + `nestInertia` plugin present
 - Vite client manifest exists after a build (`dist/inertia/client/.vite/manifest.json`)

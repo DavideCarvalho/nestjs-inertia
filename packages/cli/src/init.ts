@@ -244,9 +244,7 @@ export function planInit(tree: ProjectTree, options: InitOptions = {}): InitPlan
 export function nextStepsText(framework: Framework): string {
   return `Next steps (manual wiring):
 
-1. Register InertiaModule in src/app.module.ts — note codegen: { enabled: false }
-   (the module's legacy auto-watch targets the old codegen package; the
-   @dudousxd/nestjs-codegen CLI below replaces it):
+1. Register InertiaModule in src/app.module.ts:
 
      import { resolve } from 'node:path';
      import { InertiaModule } from '@dudousxd/nestjs-inertia';
@@ -255,7 +253,6 @@ export function nextStepsText(framework: Framework): string {
        imports: [
          InertiaModule.forRoot({
            rootView: resolve(__dirname, '../inertia/index.html'),
-           codegen: { enabled: false },
          }),
        ],
      })

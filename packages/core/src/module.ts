@@ -7,8 +7,6 @@ import {
   Module,
   type NestModule,
   type OnApplicationBootstrap,
-  type OnApplicationShutdown,
-  type OnModuleInit,
   type Provider,
   RequestMethod,
 } from '@nestjs/common';
@@ -50,21 +48,8 @@ import type {
 } from './types.js';
 import { InertiaValidationFilter } from './validation/inertia-validation.filter.js';
 
-/** Minimal interface matching `Watcher` from `@dudousxd/nestjs-inertia-codegen`. */
-interface CodegenWatcher {
-  close(): Promise<void>;
-}
-
-/** Minimal interface matching the codegen module's public API used here. */
-interface CodegenModule {
-  loadConfig(cwd?: string): Promise<unknown>;
-  watch(config: unknown): Promise<CodegenWatcher>;
-}
-
 @Module({})
-export class InertiaModule
-  implements NestModule, OnModuleInit, OnApplicationBootstrap, OnApplicationShutdown
-{
+export class InertiaModule implements NestModule, OnApplicationBootstrap {
   /**
    * Shared provider set for both `forRoot` and `forRootAsync`.
    * Does NOT include the options provider(s) — callers prepend those themselves.
@@ -382,7 +367,6 @@ export class InertiaModule
   }
 
   private readonly logger = new Logger(InertiaModule.name);
-  private codegenWatcher: CodegenWatcher | null = null;
 
   constructor(
     @Inject(HttpAdapterHost) private readonly httpAdapterHost: HttpAdapterHost,
@@ -392,43 +376,6 @@ export class InertiaModule
     @Inject('INERTIA_SHELL_RENDERER') private readonly shellRenderer: ShellRenderer,
     @Inject('INERTIA_SSR_LOADER') private readonly ssrLoader: { load: () => Promise<never> },
   ) {}
-
-  /**
-   * Test seam: override in a subclass or via `Object.defineProperty` to inject a stub
-   * codegen module without touching NestJS DI. Production callers never touch this.
-   *
-   * @internal
-   */
-  protected _resolveCodegenModule(): Promise<CodegenModule> {
-    // Use a computed specifier so bundlers (esbuild/Vite) skip static analysis.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-    const dynamicImport = new Function('s', 'return import(s)') as (s: string) => Promise<unknown>;
-    return dynamicImport('@dudousxd/nestjs-inertia-codegen') as Promise<CodegenModule>;
-  }
-
-  /**
-   * Whether the codegen auto-watch is eligible to start (cheap, synchronous gates
-   * only — package resolvability and config presence are checked at bootstrap).
-   */
-  private _codegenAutoWatchEnabled(): boolean {
-    if (process.env.NODE_ENV === 'production') return false;
-    if (process.env.NESTJS_INERTIA_DISABLE_AUTO_CODEGEN === '1') return false;
-    if (this.options.codegen?.enabled === false) return false;
-    return true;
-  }
-
-  /**
-   * The auto-watch only starts in `onApplicationBootstrap`, so a boot that stalls
-   * mid-init (hung provider factory, unreachable dependency, …) silently produces
-   * no codegen output. Log a hint early so a stalled boot leaves a trace of WHY
-   * the generated files haven't appeared yet.
-   */
-  onModuleInit(): void {
-    if (!this._codegenAutoWatchEnabled()) return;
-    this.logger.log(
-      'Codegen auto-watch will start after application bootstrap. If this is the last codegen line you see, the app has not finished booting yet.',
-    );
-  }
 
   async onApplicationBootstrap(): Promise<void> {
     // ── Fastify wiring (unchanged) ──────────────────────────────────────────────
@@ -464,69 +411,6 @@ export class InertiaModule
         );
       }
     }
-
-    // ── Codegen auto-bootstrap ──────────────────────────────────────────────────
-    await this._startCodegenWatcher();
-  }
-
-  /**
-   * Auto-starts the codegen file watcher in dev mode.
-   *
-   * Rules (all must pass for the watcher to start):
-   * 1. `process.env.NODE_ENV !== 'production'`
-   * 2. `options.codegen?.enabled !== false`
-   * 3. `@dudousxd/nestjs-inertia-codegen` is resolvable (peer-optional)
-   * 4. A `nestjs-inertia.config.ts` (or equivalent) is present in `process.cwd()`
-   *
-   * If the CLI watcher already holds the lock file, the codegen package returns a
-   * no-op watcher — no conflict occurs.
-   *
-   * This method NEVER throws; any unexpected error is logged as a warning.
-   */
-  private async _startCodegenWatcher(): Promise<void> {
-    try {
-      // 1-3. Production / kill-switch env var / explicitly disabled
-      if (!this._codegenAutoWatchEnabled()) return;
-
-      // 4. Lazy-import the codegen package (peer-optional — do not fail if missing).
-      //    _resolveCodegenModule() uses a cast to prevent TS from resolving the module
-      //    at compile time. Override it in tests via subclass to inject a stub.
-      let codegen: CodegenModule;
-      try {
-        codegen = await this._resolveCodegenModule();
-      } catch (err: unknown) {
-        // Package not installed — log warn so devs can debug unexpected import failures
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(
-          `Codegen auto-watch: failed to import @dudousxd/nestjs-inertia-codegen: ${message}`,
-        );
-        return;
-      }
-
-      // 5. Load config — skip if no config file present, warn on other failures
-      let config: unknown;
-      try {
-        config = await codegen.loadConfig(process.cwd());
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`Codegen auto-watch: failed to load config: ${message}`);
-        return;
-      }
-
-      // 6. Start the watcher (lock-file mechanism ensures a second watcher is a no-op)
-      this.codegenWatcher = await codegen.watch(config);
-      this.logger.log('Codegen auto-watch started (dev mode).');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(
-        `Codegen auto-watch failed to start: ${message}. Install @dudousxd/nestjs-inertia-codegen and add nestjs-inertia.config.ts to enable auto-watch, or set codegen: { enabled: false } to suppress this warning.`,
-      );
-    }
-  }
-
-  async onApplicationShutdown(): Promise<void> {
-    await this.codegenWatcher?.close();
-    this.codegenWatcher = null;
   }
 
   configure(consumer: MiddlewareConsumer): void {

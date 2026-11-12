@@ -34,7 +34,7 @@ pnpm add -D @types/react @types/react-dom @vitejs/plugin-react
 </Step>
 <Step>
 
-Run `init` — it detects your frontend framework, scaffolds the HTML shell, Vite config + entry point, and the shared codegen config, then prints the exact snippets to paste — `InertiaModule.forRoot({ rootView, codegen: { enabled: false } })` in `app.module.ts` and `setupInertiaVite(app, {...})` in `main.ts`:
+Run `init` — it detects your frontend framework, scaffolds the HTML shell, Vite config + entry point, and the shared codegen config, then prints the exact snippets to paste — `InertiaModule.forRoot({ rootView })` in `app.module.ts` and `setupInertiaVite(app, {...})` in `main.ts`:
 
 ```bash
 pnpm exec nestjs-inertia init

@@ -556,32 +556,13 @@ type CreateBody   = Path.Body<'POST', '/api/users'>;
 
 ---
 
-## Auto-watch
+## CLI watch mode
 
-`InertiaModule` can start a codegen file watcher automatically on bootstrap in dev mode, so `nest start --watch` alone regenerates files on every controller or page save — no extra command, no extra terminal.
-
-Auto-watch starts when all of these are true:
-
-| Condition | Value |
-|-----------|-------|
-| `NODE_ENV` | not `'production'` |
-| `@dudousxd/nestjs-inertia-codegen` | resolvable (dynamically imported; peer-optional) |
-| `nestjs-inertia.config.ts` | loadable at project root |
-| `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` | not set to `'1'` |
-
-Disable auto-watch in the module:
-
-```ts
-InertiaModule.forRoot({
-  codegen: { enabled: false },
-});
+```bash
+pnpm nestjs-codegen --watch
 ```
 
-Or set `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1` in your shell.
-
-<Callout type="warn">
-  This auto-watch integration predates the `@dudousxd/nestjs-codegen` extraction and still targets the legacy `@dudousxd/nestjs-inertia-codegen` package name, not `@dudousxd/nestjs-codegen`. If you only installed `@dudousxd/nestjs-codegen` (the current, supported codegen — see [Install](#install) above), the auto-watch import will fail to resolve and log a warning; it does not block boot. Run the CLI watcher explicitly instead — see [CLI watch mode](#cli-watch-mode) below — or set `codegen: { enabled: false }` to silence the warning.
-</Callout>
+Reruns whenever a controller or page file changes. To regenerate from the Nest app itself, register `NestjsCodegenModule.forRoot(...)` (see above): it watches in dev and is off in production. When the CLI watcher and the module run at the same time, only one holds the lock and generates files; the other becomes a no-op and logs a warning.
 
 <Callout type="info">
   If your server bundle imports generated files (e.g. route helpers from `.nestjs-inertia/routes.ts`), add this to `nest-cli.json`:
@@ -596,21 +577,12 @@ Or set `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN=1` in your shell.
   ```
 </Callout>
 
----
-
-## CLI watch mode
-
-```bash
-pnpm nestjs-codegen --watch
-```
-
-Reruns whenever a controller or page file changes. When both the auto-watcher and the CLI watcher are running, only one holds the lock and generates files. The other becomes a no-op and logs a warning. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically.
 
 ---
 
 ## Doctor command
 
-The `nestjs-inertia doctor` command (from [`@dudousxd/nestjs-inertia-cli`](/docs/getting-started)) diagnoses the known setup pitfalls: `InertiaModule` registration, the legacy auto-watch left enabled (`codegen: { enabled: false }` missing), CLI/module codegen config drift, root view shell + Vite entry + `nestInertia` plugin, the Vite client manifest after a build, `@dudousxd/nestjs-inertia >= 1.4.4` (streaming fix), the flat registry `.d.ts` shape, peer version coherence, and `.gitignore`.
+The `nestjs-inertia doctor` command (from [`@dudousxd/nestjs-inertia-cli`](/docs/getting-started)) diagnoses the known setup pitfalls: `InertiaModule` registration, CLI/module codegen config drift, root view shell + Vite entry + `nestInertia` plugin, the Vite client manifest after a build, `@dudousxd/nestjs-inertia >= 1.4.4` (streaming fix), the flat registry `.d.ts` shape, peer version coherence, and `.gitignore`.
 
 ```bash
 pnpm exec nestjs-inertia doctor

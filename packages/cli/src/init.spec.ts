@@ -107,10 +107,10 @@ describe('renderInitPlan', () => {
 });
 
 describe('nextStepsText', () => {
-  it('includes the module registration snippet with codegen disabled', () => {
+  it('includes the module registration snippet', () => {
     const text = nextStepsText('react');
     expect(text).toContain('InertiaModule.forRoot');
-    expect(text).toContain('codegen: { enabled: false }');
+    expect(text).not.toContain('codegen: { enabled');
     expect(text).toContain('setupInertiaVite');
     expect(text).toContain('nestjs-inertia doctor');
   });

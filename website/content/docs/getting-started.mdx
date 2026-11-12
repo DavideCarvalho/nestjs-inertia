@@ -13,7 +13,7 @@ The fastest way to get Inertia.js running in NestJS is two steps: install the pa
 
 ## Prerequisites
 
-- **Node.js 20+**
+- **Node.js 24+**
 - **NestJS 10+** (v10, v11 and v12 are supported)
 - **TypeScript 5+**
 - One of: **React**, **Vue 3**, or **Svelte 5**
@@ -107,7 +107,7 @@ This command detects your frontend framework from `package.json` (pass `--framew
 | `vite.config.ts` | Vite config with the framework plugin + `nestInertia` plugin + `@`/`~`/`~codegen` aliases |
 | `.gitignore` | Created or appended with `.nestjs-inertia/` |
 
-`init` then prints the manual wiring as next steps: the `InertiaModule.forRoot(...)` registration snippet (with `codegen: { enabled: false }`), the `setupInertiaVite` bootstrap for `main.ts`, and the `codegen` / `build:client` scripts to add to `package.json` -- see Step 3 below.
+`init` then prints the manual wiring as next steps: the `InertiaModule.forRoot(...)` registration snippet, the `setupInertiaVite` bootstrap for `main.ts`, and the `codegen` / `build:client` scripts to add to `package.json` -- see Step 3 below.
 
 Every create is idempotent: re-running `init` skips files that already exist (pass `--force` to overwrite), and `--dry-run` previews what would be written without touching anything.
 
@@ -121,7 +121,7 @@ Every create is idempotent: re-running `init` skips files that already exist (pa
 
 `init` prints these exact snippets; paste them into your app.
 
-**`src/app.module.ts`** -- register `InertiaModule` (note `codegen: { enabled: false }` -- the module's legacy auto-watch targets the old codegen package; the `nestjs-codegen` CLI replaces it, see the [Codegen guide](/docs/guides/codegen#auto-watch)):
+**`src/app.module.ts`** -- register `InertiaModule`:
 
 ```ts
 import { resolve } from 'node:path';
@@ -131,7 +131,6 @@ import { InertiaModule } from '@dudousxd/nestjs-inertia';
   imports: [
     InertiaModule.forRoot({
       rootView: resolve(__dirname, '../inertia/index.html'),
-      codegen: { enabled: false },
     }),
   ],
 })
@@ -279,7 +278,7 @@ No Zod, no `defineContract`, no `@ApplyContract`. Just standard NestJS.
 
 ## Codegen
 
-Run `pnpm nestjs-codegen --watch` alongside `nest start --watch` to regenerate types on every controller/page change. `InertiaModule` can also auto-start a watcher on bootstrap in dev mode — see [Auto-watch](/docs/guides/codegen#auto-watch) for the exact conditions and a caveat about the package it currently targets. Either way, codegen is disabled automatically in production.
+Run `pnpm nestjs-codegen --watch` alongside `nest start --watch` to regenerate types on every controller/page change, or register `NestjsCodegenModule.forRoot(...)` to run the watcher inside the app in dev (see the [Codegen guide](/docs/guides/codegen)). Codegen never runs in production.
 
 On startup the watcher emits files into `.nestjs-inertia/` at the project root:
 

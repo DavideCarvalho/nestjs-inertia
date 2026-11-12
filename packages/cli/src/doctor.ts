@@ -85,20 +85,8 @@ export function runDoctorChecks(tree: ProjectTree): CheckResult[] {
     status: moduleRegistered ? 'pass' : 'fail',
     fix: moduleRegistered
       ? undefined
-      : `Add InertiaModule.forRoot({ rootView, codegen: { enabled: false } }) to your AppModule — ${DOCS}/getting-started`,
+      : `Add InertiaModule.forRoot({ rootView }) to your AppModule — ${DOCS}/getting-started`,
   });
-
-  // -- Legacy auto-watch not left on ---------------------------------------------------------
-  if (moduleRegistered && moduleSource) {
-    const autoWatchDisabled = /codegen\s*:\s*\{\s*enabled\s*:\s*false/.test(moduleSource);
-    results.push({
-      name: 'InertiaModule codegen auto-watch disabled (enabled: false)',
-      status: autoWatchDisabled ? 'pass' : 'warn',
-      fix: autoWatchDisabled
-        ? undefined
-        : `Auto-watch targets the legacy @dudousxd/nestjs-inertia-codegen package; set codegen: { enabled: false } and run nestjs-codegen instead — ${DOCS}/guides/codegen#auto-watch`,
-    });
-  }
 
   // -- Codegen configured + CLI/module config drift guard -------------------------------------
   const codegenConfig = tree.read('nestjs-codegen.config.ts');

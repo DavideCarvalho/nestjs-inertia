@@ -125,28 +125,6 @@ export interface SsrOptions {
 }
 
 /**
- * Options controlling the auto-bootstrap of the `@dudousxd/nestjs-inertia-codegen` file watcher
- * that is started automatically inside `InertiaModule.onApplicationBootstrap` in dev mode.
- *
- * @example
- * // Disable auto-watch entirely (e.g. in CI or when running the CLI watcher manually):
- * InertiaModule.forRoot({ codegen: { enabled: false } })
- */
-export interface CodegenOptions {
-  /**
-   * Whether to auto-start the codegen watcher when the application bootstraps.
-   *
-   * - `'auto'` (default) — start when `NODE_ENV !== 'production'` AND the
-   *   `@dudousxd/nestjs-inertia-codegen` package is installed AND a
-   *   `nestjs-inertia.config.ts` config file is present.
-   * - `true` — same as `'auto'`.
-   * - `false` — never auto-start; useful when running the CLI watcher (`nestjs-inertia codegen --watch`)
-   *   in a separate terminal or when you want to disable codegen entirely.
-   */
-  enabled?: boolean | 'auto';
-}
-
-/**
  * Options controlling the {@link InertiaValidationFilter}, which auto-flashes a
  * field-keyed error bag and 303-redirects back when validation fails on an
  * Inertia non-GET request.
@@ -169,7 +147,6 @@ export interface InertiaModuleOptions {
   historyEncryption?: { default?: boolean };
   autoUpgrade303?: boolean;
   methodSpoofing?: boolean;
-  codegen?: CodegenOptions;
   flashStore?: FlashStore;
   /** Hard-disable diagnostics_channel publishing even when a subscriber exists.
    *  Default true. Set false to guarantee no publish in hardened prod. */

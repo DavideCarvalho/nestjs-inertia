@@ -1,0 +1,28 @@
+---
+title: Upgrading
+icon: CircleArrowUp
+description: What to change in your project when you move to a new major of nestjs-inertia.
+---
+
+## Node.js 24, `Inertia.lazy()` and the `codegen` option
+
+The release that requires **Node.js 24 or newer** covers every package: `@dudousxd/nestjs-inertia`,
+`-client`, `-testing`, `-vite`, `-cli` and `-codegen-extension`. Upgrade the Node.js version your
+app runs and builds on first.
+
+Then update your code:
+
+- **`Inertia.lazy()` is gone.** It was an alias of `Inertia.optional()`, so rename the calls:
+
+  ```ts
+  // before
+  stats: Inertia.lazy(() => this.stats.load()),
+  // after
+  stats: Inertia.optional(() => this.stats.load()),
+  ```
+
+- **`InertiaModule.forRoot({ codegen })` is gone**, along with the `CodegenOptions` type and the
+  `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` variable. The option only started the watcher of the old
+  `@dudousxd/nestjs-inertia-codegen` package. Delete `codegen: { enabled: false }` from your module.
+  To regenerate in dev, run `nestjs-codegen --watch`, or register `NestjsCodegenModule.forRoot(...)`
+  from `@dudousxd/nestjs-codegen/nest` (see the [Codegen guide](/docs/guides/codegen)).

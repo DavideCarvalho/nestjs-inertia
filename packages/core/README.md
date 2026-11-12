@@ -195,7 +195,6 @@ return {
 - `defer` — listed in `page.deferredProps`; client v2 dispatches a follow-up request
 - `merge` — resolves + marks as merge target (client appends/replaces)
 - `once` — resolves on first visit, cached until `X-Inertia-Reset-Once` lists the key
-- `lazy` — alias for `optional` (v1 compat)
 
 ## Auto-included infrastructure
 
@@ -258,36 +257,9 @@ InertiaModule.forRoot({
 
 Bundle must export `default { render(page) }` or named `render(page)` returning `{ head: string[], body: string }`.
 
-## Codegen auto-watch (dev mode)
+## Generated files in the server bundle
 
-When `@dudousxd/nestjs-inertia-codegen` is installed and a `nestjs-inertia.config.ts` config file is present, `InertiaModule` automatically starts the codegen file watcher when your app bootstraps — so `nest start --watch` is the only command you need in dev mode. Generated files appear under `.nestjs-inertia/` and update on every controller or page save. **No extra command, no extra terminal.**
-
-**Auto-watch starts when all of these are true:**
-1. `NODE_ENV !== 'production'`
-2. `@dudousxd/nestjs-inertia-codegen` is installed (peer-optional — silently skipped if absent)
-3. `nestjs-inertia.config.ts` is present at the project root
-4. `NESTJS_INERTIA_DISABLE_AUTO_CODEGEN` is not set to `'1'`
-
-**Running the CLI watcher manually:** `pnpm nestjs-inertia codegen --watch` in a separate terminal gives you explicit control. When both the auto-watcher and the CLI watcher run at the same time, only one holds the lock and generates files; the other logs a warning and becomes a no-op. Stale locks from crashed processes are detected via PID-liveness check and overwritten automatically.
-
-**No files generated? Check that the app finished booting.** The auto-watch starts in `onApplicationBootstrap` — it runs only after *every* module finishes initializing. A boot that stalls mid-init (a hung provider factory, an unreachable dependency like a dead local SQS/Redis container, etc.) produces no codegen output and no codegen error. The log tells you which case you're in:
-
-```
-[InertiaModule] Codegen auto-watch will start after application bootstrap. ...   ← logged early (module init)
-[InertiaModule] Codegen auto-watch started (dev mode).                           ← logged once the watcher is live
-```
-
-If you see the first line but never the second, the app hasn't finished booting — fix the stalled dependency (or run `pnpm nestjs-inertia codegen` for a one-shot generation in the meantime).
-
-**Disable auto-watch** (CI or explicit control):
-
-```ts
-InertiaModule.forRoot({
-  codegen: { enabled: false },
-});
-```
-
-**Optional `nest-cli.json` snippet** — only useful if your server bundle imports generated files:
+Only if your server bundle imports generated files, copy them with `nest-cli.json`:
 
 ```json
 {

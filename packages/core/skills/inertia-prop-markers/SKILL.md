@@ -2,8 +2,8 @@
 name: inertia-prop-markers
 description: >-
   Control how page props are resolved across full and partial Inertia reloads
-  with @dudousxd/nestjs-inertia prop markers: Inertia.always, Inertia.optional
-  (lazy), Inertia.defer, Inertia.merge, Inertia.once, Inertia.scroll, plus
+  with @dudousxd/nestjs-inertia prop markers: Inertia.always, Inertia.optional,
+  Inertia.defer, Inertia.merge, Inertia.once, Inertia.scroll, plus
   InertiaService.share for shared props and nested-object marker resolution.
   Use when deferring expensive props, sharing auth/flash props, building
   infinite-scroll or merge-paginated lists, or optimizing partial reloads.
@@ -62,7 +62,7 @@ return {
 ```
 
 - `always` resolves on every render including partial reloads.
-- `optional` (alias `lazy`, deprecated) is omitted from the first/full visit and
+- `optional` is omitted from the first/full visit and
   resolved only when its key appears in `X-Inertia-Partial-Data`.
 
 `Source: packages/core/src/service.ts (kind === 'always' / 'optional'), packages/core/src/markers.ts`

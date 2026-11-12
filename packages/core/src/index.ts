@@ -55,7 +55,6 @@ export type {
   RootViewFn,
   ViteOptions,
   SsrOptions,
-  CodegenOptions,
   InertiaValidationOptions,
   InertiaModuleOptions,
   InertiaFeatureOptions,
