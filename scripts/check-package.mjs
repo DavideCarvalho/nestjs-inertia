@@ -32,10 +32,17 @@ for (const dir of dirs) {
   if (pkg.private === true) continue;
   console.log(`\n▸ ${pkg.name}`);
   const out = mkdtempSync(join(tmpdir(), 'check-package-'));
+  let step = 'publint';
   try {
     execFileSync(bin('publint'), ['run', '--strict', dir], { stdio: 'inherit' });
-    execFileSync('pnpm', ['pack', '--pack-destination', out], { cwd: dir, stdio: 'ignore' });
+    step = 'pnpm pack';
+    execFileSync('pnpm', ['pack', '--pack-destination', out], {
+      cwd: dir,
+      stdio: ['ignore', 'ignore', 'inherit'],
+    });
     const tarball = readdirSync(out).find((f) => f.endsWith('.tgz'));
+    if (!tarball) throw new Error(`pnpm pack produced no tarball in ${out}`);
+    step = 'attw';
     // A package that ships CommonJS (a `require` entry, or a CommonJS package) must resolve from
     // both ESM and CommonJS (`node16` profile: TypeScript's legacy `node10` resolution ignores
     // `exports` subpaths and is not a supported consumer setup). An ESM-only package uses `esm-only`.
@@ -48,7 +55,8 @@ for (const dir of dirs) {
       cwd: dir,
       stdio: 'inherit',
     });
-  } catch {
+  } catch (error) {
+    console.error(`✖ ${pkg.name}: ${step} failed${error?.message ? ` — ${error.message}` : ''}`);
     failed++;
   } finally {
     rmSync(out, { recursive: true, force: true });
