@@ -29,7 +29,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^20.19.41",
+    "@types/node": "^24.19.2",
     "typescript": "^5.4.0",
     "vitest": "^4.1.8"
   },

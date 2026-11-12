@@ -74,7 +74,7 @@
     "@nestjs/common": "^12.2.0",
     "@nestjs/core": "^12.2.0",
     "@types/express": "^4.17.21",
-    "@types/node": "^20.19.41",
+    "@types/node": "^24.19.2",
     "@vitejs/plugin-react": "^4.3.0",
     "express": "^4.22.2",
     "typescript": "^5.4.0",
