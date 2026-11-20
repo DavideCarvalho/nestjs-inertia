@@ -72,11 +72,11 @@
     "@nestjs/testing": "^12.2.0",
     "@nestjs/platform-express": "^12.2.0",
     "@types/node": "^24.19.2",
-    "@types/supertest": "^6.0.2",
+    "@types/supertest": "^7.0.0",
     "express": "^4.22.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "supertest": "^7.0.0",
+    "supertest": "^7.2.2",
     "typescript": "^5.4.0",
     "vitest": "^4.1.8"
   },
